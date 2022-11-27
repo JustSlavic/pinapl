@@ -4,12 +4,12 @@
 _start:
     ldr     r0, [sp, #0]
     add     r1, sp, #4
-    movs    r2, r1
+    mov     r2, sp
 get_env_loop:
     add     r2, #4
     ldr     r3, [r2]
-    cmn     r3, #0
-    ble     get_env_loop
+    cmp     r3, #0
+    bne     get_env_loop
     add     r2, #4
     bl      main
 
