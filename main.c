@@ -29,10 +29,10 @@ int main(int argc, char **argv, char **env)
         write(1, "\n", 1);
     }
 
-    int fd = open("./bui.sh", 0, O_RDONLY);
-    if (fd == -1)
+    int fd = open("./build.sh", 0, O_RDONLY);
+    if (fd < 0)
     {
-        write(1, "Error 1\n", 8);
+        write(1, "Error < 0\n", 10);
     } else if (fd == 0)
     {
         write(1, "Error 0\n", 8);
