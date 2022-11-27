@@ -22,13 +22,24 @@ function compile_assembly {
     handle_errors
 }
 
+function compile_c {
+    SOURCE_FILE=$1
+    OUTPUT_FILE=$2
+    OPTIONS=$3
+
+    $CC $SOURCE_FILE $OPTIONS -o $OUTPUT_FILE
+    handle_errors
+}
+
 compile_assembly "start.s" "start.o" "-ggdb"
 compile_assembly "syscall.s" "syscall.o" "-ggdb"
+
+compile_c "memory.c" "memory.o" "-c -ggdb -nostdlib -Wall -Werror -std=c11"
 
 $CC main.c -c -ggdb -nostdlib -Wall -Werror -std=c11 -o main.o
 handle_errors
 
-$LINKER start.o syscall.o main.o -o main
+$LINKER start.o syscall.o main.o memory.o -o main
 handle_errors
 
 
