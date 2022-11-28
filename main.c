@@ -17,7 +17,7 @@ int main(int argc, char **argv, char **env)
     char buffer[1024] = {0};
     int  buffer_size = read(fd, buffer, 1024);
     write(1, buffer, buffer_size);
-    write(1, "\n", 1);
+    write(1, "EOF\n", 4);
     close(fd);
 
     return 0;

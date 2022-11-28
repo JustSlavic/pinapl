@@ -2,7 +2,7 @@
 .global _start
 
 _start:
-    ldr     r0, [sp, #0]
+    ldr     r0, [sp]
     add     r1, sp, #4
     mov     r2, sp
 get_env_loop:

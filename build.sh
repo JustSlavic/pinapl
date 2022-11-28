@@ -1,6 +1,13 @@
 #!/bin/bash
 
-function handle_errors {
+CC=gcc
+ASM=as
+LINKER=ld
+
+BIN_DIR=bin
+
+function handle_errors
+{
     rc=$?
     if [[ "$rc" -ne 0 ]]
     then
@@ -9,11 +16,8 @@ function handle_errors {
     fi
 }
 
-CC=gcc
-ASM=as
-LINKER=ld
-
-function compile_assembly {
+function compile_assembly
+{
     SOURCE_FILE=$1
     OUTPUT_FILE=$2
     DEBUG=$3
@@ -22,7 +26,8 @@ function compile_assembly {
     handle_errors
 }
 
-function compile_c {
+function compile_c
+{
     SOURCE_FILE=$1
     OUTPUT_FILE=$2
     OPTIONS=$3
@@ -31,20 +36,16 @@ function compile_c {
     handle_errors
 }
 
-compile_assembly "start.s" "start.o" "-ggdb"
-compile_assembly "syscall.s" "syscall.o" "-ggdb"
+mkdir -p $BIN_DIR
 
-compile_c "memory.c" "memory.o" "-c -ggdb -nostdlib -Wall -Werror -std=c11"
+compile_assembly "start.s" "$BIN_DIR/start.o" "-ggdb"
+compile_assembly "syscall.s" "$BIN_DIR/syscall.o" "-ggdb"
 
-$CC main.c -c -ggdb -nostdlib -Wall -Werror -std=c11 -o main.o
+compile_c "memory.c" "$BIN_DIR/memory.o" "-c -ggdb -nostdlib -Wall -Werror -std=c11"
+compile_c "main.c" "$BIN_DIR/main.o" "-c -ggdb -nostdlib -Wall -Werror -std=c11"
+
+$LINKER $BIN_DIR/start.o $BIN_DIR/syscall.o $BIN_DIR/main.o $BIN_DIR/memory.o -o $BIN_DIR/main
 handle_errors
 
-$LINKER start.o syscall.o main.o memory.o -o main
-handle_errors
-
-
-rm start.o
-rm syscall.o
-rm main.o
-chmod +w main
+chmod +w $BIN_DIR/main
 
