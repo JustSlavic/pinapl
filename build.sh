@@ -4,7 +4,18 @@ CC=gcc
 ASM=as
 LINKER=ld
 
-BIN_DIR=bin
+BIN_DIR=bin/
+
+C_SRC="main memory"
+S_SRC="start syscall"
+
+function add_prefix_and_suffix
+{
+    STRING=$1
+    PREFIX=$2
+    SUFFIX=$3
+    echo "$PREFIX${STRING// /$SUFFIX $PREFIX}$SUFFIX"
+}
 
 function handle_errors
 {
@@ -36,15 +47,27 @@ function compile_c
     handle_errors
 }
 
+C_FILES=$(add_prefix_and_suffix "$C_SRC" "src/" ".c")
+S_FILES=$(add_prefix_and_suffix "$S_SRC" "src/" ".s")
+O_FILES=$(add_prefix_and_suffix "$S_SRC $C_SRC" "$BIN_DIR" ".o")
+
 mkdir -p $BIN_DIR
 
-compile_assembly "start.s" "$BIN_DIR/start.o" "-ggdb"
-compile_assembly "syscall.s" "$BIN_DIR/syscall.o" "-ggdb"
+for file in $S_SRC
+do
+    source_path=$(add_prefix_and_suffix "$file" "src/" ".s")
+    object_path=$(add_prefix_and_suffix "$file" "$BIN_DIR" ".o")
+    compile_assembly $source_path $object_path "-ggdb"
+done
 
-compile_c "memory.c" "$BIN_DIR/memory.o" "-c -ggdb -nostdlib -Wall -Werror -std=c11"
-compile_c "main.c" "$BIN_DIR/main.o" "-c -ggdb -nostdlib -Wall -Werror -std=c11"
+for file in $C_SRC
+do
+    source_path=$(add_prefix_and_suffix $file src/ .c)
+    object_path=$(add_prefix_and_suffix $file $BIN_DIR .o)
+    compile_c $source_path $object_path "-c -ggdb -nostdlib -Wall -Werror -std=c11"
+done
 
-$LINKER $BIN_DIR/start.o $BIN_DIR/syscall.o $BIN_DIR/main.o $BIN_DIR/memory.o -o $BIN_DIR/main
+$LINKER $O_FILES -o $BIN_DIR/main
 handle_errors
 
 chmod +w $BIN_DIR/main
