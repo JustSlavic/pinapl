@@ -6,7 +6,7 @@ LINKER=ld
 
 BIN_DIR=bin/
 
-C_SRC="main memory"
+C_SRC="main memory string lexer"
 S_SRC="start syscall"
 
 function add_prefix_and_suffix
@@ -64,7 +64,7 @@ for file in $C_SRC
 do
     source_path=$(add_prefix_and_suffix $file src/ .c)
     object_path=$(add_prefix_and_suffix $file $BIN_DIR .o)
-    compile_c $source_path $object_path "-c -ggdb -nostdlib -Wall -Werror -std=c11"
+    compile_c $source_path $object_path "-c -ggdb -nostdlib -Wall -Werror -std=c11 -Isrc/"
 done
 
 $LINKER $O_FILES -o $BIN_DIR/main
