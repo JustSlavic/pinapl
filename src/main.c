@@ -1,6 +1,7 @@
 #include "syscall.h"
 #include "string.h"
 #include "parser.h"
+#include "allocator.h"
 
 
 int main(int argc, char **argv, char **env)
@@ -13,6 +14,9 @@ int main(int argc, char **argv, char **env)
 
     int memory_buffer_size = 4096;
     void *memory_buffer = mmap2(0, memory_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+
+    allocator a;
+    initialize_memory_arena(&a, memory_buffer, memory_buffer_size);
 
     int fd = open(argv[1], 0, O_RDONLY);
     if (fd < 0)

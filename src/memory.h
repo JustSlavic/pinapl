@@ -4,8 +4,21 @@
 #include "base.h"
 
 
-void *memset(void *destination, int value, size_t count);
-void *memcpy(void *destination, void const *source, size_t count);
+void *memset(void *destination, int value, usize count);
+void *memcpy(void *destination, void const *source, usize count);
+
+usize get_padding(void *pointer, usize alignment);
+void *align_pointer(void *pointer, usize alignment);
+
+typedef struct memory_block
+{
+    void *memory;
+    usize size;
+} memory_block;
+
+
+memory_block allocate_pages(usize size);
+memory_block allocate_pages_at(void *address, usize size);
 
 
 #endif // MEMORY_H

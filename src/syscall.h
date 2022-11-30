@@ -32,7 +32,7 @@ SYSCALL int write(int fd, char const *buffer, int count);
 SYSCALL int read(int fd, char *buffer, int count);
 SYSCALL int open(char const *pathname, int flags, int mode);
 SYSCALL int close(int fd);
-SYSCALL void *mmap2(int address, int length, int protection, int flags, int fd, int page_offset);
+SYSCALL void *mmap2(void *address, int length, int protection, int flags, int fd, int page_offset);
 SYSCALL void munmap(void *start, int length);
 
 

@@ -30,32 +30,32 @@ char *token_type_to_cstring(token_type t)
     return 0;
 }
 
-bool is_ascii_space(char c)
+b32 is_ascii_space(char c)
 {
     return (c == ' ');
 }
 
-bool is_ascii_whitespace(char c)
+b32 is_ascii_whitespace(char c)
 {
     return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n');
 }
 
-bool is_ascii_alpha(char c)
+b32 is_ascii_alpha(char c)
 {
     return ((c >= 'A') && (c <= 'Z')) || ((c >= 'a') && (c <= 'z'));
 }
 
-bool is_ascii_digit(char c)
+b32 is_ascii_digit(char c)
 {
     return (c >= '0') && (c <= '9');
 }
 
-bool is_valid_identifier_head(char c)
+b32 is_valid_identifier_head(char c)
 {
     return (c == '_') || is_ascii_alpha(c);
 }
 
-bool is_valid_identifier_body(char c)
+b32 is_valid_identifier_body(char c)
 {
     return (c == '_') || is_ascii_alpha(c) || is_ascii_digit(c);
 }

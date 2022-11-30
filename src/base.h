@@ -12,14 +12,22 @@ __inline__ static void debug_break(void)
 }
 #endif
 
-typedef unsigned int uint32_t;
-typedef   signed int  int32_t;
+#define ASSERT(EXP) if (EXP) {} else { debug_break(); } (void)0
+#define ASSERT_MSG(EXP, MSG) ASSERT(EXP)
 
-typedef unsigned int  size_t;
-typedef   signed int ssize_t;
+typedef unsigned int b32;
 
-typedef uint32_t bool;
-typedef uint32_t b32;
+typedef unsigned char u8;
+typedef   signed char s8;
+
+typedef unsigned short u16;
+typedef   signed short s16;
+
+typedef unsigned int u32;
+typedef   signed int s32;
+
+typedef unsigned int usize;
+typedef   signed int ssize;
 
 #define true 1
 #define false 0

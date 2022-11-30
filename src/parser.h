@@ -4,7 +4,7 @@
 #include <base.h>
 
 
-typedef bool predicate(char);
+typedef b32 predicate(char);
 
 
 typedef enum
@@ -58,24 +58,24 @@ typedef struct
 typedef struct
 {
     char *buffer;
-    int buffer_size;
+    usize buffer_size;
 
-    int index;
+    usize index;
 
-    int line;
-    int column;
+    usize line;
+    usize column;
 
     token next_token;
-    bool next_token_valid;
+    b32 next_token_valid;
 } lexer;
 
 
-bool is_ascii_space(char c);
-bool is_ascii_whitespace(char c);
-bool is_ascii_alpha(char c);
-bool is_ascii_digit(char c);
-bool is_valid_identifier_head(char c);
-bool is_valid_identifier_body(char c);
+b32 is_ascii_space(char c);
+b32 is_ascii_whitespace(char c);
+b32 is_ascii_alpha(char c);
+b32 is_ascii_digit(char c);
+b32 is_valid_identifier_head(char c);
+b32 is_valid_identifier_body(char c);
 
 char lexer_get_char(lexer *);
 char lexer_eat_char(lexer *);

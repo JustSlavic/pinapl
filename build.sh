@@ -6,7 +6,7 @@ LINKER=ld
 
 BIN_DIR=bin/
 
-C_SRC="main memory string parser"
+C_SRC="main memory allocator string parser"
 S_SRC="start syscall"
 
 function add_prefix_and_suffix
@@ -50,6 +50,9 @@ function compile_c
 C_FILES=$(add_prefix_and_suffix "$C_SRC" "src/" ".c")
 S_FILES=$(add_prefix_and_suffix "$S_SRC" "src/" ".s")
 O_FILES=$(add_prefix_and_suffix "$S_SRC $C_SRC" "$BIN_DIR" ".o")
+
+rm compile_log.txt
+exec 1> >(tee -a compile_log.txt) 2> >(tee -a compile_log.txt >&2)
 
 mkdir -p $BIN_DIR
 
