@@ -4,6 +4,8 @@
 .global write
 .global open
 .global close
+.global mmap2
+.global munmap
 
 
 exit:
@@ -29,3 +31,14 @@ close:
     mov     r7, #0x06
     svc     #0
     bx      lr
+
+mmap2:
+    mov     r7, #0xc0
+    svc     #0
+    bx      lr
+
+munmap:
+    mov     r7, #0x5b
+    svc     #0
+    bx      lr
+

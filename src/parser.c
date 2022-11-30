@@ -1,4 +1,4 @@
-#include "lexer.h"
+#include "parser.h"
 
 
 char *token_type_to_cstring(token_type t)
@@ -18,9 +18,14 @@ char *token_type_to_cstring(token_type t)
         case TOKEN_PLUS: return "TOKEN_PLUS";
         case TOKEN_MINUS: return "TOKEN_MINUS";
         case TOKEN_IDENTIFIER: return "TOKEN_IDENTIFIER";
-        case TOKEN_INT_LITERAL: return "TOKEN_INT_LITERAL";
+        case TOKEN_LITERAL_INT: return "TOKEN_LITERAL_INT";
+        case TOKEN_DOUBLE_COLON: return "TOKEN_DOUBLE_COLON";
+        case TOKEN_ARROW_RIGHT: return "TOKEN_ARROW_RIGHT";
         case TOKEN_KW_RETURN: return "TOKEN_KW_RETURN";
         case TOKEN_EOF: return "TOKEN_EOF";
+        
+        default:
+            return "<token_type>";
     }
     return 0;
 }
@@ -136,6 +141,72 @@ token lexer_get_token(lexer *l)
 
             t.span_size = span_size;
         }
+        else if (is_ascii_digit(c))
+        {
+            t.type = TOKEN_LITERAL_INT;
+            t.line = l->line;
+            t.column = l->column;
+            t.span = l->buffer + l->index;
+            t.span_size = 0;
+
+            int integer = 0;
+
+            while (is_ascii_digit(c))
+            {
+                integer *= 10;
+                integer += (c - '0');
+                lexer_eat_char(l);
+                c = lexer_get_char(l);
+                t.span_size += 1;
+            }
+
+            t.integer_value = integer;
+        }
+        else
+        {
+            t.line = l->line;
+            t.column = l->column;
+            t.span = l->buffer + l->index;
+
+            if (c == ':')
+            {
+                lexer_eat_char(l);
+                c = lexer_get_char(l);
+                if (c == ':')
+                {
+                    t.type = TOKEN_DOUBLE_COLON;
+                    lexer_eat_char(l);
+                    t.span_size = 2;
+                }
+                else
+                {
+                    t.type = TOKEN_COLON;
+                    t.span_size = 1;
+                }
+            }
+            else if (c == '-')
+            {
+                lexer_eat_char(l);
+                c = lexer_get_char(l);
+                if (c == '>')
+                {
+                    t.type = TOKEN_ARROW_RIGHT;
+                    lexer_eat_char(l);
+                    t.span_size = 2;
+                }
+                else
+                {
+                    t.type = TOKEN_MINUS;
+                    t.span_size = 1;
+                }
+            }
+            else
+            {
+                lexer_eat_char(l);
+                t.type = (token_type) c;
+                t.span_size = 1;
+            }
+        }
 
         l->next_token = t;
         l->next_token_valid = true;
@@ -150,5 +221,4 @@ token lexer_eat_token(lexer *l)
     l->next_token_valid = false;
     return result;
 }
-
 

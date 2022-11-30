@@ -6,7 +6,7 @@ LINKER=ld
 
 BIN_DIR=bin/
 
-C_SRC="main memory string lexer"
+C_SRC="main memory string parser"
 S_SRC="start syscall"
 
 function add_prefix_and_suffix

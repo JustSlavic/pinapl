@@ -27,7 +27,10 @@ typedef enum
     TOKEN_MINUS = '-',
 
     TOKEN_IDENTIFIER = 256,
-    TOKEN_INT_LITERAL,
+    TOKEN_LITERAL_INT = 257,
+
+    TOKEN_DOUBLE_COLON = 270,
+    TOKEN_ARROW_RIGHT = 271,
     
     TOKEN_KW_RETURN = 300,
     
@@ -81,6 +84,44 @@ void consume_until(lexer *, predicate *);
 
 token lexer_get_token(lexer *);
 token lexer_eat_token(lexer *);
+
+
+typedef enum ast_node_type
+{
+    AST_NODE_INVALID = 0,
+    AST_NODE_PROCEDURE,
+
+    AST_NODE_STATEMENT,
+
+    AST_NODE_VARIABLE,
+    AST_NODE_LITERAL_INT,
+
+    AST_NODE_BINARY_OPERATION_PLUS,
+} ast_node_type;
+
+
+typedef struct ast_node
+{
+    ast_node_type type;
+
+    union
+    {
+        struct  // statement
+        {
+            struct ast_node *expression;
+            struct ast_node *next_statement;
+        };
+        struct  // binary operation
+        {
+            struct ast_node *lhs;
+            struct ast_node *rhs;
+        };
+        struct  // integer literal
+        {
+            int integer_value;
+        };
+    };
+} ast_node;
 
 
 #endif // LEXER_H
