@@ -32,7 +32,6 @@ typedef enum
     TOKEN_IDENTIFIER = 256,
     TOKEN_LITERAL_INT = 257,
 
-    TOKEN_DOUBLE_COLON = 270,
     TOKEN_ARROW_RIGHT = 271,
     
     TOKEN_KW_RETURN = 300,
@@ -99,6 +98,9 @@ typedef enum ast_node_type
     AST_NODE_VARIABLE,
     AST_NODE_LITERAL_INT,
 
+    AST_NODE_VARIABLE_DECLARATION,
+    AST_NODE_CONSTANT_DECLARATION,
+
     // Expressions
     AST_NODE_BINARY_OPERATOR,
 } ast_node_type;
@@ -120,6 +122,13 @@ typedef struct ast_node
             struct ast_node *expression;
             struct ast_node *next_statement;
         };
+        struct  // variable/constant declaration
+        {
+            token var_name;
+            token var_type;
+            b32   is_constant;
+            struct ast_node *init;
+        };
         struct  // binary operation
         {
             struct ast_node *lhs;
@@ -139,6 +148,7 @@ typedef struct ast_node
 
 
 ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence);
+ast_node *pinapl_parse_statement(allocator *a, lexer *l);
 
 
 #endif // LEXER_H

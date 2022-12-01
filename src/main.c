@@ -27,6 +27,25 @@ void print_ast(ast_node *node)
             write(1, node->t.span, node->t.span_size);
         }
         break;
+        
+        case AST_NODE_VARIABLE_DECLARATION:
+        case AST_NODE_CONSTANT_DECLARATION:
+        {
+            write(1, "VAR{", 4);
+            write(1, node->t.span, node->t.span_size);
+            write(1, ":", 1);
+            if (node->var_type.type != TOKEN_INVALID)
+            {
+                write(1, node->var_type.span, node->var_type.span_size);
+            }
+            if (node->init)
+            {
+                write(1, node->is_constant ? ":" : "=", 1);
+                print_ast(node->init);
+            }
+            write(1, "};\n", 3);
+        }
+        break;
 
         default:
             write(1, "<!!!>", 5);
@@ -69,7 +88,7 @@ int main(int argc, char **argv, char **env)
         .next_token_valid = false,
     };
 
-    ast_node *expression = parser_parse_expression(&a, &l, 0);
+    ast_node *expression = pinapl_parse_statement(&a, &l);
     token t = lexer_get_token(&l);
     if (expression && t.type == TOKEN_EOF)
     {

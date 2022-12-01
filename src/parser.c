@@ -19,7 +19,6 @@ char *token_type_to_cstring(token_type t)
         case TOKEN_MINUS: return "TOKEN_MINUS";
         case TOKEN_IDENTIFIER: return "TOKEN_IDENTIFIER";
         case TOKEN_LITERAL_INT: return "TOKEN_LITERAL_INT";
-        case TOKEN_DOUBLE_COLON: return "TOKEN_DOUBLE_COLON";
         case TOKEN_ARROW_RIGHT: return "TOKEN_ARROW_RIGHT";
         case TOKEN_KW_RETURN: return "TOKEN_KW_RETURN";
         case TOKEN_EOF: return "TOKEN_EOF";
@@ -168,23 +167,7 @@ token lexer_get_token(lexer *l)
             t.column = l->column;
             t.span = l->buffer + l->index;
 
-            if (c == ':')
-            {
-                lexer_eat_char(l);
-                c = lexer_get_char(l);
-                if (c == ':')
-                {
-                    t.type = TOKEN_DOUBLE_COLON;
-                    lexer_eat_char(l);
-                    t.span_size = 2;
-                }
-                else
-                {
-                    t.type = TOKEN_COLON;
-                    t.span_size = 1;
-                }
-            }
-            else if (c == '-')
+            if (c == '-')
             {
                 lexer_eat_char(l);
                 c = lexer_get_char(l);
@@ -333,5 +316,134 @@ ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence)
     }
 
     return left_operand;
+}
+
+ast_node *pinapl_parse_statement(allocator *a, lexer *l)
+{
+    //
+    // x :: <expr>;
+    // x := <expr>;
+    // x : int;
+    // x : int : <expr>;
+    // x : int = <expr>;
+    //
+
+    lexer checkpoint = *l;
+    ast_node *result = parser_parse_expression(a, l, 0);
+    if (result)
+    {
+        token semicolon = lexer_get_token(l);
+        if (semicolon.type == ';')
+        {
+            lexer_eat_token(l);
+            return result; // !!!!! early return !!!!!
+        }
+        else
+        {
+            // @leak result
+            result = NULL;
+        }
+    }
+
+    // else
+    {
+        *l = checkpoint; // restore lexer state after failed expression parse call
+
+        token var_name = lexer_eat_token(l);
+        if (var_name.type == TOKEN_IDENTIFIER)
+        {
+            token colon = lexer_eat_token(l);
+            if (colon.type == ':')
+            {
+                token type = {0};
+                b32 is_constant = false;
+
+                token t = lexer_get_token(l);
+                if (t.type == '=')
+                {
+                    //
+                    // x := <expr>;
+                    //
+                    lexer_eat_token(l);
+                    is_constant = false;
+                }
+                else if (t.type == ':')
+                {
+                    //
+                    // x :: <expr>;
+                    //
+                    lexer_eat_token(l);
+                    is_constant = true;
+                }
+                else if (t.type == TOKEN_IDENTIFIER)
+                {
+                    lexer_eat_token(l);
+                    if ((t.span_size == 3) &&
+                        (t.span[0] == 'i') &&
+                        (t.span[1] == 'n') &&
+                        (t.span[2] == 't'))
+                    {
+                        token t2 = lexer_eat_token(l);
+                        if (t2.type == '=')
+                        {
+                            //
+                            // x : int = <expr>;
+                            //
+                            type = t;
+                            is_constant = false;
+                        }
+                        else if (t2.type == ':')
+                        {
+                            //
+                            // x : int : <expr>;
+                            //
+                            type = t;
+                            is_constant = true;
+                        }
+                        else if (t2.type == ';')
+                        {
+                            // x : int ;
+                            type = t;
+                            is_constant = false;
+
+                            result = ALLOCATE(a, ast_node);
+                            result->type = AST_NODE_VARIABLE_DECLARATION;
+                            result->t = var_name;
+                            result->var_name = var_name;
+                            result->var_type = type;
+                            result->is_constant = false;
+                            result->init = NULL;
+                        }
+                    }
+                }
+
+                ast_node *initializer = parser_parse_expression(a, l, 0);
+                if (initializer)
+                {
+                    token semicolon = lexer_eat_token(l);
+                    if (semicolon.type == ';')
+                    {
+                        result = ALLOCATE(a, ast_node);
+                        result->type = is_constant ? AST_NODE_CONSTANT_DECLARATION : AST_NODE_VARIABLE_DECLARATION;
+                        result->t = var_name;
+                        result->var_name = var_name;
+                        result->var_type = type;
+                        result->is_constant = is_constant;
+                        result->init = initializer;
+                    }
+                }
+            }
+            else
+            {
+
+            }
+        }
+        else
+        {
+            // error
+        }
+    }
+
+    return result;
 }
 
