@@ -2,6 +2,7 @@
 #define LEXER_H
 
 #include <base.h>
+#include <allocator.h>
 
 
 typedef b32 predicate(char);
@@ -25,6 +26,8 @@ typedef enum
     TOKEN_SEMICOLON = ';',
     TOKEN_PLUS = '+',
     TOKEN_MINUS = '-',
+    TOKEN_ASTERICS = '*',
+    TOKEN_SLASH = '/',
 
     TOKEN_IDENTIFIER = 256,
     TOKEN_LITERAL_INT = 257,
@@ -96,16 +99,22 @@ typedef enum ast_node_type
     AST_NODE_VARIABLE,
     AST_NODE_LITERAL_INT,
 
-    AST_NODE_BINARY_OPERATION_PLUS,
+    // Expressions
+    AST_NODE_BINARY_OPERATOR,
 } ast_node_type;
 
 
 typedef struct ast_node
 {
     ast_node_type type;
+    token t;
 
     union
     {
+        struct  // function
+        {
+            struct ast_node *statements;
+        };
         struct  // statement
         {
             struct ast_node *expression;
@@ -116,12 +125,20 @@ typedef struct ast_node
             struct ast_node *lhs;
             struct ast_node *rhs;
         };
+        struct  // variable
+        {
+            char *span;
+            usize span_size;
+        };
         struct  // integer literal
         {
             int integer_value;
         };
     };
 } ast_node;
+
+
+ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence);
 
 
 #endif // LEXER_H

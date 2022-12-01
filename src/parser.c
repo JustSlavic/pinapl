@@ -222,3 +222,116 @@ token lexer_eat_token(lexer *l)
     return result;
 }
 
+int parser_get_operator_precedence(token t)
+{
+    switch (t.type)
+    {
+        case '+':
+        case '-':
+            return 1;
+        case '*':
+        case '/':
+            return 2;
+        default:
+            return 0;
+    }
+    return 0;
+}
+
+ast_node *parser_parse_expression_operand(allocator *a, lexer *l)
+{
+    ast_node *result = NULL;
+
+    token t = lexer_get_token(l);
+    if (t.type == TOKEN_IDENTIFIER)
+    {
+        lexer_eat_token(l);
+
+        result = ALLOCATE(a, ast_node);
+        result->type = AST_NODE_VARIABLE;
+        result->t = t;
+        result->span = t.span;
+        result->span_size = t.span_size;
+    }
+    else if (t.type == TOKEN_LITERAL_INT)
+    {
+        lexer_eat_token(l);
+
+        result = ALLOCATE(a, ast_node);
+        result->type = AST_NODE_LITERAL_INT;
+        result->t = t;
+        result->integer_value = t.integer_value;
+    }
+
+    return result;
+}
+
+ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence)
+{
+    ast_node *left_operand = NULL;
+
+    token open_paren = lexer_get_token(l);
+    if (open_paren.type == '(')
+    {
+        lexer_eat_token(l);
+        left_operand = parser_parse_expression(a, l, precedence);
+        if (left_operand == NULL)
+        {
+            return NULL;
+        }
+
+        token close_paren = lexer_get_token(l);
+        if (close_paren.type == ')')
+        {
+            lexer_eat_token(l);
+        }
+        else
+        {
+            // @leak left_operand
+            return NULL;
+        }
+    }
+    else
+    {
+        left_operand = parser_parse_expression_operand(a, l);
+        if (left_operand == NULL)
+        {
+            return NULL;
+        }
+    }
+
+    while (true)
+    {
+        token operator = lexer_get_token(l);
+        if ((operator.type != '+') &&
+            (operator.type != '-') &&
+            (operator.type != '*') &&
+            (operator.type != '/'))
+        {
+            break;
+        }
+
+        int operator_precedence = parser_get_operator_precedence(operator);
+        if (operator_precedence < precedence) break;
+
+        lexer_eat_token(l);
+        
+        // +1 for left associativity, +0 for right ass
+        ast_node *right_operand = parser_parse_expression(a, l, operator_precedence + 1);
+        if (right_operand == NULL)
+        {
+            return NULL;
+        }
+
+        ast_node *binary_operator = ALLOCATE(a, ast_node);
+        binary_operator->type = AST_NODE_BINARY_OPERATOR;
+        binary_operator->t    = operator;
+        binary_operator->lhs  = left_operand;
+        binary_operator->rhs  = right_operand;
+
+        left_operand = binary_operator;
+    }
+
+    return left_operand;
+}
+

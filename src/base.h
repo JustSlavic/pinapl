@@ -1,6 +1,8 @@
 #ifndef BASE_H
 #define BASE_H
 
+#define alignof(TYPE) _Alignof(TYPE)
+
 #define NULL (void *)0
 #define ARRAY_COUNT(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
 
@@ -12,8 +14,10 @@ __inline__ static void debug_break(void)
 }
 #endif
 
+#define UNUSED(VAR) (void)(VAR)
 #define ASSERT(EXP) if (EXP) {} else { debug_break(); } (void)0
 #define ASSERT_MSG(EXP, MSG) ASSERT(EXP)
+#define NOT_IMPLEMENTED ASSERT(false)
 
 typedef unsigned int b32;
 

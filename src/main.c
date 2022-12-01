@@ -4,6 +4,36 @@
 #include "allocator.h"
 
 
+void print_ast(ast_node *node)
+{
+    switch (node->type)
+    {
+        case AST_NODE_BINARY_OPERATOR:
+        {
+            if (node->lhs) print_ast(node->lhs);
+            if (node->rhs) print_ast(node->rhs);
+            write(1, node->t.span, node->t.span_size); 
+        }
+        break;
+
+        case AST_NODE_VARIABLE:
+        {
+            write(1, node->t.span, node->t.span_size);
+        }
+        break;
+
+        case AST_NODE_LITERAL_INT:
+        {
+            write(1, node->t.span, node->t.span_size);
+        }
+        break;
+
+        default:
+            write(1, "<!!!>", 5);
+    }
+}
+
+
 int main(int argc, char **argv, char **env)
 {   
     if (argc < 2)
@@ -39,19 +69,16 @@ int main(int argc, char **argv, char **env)
         .next_token_valid = false,
     };
 
+    ast_node *expression = parser_parse_expression(&a, &l, 0);
     token t = lexer_get_token(&l);
-    while ((t.type != TOKEN_EOF) && (t.type != TOKEN_INVALID))
+    if (expression && t.type == TOKEN_EOF)
     {
-        char const *s = token_type_to_cstring(t.type);
-        int sz = cstring_size_no0(s);
-
-        write(1, s, sz);
-        write(1, " ", 1);
-        write(1, t.span, t.span_size);
-        write(1, "\n", 1);
-
-        lexer_eat_token(&l);
-        t = lexer_get_token(&l);
+        write(1, "Language recognized!\n", 21);
+        print_ast(expression);
+    }
+    else
+    {
+        write(1, "Language is not recognized!\n", 28);
     }
 
     munmap(memory_buffer, memory_buffer_size);
