@@ -89,7 +89,8 @@ int main(int argc, char **argv, char **env)
         .next_token_valid = false,
     };
 
-    ast_node *expression = pinapl_parse_statement(&a, &l);
+    // ast_node *expression = pinapl_parse_variable_declaration(&a, &l);
+    ast_node *expression = pinapl_parse_function_definition(&a, &l);
     token t = lexer_get_token(&l);
     if (expression && t.type == TOKEN_EOF)
     {

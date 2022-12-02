@@ -95,14 +95,15 @@ typedef enum ast_node_type
 
     AST_NODE_STATEMENT,
 
-    AST_NODE_VARIABLE,
-    AST_NODE_LITERAL_INT,
-
     AST_NODE_VARIABLE_DECLARATION,
     AST_NODE_CONSTANT_DECLARATION,
+    AST_NODE_FUNCTION_DEFINITION,
 
     // Expressions
     AST_NODE_BINARY_OPERATOR,
+    AST_NODE_LITERAL_INT,
+    AST_NODE_VARIABLE,
+
 } ast_node_type;
 
 
@@ -117,7 +118,7 @@ typedef struct ast_node
         {
             struct ast_node *statements;
         };
-        struct  // statement
+        struct  // statements
         {
             struct ast_node *expression;
             struct ast_node *next_statement;
@@ -134,6 +135,10 @@ typedef struct ast_node
             struct ast_node *lhs;
             struct ast_node *rhs;
         };
+        struct  // function definition
+        {
+            struct ast_node *statement_list;
+        };
         struct  // variable
         {
             char *span;
@@ -147,8 +152,9 @@ typedef struct ast_node
 } ast_node;
 
 
-ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence);
-ast_node *pinapl_parse_statement(allocator *a, lexer *l);
+ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence);
+ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l);
+ast_node *pinapl_parse_function_definition(allocator *a, lexer *l);
 
 
 #endif // LEXER_H

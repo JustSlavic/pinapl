@@ -221,7 +221,7 @@ int parser_get_operator_precedence(token t)
     return 0;
 }
 
-ast_node *parser_parse_expression_operand(allocator *a, lexer *l)
+ast_node *pinapl_parse_expression_operand(allocator *a, lexer *l)
 {
     ast_node *result = NULL;
 
@@ -249,7 +249,7 @@ ast_node *parser_parse_expression_operand(allocator *a, lexer *l)
     return result;
 }
 
-ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence)
+ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence)
 {
     ast_node *left_operand = NULL;
 
@@ -257,7 +257,7 @@ ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence)
     if (open_paren.type == '(')
     {
         lexer_eat_token(l);
-        left_operand = parser_parse_expression(a, l, precedence);
+        left_operand = pinapl_parse_expression(a, l, precedence);
         if (left_operand == NULL)
         {
             return NULL;
@@ -276,7 +276,7 @@ ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence)
     }
     else
     {
-        left_operand = parser_parse_expression_operand(a, l);
+        left_operand = pinapl_parse_expression_operand(a, l);
         if (left_operand == NULL)
         {
             return NULL;
@@ -300,7 +300,7 @@ ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence)
         lexer_eat_token(l);
         
         // +1 for left associativity, +0 for right ass
-        ast_node *right_operand = parser_parse_expression(a, l, operator_precedence + 1);
+        ast_node *right_operand = pinapl_parse_expression(a, l, operator_precedence + 1);
         if (right_operand == NULL)
         {
             return NULL;
@@ -318,7 +318,7 @@ ast_node *parser_parse_expression(allocator *a, lexer *l, int precedence)
     return left_operand;
 }
 
-ast_node *pinapl_parse_statement(allocator *a, lexer *l)
+ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
 {
     //
     // x :: <expr>;
@@ -328,119 +328,157 @@ ast_node *pinapl_parse_statement(allocator *a, lexer *l)
     // x : int = <expr>;
     //
 
-    lexer checkpoint = *l;
-    ast_node *result = parser_parse_expression(a, l, 0);
-    if (result)
-    {
-        token semicolon = lexer_get_token(l);
-        if (semicolon.type == ';')
-        {
-            lexer_eat_token(l);
-            return result; // !!!!! early return !!!!!
-        }
-        else
-        {
-            // @leak result
-            result = NULL;
-        }
-    }
+    ast_node *result = NULL;
 
-    // else
+    token var_name = lexer_eat_token(l);
+    if (var_name.type == TOKEN_IDENTIFIER)
     {
-        *l = checkpoint; // restore lexer state after failed expression parse call
-
-        token var_name = lexer_eat_token(l);
-        if (var_name.type == TOKEN_IDENTIFIER)
+        token colon = lexer_eat_token(l);
+        if (colon.type == ':')
         {
-            token colon = lexer_eat_token(l);
-            if (colon.type == ':')
+            token type = {0};
+            b32 is_constant = false;
+            b32 should_init = true;
+
+            token t = lexer_get_token(l);
+            if (t.type == '=')
             {
-                token type = {0};
-                b32 is_constant = false;
-
-                token t = lexer_get_token(l);
-                if (t.type == '=')
+                //
+                // x := <expr>
+                //
+                lexer_eat_token(l);
+                is_constant = false;
+            }
+            else if (t.type == ':')
+            {
+                //
+                // x :: <expr>
+                //
+                lexer_eat_token(l);
+                is_constant = true;
+            }
+            else if (t.type == TOKEN_IDENTIFIER)
+            {
+                lexer_eat_token(l);
+                if ((t.span_size == 3) &&
+                    (t.span[0] == 'i') &&
+                    (t.span[1] == 'n') &&
+                    (t.span[2] == 't'))
                 {
-                    //
-                    // x := <expr>;
-                    //
-                    lexer_eat_token(l);
-                    is_constant = false;
-                }
-                else if (t.type == ':')
-                {
-                    //
-                    // x :: <expr>;
-                    //
-                    lexer_eat_token(l);
-                    is_constant = true;
-                }
-                else if (t.type == TOKEN_IDENTIFIER)
-                {
-                    lexer_eat_token(l);
-                    if ((t.span_size == 3) &&
-                        (t.span[0] == 'i') &&
-                        (t.span[1] == 'n') &&
-                        (t.span[2] == 't'))
+                    token t2 = lexer_get_token(l);
+                    if (t2.type == '=')
                     {
-                        token t2 = lexer_eat_token(l);
-                        if (t2.type == '=')
-                        {
-                            //
-                            // x : int = <expr>;
-                            //
-                            type = t;
-                            is_constant = false;
-                        }
-                        else if (t2.type == ':')
-                        {
-                            //
-                            // x : int : <expr>;
-                            //
-                            type = t;
-                            is_constant = true;
-                        }
-                        else if (t2.type == ';')
-                        {
-                            // x : int ;
-                            type = t;
-                            is_constant = false;
-
-                            result = ALLOCATE(a, ast_node);
-                            result->type = AST_NODE_VARIABLE_DECLARATION;
-                            result->t = var_name;
-                            result->var_name = var_name;
-                            result->var_type = type;
-                            result->is_constant = false;
-                            result->init = NULL;
-                        }
+                        //
+                        // x : int = <expr>
+                        //
+                        lexer_eat_token(l);
+                        type = t;
+                        is_constant = false;
                     }
-                }
-
-                ast_node *initializer = parser_parse_expression(a, l, 0);
-                if (initializer)
-                {
-                    token semicolon = lexer_eat_token(l);
-                    if (semicolon.type == ';')
+                    else if (t2.type == ':')
                     {
+                        //
+                        // x : int : <expr>
+                        //
+                        lexer_eat_token(l);
+                        type = t;
+                        is_constant = true;
+                    }
+                    else if (t2.type == ';')
+                    {
+                        // x : int
+                        type = t;
+                        is_constant = false;
+                        should_init = false;
+
                         result = ALLOCATE(a, ast_node);
-                        result->type = is_constant ? AST_NODE_CONSTANT_DECLARATION : AST_NODE_VARIABLE_DECLARATION;
+                        result->type = AST_NODE_VARIABLE_DECLARATION;
                         result->t = var_name;
                         result->var_name = var_name;
                         result->var_type = type;
-                        result->is_constant = is_constant;
-                        result->init = initializer;
+                        result->is_constant = false;
+                        result->init = NULL;
                     }
+                    else
+                    {
+                        // error: expected ':', '=', or ';'
+                    }
+                }
+                else
+                {
+                    // error: I do not allow other types other than 'int' YET
                 }
             }
             else
             {
+                should_init = false;
+                // error: expected '-', ':', or a type
+            }
 
+            if (should_init)
+            {
+                ast_node *initializer = pinapl_parse_expression(a, l, 0);
+                if (initializer)
+                {
+                    result = ALLOCATE(a, ast_node);
+                    result->type = is_constant 
+                        ? AST_NODE_CONSTANT_DECLARATION
+                        : AST_NODE_VARIABLE_DECLARATION;
+                    result->t = var_name;
+                    result->var_name = var_name;
+                    result->var_type = type;
+                    result->is_constant = is_constant;
+                    result->init = initializer;
+                }
+                else
+                {
+                    // error: expression expected (probably should print error, that comes from that call
+                }
             }
         }
         else
         {
-            // error
+            // error: token ':' expected
+        }
+    }
+    else
+    {
+        // error: variable declaration is not started with identifier
+    }
+
+    return result;
+}
+
+ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
+{
+    //
+    // (<argument-list>) { <statement-list> }
+    // (<argument-list>) -> <return-type> { <statement-list> }
+    //
+
+    ast_node *result = NULL;
+
+    token open_paren = lexer_eat_token(l);
+    if (open_paren.type == '(')
+    {
+        // @todo: argument parsing here
+
+        token close_paren = lexer_eat_token(l);
+        if (close_paren.type == ')')
+        {
+            token open_brace = lexer_eat_token(l);
+            if (open_brace.type == '{')
+            {
+                // @todo: statement list parsing here
+
+                token close_brace = lexer_eat_token(l);
+                if (close_brace.type == '}')
+                {
+                    result = ALLOCATE(a, ast_node);
+                    result->type = AST_NODE_FUNCTION_DEFINITION;
+                    result->statement_list = NULL;
+                }
+            }
         }
     }
 
