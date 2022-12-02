@@ -58,7 +58,7 @@ int main(int argc, char **argv, char **env)
     if (argc < 2)
     {
         write(1, "Usage: ./fop FILEPATH\n", 22);
-        return 0;
+        return 1;
     }
 
     int memory_buffer_size = 4096;
@@ -68,16 +68,17 @@ int main(int argc, char **argv, char **env)
     initialize_memory_arena(&a, memory_buffer, memory_buffer_size);
 
     int fd = open(argv[1], 0, O_RDONLY);
-    if (fd < 0)
+    if (fd <= 0)
     {
         write(1, "Error < 0\n", 10);
+        return 1;
     }
 
     char buffer[4096] = {0};
     int  buffer_size = read(fd, buffer, ARRAY_COUNT(buffer) - 1);
+    close(fd);
     write(1, buffer, buffer_size);
     write(1, "EOF\n", 4);
-    close(fd);
 
     lexer l =
     {

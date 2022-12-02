@@ -4,7 +4,13 @@ CC=gcc
 ASM=as
 LINKER=ld
 
+C_STD=c11
+
 BIN_DIR=bin/
+
+WARNINGS="-Wall -Werror"
+OPTIMIZATION="-O2"
+DEBUG_SYMBOLS="-g"
 
 C_SRC="main memory allocator string parser"
 S_SRC="start syscall"
@@ -67,7 +73,7 @@ for file in $C_SRC
 do
     source_path=$(add_prefix_and_suffix $file src/ .c)
     object_path=$(add_prefix_and_suffix $file $BIN_DIR .o)
-    compile_c $source_path $object_path "-c -ggdb -nostdlib -Wall -Werror -std=c11 -Isrc/"
+    compile_c $source_path $object_path "-c $OPTIMIZATION $DEBUG_SYMBOLS -nostdlib -fno-builtin $WARNINGS -std=$C_STD -Isrc/"
 done
 
 $LINKER $O_FILES -o $BIN_DIR/main
