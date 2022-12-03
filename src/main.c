@@ -12,19 +12,19 @@ void print_ast(ast_node *node)
         {
             if (node->lhs) print_ast(node->lhs);
             if (node->rhs) print_ast(node->rhs);
-            write(1, node->t.span, node->t.span_size); 
+            write(1, node->op.span, node->op.span_size); 
         }
         break;
 
         case AST_NODE_VARIABLE:
         {
-            write(1, node->t.span, node->t.span_size);
+            write(1, node->var_span, node->var_span_size);
         }
         break;
 
         case AST_NODE_LITERAL_INT:
         {
-            write(1, node->t.span, node->t.span_size);
+            write(1, node->literal_span, node->literal_span_size);
         }
         break;
         
@@ -32,7 +32,7 @@ void print_ast(ast_node *node)
         case AST_NODE_CONSTANT_DECLARATION:
         {
             write(1, "VAR{", 4);
-            write(1, node->t.span, node->t.span_size);
+            write(1, node->var_name.span, node->var_name.span_size);
             write(1, ":", 1);
             if (node->var_type.type != TOKEN_INVALID)
             {
@@ -43,7 +43,13 @@ void print_ast(ast_node *node)
                 write(1, node->is_constant ? ":" : "=", 1);
                 print_ast(node->init);
             }
-            write(1, "};\n", 3);
+            write(1, "}", 1);
+        }
+        break;
+
+        case AST_NODE_FUNCTION_DEFINITION:
+        {
+            write(1, "(){}", 4);
         }
         break;
 

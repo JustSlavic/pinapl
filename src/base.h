@@ -1,6 +1,7 @@
 #ifndef BASE_H
 #define BASE_H
 
+#define static_assert(VAR, MSG) _Static_assert((VAR), MSG)
 #define alignof(TYPE) _Alignof(TYPE)
 
 #define NULL (void *)0

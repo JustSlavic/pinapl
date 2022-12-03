@@ -232,9 +232,8 @@ ast_node *pinapl_parse_expression_operand(allocator *a, lexer *l)
 
         result = ALLOCATE(a, ast_node);
         result->type = AST_NODE_VARIABLE;
-        result->t = t;
-        result->span = t.span;
-        result->span_size = t.span_size;
+        result->var_span = t.span;
+        result->var_span_size = t.span_size;
     }
     else if (t.type == TOKEN_LITERAL_INT)
     {
@@ -242,7 +241,8 @@ ast_node *pinapl_parse_expression_operand(allocator *a, lexer *l)
 
         result = ALLOCATE(a, ast_node);
         result->type = AST_NODE_LITERAL_INT;
-        result->t = t;
+        result->literal_span = t.span;
+        result->literal_span_size = t.span_size;
         result->integer_value = t.integer_value;
     }
 
@@ -308,7 +308,7 @@ ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence)
 
         ast_node *binary_operator = ALLOCATE(a, ast_node);
         binary_operator->type = AST_NODE_BINARY_OPERATOR;
-        binary_operator->t    = operator;
+        binary_operator->op   = operator;
         binary_operator->lhs  = left_operand;
         binary_operator->rhs  = right_operand;
 
@@ -393,7 +393,6 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
 
                         result = ALLOCATE(a, ast_node);
                         result->type = AST_NODE_VARIABLE_DECLARATION;
-                        result->t = var_name;
                         result->var_name = var_name;
                         result->var_type = type;
                         result->is_constant = false;
@@ -424,7 +423,6 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
                     result->type = is_constant 
                         ? AST_NODE_CONSTANT_DECLARATION
                         : AST_NODE_VARIABLE_DECLARATION;
-                    result->t = var_name;
                     result->var_name = var_name;
                     result->var_type = type;
                     result->is_constant = is_constant;
@@ -476,6 +474,8 @@ ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
                 {
                     result = ALLOCATE(a, ast_node);
                     result->type = AST_NODE_FUNCTION_DEFINITION;
+                    result->argument_list = NULL; 
+                    result->return_type = NULL;
                     result->statement_list = NULL;
                 }
             }

@@ -110,42 +110,44 @@ typedef enum ast_node_type
 typedef struct ast_node
 {
     ast_node_type type;
-    token t;
 
     union
     {
         struct  // function
         {
-            struct ast_node *statements;
+            struct ast_node *argument_list;
+            struct ast_node *return_type;
+            struct ast_node *statement_list;
         };
-        struct  // statements
+        struct  // statement list
         {
-            struct ast_node *expression;
+            struct ast_node *statement;
             struct ast_node *next_statement;
         };
         struct  // variable/constant declaration
         {
             token var_name;
             token var_type;
+            // for compound types:
+            // struct ast_node *var_type;
             b32   is_constant;
             struct ast_node *init;
         };
         struct  // binary operation
         {
+            token  op;
             struct ast_node *lhs;
             struct ast_node *rhs;
         };
-        struct  // function definition
+        struct  // variable/constant usage
         {
-            struct ast_node *statement_list;
-        };
-        struct  // variable
-        {
-            char *span;
-            usize span_size;
+            char *var_span;
+            usize var_span_size;
         };
         struct  // integer literal
         {
+            char *literal_span;
+            usize literal_span_size;
             int integer_value;
         };
     };
@@ -155,6 +157,5 @@ typedef struct ast_node
 ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence);
 ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l);
 ast_node *pinapl_parse_function_definition(allocator *a, lexer *l);
-
 
 #endif // LEXER_H

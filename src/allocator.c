@@ -26,6 +26,8 @@ struct arena_allocator
     usize last_allocation_size;
 };
 
+static_assert(sizeof(struct arena_allocator) <= sizeof(struct allocator), "size of arena_allocator is too large!");
+
 
 void initialize_memory_arena(allocator *a, void *memory, usize size)
 {
