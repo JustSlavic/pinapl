@@ -230,10 +230,31 @@ ast_node *pinapl_parse_expression_operand(allocator *a, lexer *l)
     {
         lexer_eat_token(l);
 
-        result = ALLOCATE(a, ast_node);
-        result->type = AST_NODE_VARIABLE;
-        result->var_span = t.span;
-        result->var_span_size = t.span_size;
+        token paren_open = lexer_get_token(l);
+        if (paren_open.type == '(')
+        {
+            lexer_eat_token(l);
+
+            // @todo: parse argument_list
+
+            token s = lexer_get_token(l);
+            if (s.type == ')')
+            {
+                lexer_eat_token(l);
+
+                result = ALLOCATE(a, ast_node);
+                result->type = AST_NODE_FUNCTION_CALL;
+                result->function_name = t;
+                result->argument_list = NULL;
+            }
+        }
+        else
+        {
+            result = ALLOCATE(a, ast_node);
+            result->type = AST_NODE_VARIABLE;
+            result->var_span = t.span;
+            result->var_span_size = t.span_size;
+        }
     }
     else if (t.type == TOKEN_LITERAL_INT)
     {
@@ -289,7 +310,8 @@ ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence)
         if ((operator.type != '+') &&
             (operator.type != '-') &&
             (operator.type != '*') &&
-            (operator.type != '/'))
+            (operator.type != '/') &&
+            (operator.type != '='))
         {
             break;
         }
@@ -486,7 +508,7 @@ ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
                 {
                     result = ALLOCATE(a, ast_node);
                     result->type = AST_NODE_FUNCTION_DEFINITION;
-                    result->argument_list = NULL; 
+                    result->parameter_list = NULL; 
                     result->return_type = NULL;
                     result->statement_list = statement_list;
                 }

@@ -99,6 +99,7 @@ typedef enum ast_node_type
     AST_NODE_VARIABLE_DECLARATION,
     AST_NODE_CONSTANT_DECLARATION,
     AST_NODE_FUNCTION_DEFINITION,
+    AST_NODE_FUNCTION_CALL,
 
     // Expressions
     AST_NODE_BINARY_OPERATOR,
@@ -119,11 +120,16 @@ typedef struct ast_node
             struct ast_node *declaration;
             struct ast_node *next_declaration;
         };
-        struct  // function
+        struct  // function definition
         {
-            struct ast_node *argument_list;
+            struct ast_node *parameter_list;
             struct ast_node *return_type;
             struct ast_node *statement_list;
+        };
+        struct  // function call
+        {
+            token function_name;
+            struct ast_node *argument_list;
         };
         struct  // statement list
         {

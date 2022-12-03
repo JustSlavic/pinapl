@@ -58,6 +58,13 @@ void print_ast(ast_node *node)
         }
         break;
 
+        case AST_NODE_FUNCTION_CALL:
+        {
+            write(1, node->function_name.span, node->function_name.span_size);
+            write(1, "()", 2);
+        }
+        break;
+
         case AST_NODE_STATEMENT_LIST:
         {
             print_ast(node->statement);

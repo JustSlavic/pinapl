@@ -1,11 +1,12 @@
 foo :: ()
 {
-    x := x + 2 * 3;
+    x := 2 * 3;
+    x = x + 2;
 }
 
 main :: ()
 {
     good := 1;
     bad  := 2;
-    ugly := good + bad;
+    ugly := good + bad + foo();
 }
