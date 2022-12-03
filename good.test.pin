@@ -1,4 +1,11 @@
-()
+foo :: ()
 {
+    x := x + 2 * 3;
+}
 
+main :: ()
+{
+    good := 1;
+    bad  := 2;
+    ugly := good + bad;
 }

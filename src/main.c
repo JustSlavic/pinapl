@@ -49,7 +49,34 @@ void print_ast(ast_node *node)
 
         case AST_NODE_FUNCTION_DEFINITION:
         {
-            write(1, "(){}", 4);
+            write(1, "(){\n", 4);
+            if (node->statement_list)
+            {
+                print_ast(node->statement_list);
+            }
+            write(1, "\n}\n", 3);
+        }
+        break;
+
+        case AST_NODE_STATEMENT_LIST:
+        {
+            print_ast(node->statement);
+            write(1, ";\n", 2);
+            if (node->next_statement)
+            {
+                print_ast(node->next_statement);
+            }
+        }
+        break;
+
+        case AST_NODE_GLOBAL_DECLARATION_LIST:
+        {
+            print_ast(node->declaration);
+            write(1, "\n\n", 2);
+            if (node->next_declaration)
+            {
+                print_ast(node->next_declaration);
+            }
         }
         break;
 
@@ -96,7 +123,11 @@ int main(int argc, char **argv, char **env)
     };
 
     // ast_node *expression = pinapl_parse_variable_declaration(&a, &l);
-    ast_node *expression = pinapl_parse_function_definition(&a, &l);
+    // ast_node *expression = pinapl_parse_function_definition(&a, &l);
+    // ast_node *expression = pinapl_parse_statement(&a, &l);
+    // ast_node *expression = pinapl_parse_statement_list(&a, &l);
+    ast_node *expression = pinapl_parse_global_declaration_list(&a, &l);
+
     token t = lexer_get_token(&l);
     if (expression && t.type == TOKEN_EOF)
     {

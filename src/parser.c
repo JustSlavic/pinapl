@@ -416,7 +416,14 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
 
             if (should_init)
             {
+                lexer checkpoint = *l;
                 ast_node *initializer = pinapl_parse_expression(a, l, 0);
+                if (!initializer)
+                {
+                    *l = checkpoint;
+                    initializer = pinapl_parse_function_definition(a, l);
+                }
+
                 if (initializer)
                 {
                     result = ALLOCATE(a, ast_node);
@@ -467,8 +474,13 @@ ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
             token open_brace = lexer_eat_token(l);
             if (open_brace.type == '{')
             {
-                // @todo: statement list parsing here
-
+                lexer checkpoint = *l;
+                ast_node *statement_list = pinapl_parse_statement_list(a, l);
+                if (!statement_list)
+                {
+                    *l = checkpoint;
+                }
+                
                 token close_brace = lexer_eat_token(l);
                 if (close_brace.type == '}')
                 {
@@ -476,8 +488,134 @@ ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
                     result->type = AST_NODE_FUNCTION_DEFINITION;
                     result->argument_list = NULL; 
                     result->return_type = NULL;
-                    result->statement_list = NULL;
+                    result->statement_list = statement_list;
                 }
+                else
+                {
+                    // error: expected '}'
+                }
+            }
+            else
+            {
+                // error: expected '{'
+            }
+        }
+    }
+
+    return result;
+}
+
+ast_node *pinapl_parse_statement(allocator *a, lexer *l)
+{
+    ast_node *result = NULL;
+    lexer checkpoint = *l;
+
+    ast_node *variable_declaration = pinapl_parse_variable_declaration(a, l);
+    if (variable_declaration)
+    {
+        result = variable_declaration;
+    }
+    else
+    {
+        *l = checkpoint;
+        ast_node *expression = pinapl_parse_expression(a, l, 0);
+        if (expression)
+        {
+            result = expression;
+        }
+        else
+        {
+            // @error!!! I don't know what it is!
+        }
+    }
+
+    token semicolon = lexer_get_token(l);
+    if (semicolon.type == ';')
+    {
+        lexer_eat_token(l);
+    }
+    else
+    {
+        // Error! statement should end with a semicolon!
+        // @leak
+        result = NULL;
+    }
+
+    return result;
+}
+
+ast_node *pinapl_parse_statement_list(allocator *a, lexer *l)
+{
+    ast_node *result = NULL;
+
+    ast_node *first_statement = pinapl_parse_statement(a, l);
+    if (first_statement)
+    {
+        result = ALLOCATE(a, ast_node);
+        result->type = AST_NODE_STATEMENT_LIST;
+        result->statement = first_statement;
+        result->next_statement = NULL;
+
+        ast_node *last_list_node = result;
+        
+        while (true)
+        {
+            ast_node *statement = pinapl_parse_statement(a, l);
+            if (statement)
+            {
+                ast_node *new_list_node = ALLOCATE(a, ast_node);
+                new_list_node->type = AST_NODE_STATEMENT_LIST;
+                new_list_node->statement = statement;
+                new_list_node->next_statement = NULL;
+
+                last_list_node->next_statement = new_list_node;
+                last_list_node = new_list_node;
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+ast_node *pinapl_parse_global_declaration(allocator *a, lexer *l)
+{
+    ast_node *result = pinapl_parse_variable_declaration(a, l);
+    return result;
+}
+
+ast_node *pinapl_parse_global_declaration_list(allocator *a, lexer *l)
+{
+    ast_node *result = NULL;
+
+    ast_node *first_declaration = pinapl_parse_global_declaration(a, l);
+    if (first_declaration)
+    {
+        result = ALLOCATE(a, ast_node);
+        result->type = AST_NODE_GLOBAL_DECLARATION_LIST;
+        result->declaration = first_declaration;
+        result->next_declaration = NULL;
+
+        ast_node *last_list_node = result;
+        while (true)
+        {
+            ast_node *declaration = pinapl_parse_global_declaration(a, l);
+            if (declaration)
+            {
+                ast_node *next_list_node = ALLOCATE(a, ast_node);
+                next_list_node->type = AST_NODE_GLOBAL_DECLARATION_LIST;
+                next_list_node->declaration = declaration;
+                next_list_node->next_declaration = NULL;
+
+                last_list_node->next_declaration = next_list_node;
+                last_list_node = next_list_node;
+            }
+            else
+            {
+                break;
             }
         }
     }

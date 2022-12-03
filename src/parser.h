@@ -93,7 +93,8 @@ typedef enum ast_node_type
     AST_NODE_INVALID = 0,
     AST_NODE_PROCEDURE,
 
-    AST_NODE_STATEMENT,
+    AST_NODE_GLOBAL_DECLARATION_LIST,
+    AST_NODE_STATEMENT_LIST,
 
     AST_NODE_VARIABLE_DECLARATION,
     AST_NODE_CONSTANT_DECLARATION,
@@ -113,6 +114,11 @@ typedef struct ast_node
 
     union
     {
+        struct  // global declaration list
+        {
+            struct ast_node *declaration;
+            struct ast_node *next_declaration;
+        };
         struct  // function
         {
             struct ast_node *argument_list;
@@ -157,5 +163,9 @@ typedef struct ast_node
 ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence);
 ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l);
 ast_node *pinapl_parse_function_definition(allocator *a, lexer *l);
+ast_node *pinapl_parse_statement(allocator *a, lexer *l);
+ast_node *pinapl_parse_statement_list(allocator *a, lexer *l);
+ast_node *pinapl_parse_global_declaration(allocator *a, lexer *l);
+ast_node *pinapl_parse_global_declaration_list(allocator *a, lexer *l);
 
 #endif // LEXER_H
