@@ -1,5 +1,7 @@
 #!/bin/bash
 
+PROJECT=pinapl
+
 CC=gcc
 ASM=as
 LINKER=ld
@@ -9,10 +11,10 @@ C_STD=c11
 BIN_DIR=bin/
 
 WARNINGS="-Wall -Werror"
-OPTIMIZATION="-O2"
+OPTIMIZATION="" #"-O2"
 DEBUG_SYMBOLS="-g"
 
-C_SRC="main memory allocator string parser"
+C_SRC="main memory allocator string parser primes static_checks"
 S_SRC="start syscall"
 
 function add_prefix_and_suffix
@@ -53,9 +55,9 @@ function compile_c
     handle_errors
 }
 
-C_FILES=$(add_prefix_and_suffix "$C_SRC" "src/" ".c")
-S_FILES=$(add_prefix_and_suffix "$S_SRC" "src/" ".s")
-O_FILES=$(add_prefix_and_suffix "$S_SRC $C_SRC" "$BIN_DIR" ".o")
+# C_FILES=$(add_prefix_and_suffix "$C_SRC" "src/" ".c")
+# S_FILES=$(add_prefix_and_suffix "$S_SRC" "src/" ".s")
+O_FILES=$(add_prefix_and_suffix "$S_SRC $C_SRC" $BIN_DIR .o)
 
 rm compile_log.txt
 exec 1> >(tee -a compile_log.txt) 2> >(tee -a compile_log.txt >&2)
@@ -64,9 +66,9 @@ mkdir -p $BIN_DIR
 
 for file in $S_SRC
 do
-    source_path=$(add_prefix_and_suffix "$file" "src/" ".s")
-    object_path=$(add_prefix_and_suffix "$file" "$BIN_DIR" ".o")
-    compile_assembly $source_path $object_path "-ggdb"
+    source_path=$(add_prefix_and_suffix $file src/ .s)
+    object_path=$(add_prefix_and_suffix $file $BIN_DIR .o)
+    compile_assembly $source_path $object_path $DEBUG_SYMBOLS
 done
 
 for file in $C_SRC
@@ -76,8 +78,8 @@ do
     compile_c $source_path $object_path "-c $OPTIMIZATION $DEBUG_SYMBOLS -nostdlib -fno-builtin $WARNINGS -std=$C_STD -Isrc/"
 done
 
-$LINKER $O_FILES -o $BIN_DIR/main
+$LINKER $O_FILES -o $BIN_DIR/$PROJECT
 handle_errors
 
-chmod +w $BIN_DIR/main
+chmod +w $BIN_DIR/$PROJECT
 

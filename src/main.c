@@ -2,6 +2,7 @@
 #include "string.h"
 #include "parser.h"
 #include "allocator.h"
+#include "static_checks.h"
 
 
 void print_ast(ast_node *node)
@@ -146,7 +147,16 @@ int main(int argc, char **argv, char **env)
         write(1, "Language is not recognized!\n", 28);
     }
 
-    munmap(memory_buffer, memory_buffer_size);
+    pinapl_scope global_scope = {0};
+    b32 good = pinapl_check_scopes(&a, expression, &global_scope);
+    if (good)
+    {
+        write(1, "Check is good\n", 14);
+    }
+    else
+    {
+        write(1, "Check is bad\n", 13);
+    }
 
     return 0;
 }

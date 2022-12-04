@@ -91,20 +91,20 @@ token lexer_eat_token(lexer *);
 typedef enum ast_node_type
 {
     AST_NODE_INVALID = 0,
-    AST_NODE_PROCEDURE,
 
     AST_NODE_GLOBAL_DECLARATION_LIST,
     AST_NODE_STATEMENT_LIST,
 
+    // Statements
     AST_NODE_VARIABLE_DECLARATION,
     AST_NODE_CONSTANT_DECLARATION,
     AST_NODE_FUNCTION_DEFINITION,
-    AST_NODE_FUNCTION_CALL,
 
     // Expressions
     AST_NODE_BINARY_OPERATOR,
     AST_NODE_LITERAL_INT,
     AST_NODE_VARIABLE,
+    AST_NODE_FUNCTION_CALL,
 
 } ast_node_type;
 
