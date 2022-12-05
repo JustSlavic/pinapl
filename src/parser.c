@@ -366,7 +366,7 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
             if (t.type == '=')
             {
                 //
-                // x := <expr>
+                // <ident> := <expr>
                 //
                 lexer_eat_token(l);
                 is_constant = false;
@@ -374,7 +374,7 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
             else if (t.type == ':')
             {
                 //
-                // x :: <expr>
+                // <ident> :: <expr>
                 //
                 lexer_eat_token(l);
                 is_constant = true;
@@ -391,7 +391,7 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
                     if (t2.type == '=')
                     {
                         //
-                        // x : int = <expr>
+                        // <ident> : int = <expr>
                         //
                         lexer_eat_token(l);
                         type = t;
@@ -400,7 +400,7 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
                     else if (t2.type == ':')
                     {
                         //
-                        // x : int : <expr>
+                        // <ident> : int : <expr>
                         //
                         lexer_eat_token(l);
                         type = t;
@@ -476,11 +476,48 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
     return result;
 }
 
+ast_node *pinapl_parse_block(allocator *a, lexer *l)
+{
+    ast_node *result = NULL;
+    //
+    // block ::= { <statement-list> }
+    //
+    token open_brace = lexer_eat_token(l);
+    if (open_brace.type == '{')
+    {
+        lexer checkpoint = *l;
+        ast_node *statement_list = pinapl_parse_statement_list(a, l);
+        if (!statement_list)
+        {
+            *l = checkpoint;
+        }
+        
+        token close_brace = lexer_eat_token(l);
+        if (close_brace.type == '}')
+        {
+            result = ALLOCATE(a, ast_node);
+            result->type = AST_NODE_BLOCK;
+            result->statement_list = statement_list;
+        }
+        else
+        {
+            // error: expected '}'
+        }
+    }
+    else
+    {
+        // error: expected '{'
+    }
+
+    return result;
+}
+
 ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
 {
     //
-    // (<argument-list>) { <statement-list> }
-    // (<argument-list>) -> <return-type> { <statement-list> }
+    // function-definition ::= 
+    //   (<argument-list>) <block>
+    //   (<argument-list>) -> <return-type> <block>
     //
 
     ast_node *result = NULL;
@@ -493,35 +530,28 @@ ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
         token close_paren = lexer_eat_token(l);
         if (close_paren.type == ')')
         {
-            token open_brace = lexer_eat_token(l);
-            if (open_brace.type == '{')
+            ast_node *block = pinapl_parse_block(a, l);
+            if (block)
             {
-                lexer checkpoint = *l;
-                ast_node *statement_list = pinapl_parse_statement_list(a, l);
-                if (!statement_list)
-                {
-                    *l = checkpoint;
-                }
-                
-                token close_brace = lexer_eat_token(l);
-                if (close_brace.type == '}')
-                {
-                    result = ALLOCATE(a, ast_node);
-                    result->type = AST_NODE_FUNCTION_DEFINITION;
-                    result->parameter_list = NULL; 
-                    result->return_type = NULL;
-                    result->statement_list = statement_list;
-                }
-                else
-                {
-                    // error: expected '}'
-                }
+                result = ALLOCATE(a, ast_node);
+                result->type = AST_NODE_FUNCTION_DEFINITION;
+                result->parameter_list = NULL; 
+                result->return_type = NULL;
+                result->block = block; 
             }
             else
             {
-                // error: expected '{'
+                // Do I allow forward-declarations for functions in pinapl ?
             }
         }
+        else
+        {
+            // Error: expected ')'
+        }
+    }
+    else
+    {
+        // Error: expected '('
     }
 
     return result;
@@ -643,5 +673,6 @@ ast_node *pinapl_parse_global_declaration_list(allocator *a, lexer *l)
     }
 
     return result;
+
 }
 

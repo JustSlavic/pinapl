@@ -48,14 +48,25 @@ void print_ast(ast_node *node)
         }
         break;
 
-        case AST_NODE_FUNCTION_DEFINITION:
+        case AST_NODE_BLOCK:
         {
-            write(1, "(){\n", 4);
+            write(1, "\n{", 2);
             if (node->statement_list)
             {
                 print_ast(node->statement_list);
             }
-            write(1, "\n}\n", 3);
+            write(1, "}\n", 2);
+        }
+        break;
+
+        case AST_NODE_FUNCTION_DEFINITION:
+        {
+            write(1, "()", 2);
+            if (node->block)
+            {
+                print_ast(node->block);
+            }
+            write(1, "\n", 1);
         }
         break;
 

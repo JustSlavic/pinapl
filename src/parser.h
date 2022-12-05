@@ -93,6 +93,7 @@ typedef enum ast_node_type
     AST_NODE_INVALID = 0,
 
     AST_NODE_GLOBAL_DECLARATION_LIST,
+    AST_NODE_BLOCK,
     AST_NODE_STATEMENT_LIST,
 
     // Statements
@@ -120,11 +121,15 @@ typedef struct ast_node
             struct ast_node *declaration;
             struct ast_node *next_declaration;
         };
+        struct  // block
+        {
+            struct ast_node *statement_list;
+        };
         struct  // function definition
         {
             struct ast_node *parameter_list;
             struct ast_node *return_type;
-            struct ast_node *statement_list;
+            struct ast_node *block;
         };
         struct  // function call
         {

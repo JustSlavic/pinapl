@@ -17,9 +17,15 @@ typedef struct pinapl_scope_entry
 typedef struct pinapl_scope
 {
     pinapl_scope_entry hash_table[128];
+
+    ast_node *parent_ast_node;
+    struct pinapl_scope *next_scope;
+    struct pinapl_scope *nested_scopes[8];
+    usize  nested_scopes_count;
 } pinapl_scope;
 
 
+void pinapl_push_nested_scope(pinapl_scope *scope, pinapl_scope *nested);
 b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope);
 
 

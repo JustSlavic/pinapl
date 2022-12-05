@@ -15,6 +15,15 @@ u32 pinapl_hash_string(char *string, usize string_size)
 }
 
 
+void pinapl_push_nested_scope(pinapl_scope *scope, pinapl_scope *nested)
+{
+    if (scope->nested_scopes_count < ARRAY_COUNT(scope->nested_scopes))
+    {
+        scope->nested_scopes[scope->nested_scopes_count++] = nested;
+    }
+}
+
+
 pinapl_scope_entry *pinapl_get_scope_entry_slot(pinapl_scope *scope, u32 hash)
 {     
     pinapl_scope_entry *result = NULL;
@@ -73,21 +82,30 @@ b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope)
     {
         case AST_NODE_GLOBAL_DECLARATION_LIST:
         {
-            result = result & pinapl_check_scopes(a, node->declaration, scope);
+            result = pinapl_check_scopes(a, node->declaration, scope);
             if (node->next_declaration)
             {
-                result = result & pinapl_check_scopes(a, node->next_declaration, scope);
+                result = result && pinapl_check_scopes(a, node->next_declaration, scope);
             }
         }
         break;
 
         case AST_NODE_STATEMENT_LIST:
         {
-            result = result & pinapl_check_scopes(a, node->statement, scope);
+            result = pinapl_check_scopes(a, node->statement, scope);
             if (node->next_statement)
             {
-                result = result & pinapl_check_scopes(a, node->next_statement, scope);
+                result = result && pinapl_check_scopes(a, node->next_statement, scope);
             }
+        }
+        break;
+
+        case AST_NODE_BLOCK:
+        {
+            pinapl_scope *inner_scope = ALLOCATE(a, pinapl_scope);
+            pinapl_push_nested_scope(scope, inner_scope);
+
+            result = pinapl_check_scopes(a, node->statement_list, inner_scope);
         }
         break;
         
@@ -103,21 +121,24 @@ b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope)
             */  
             if (node->init)
             {
-                result = result & pinapl_check_scopes(a, node->init, scope);
+                result = pinapl_check_scopes(a, node->init, scope);
             }
 
-            u32 hash = pinapl_hash_string(node->var_name.span, node->var_name.span_size);
-            pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
-            if (slot->hash == 0)
+            if (result)
             {
-                slot->hash = hash;
-                slot->entry_name = node->var_name.span;
-                slot->entry_name_size = node->var_name.span_size;
-            }
-            else
-            {
-                // Error
-                result = false;
+                u32 hash = pinapl_hash_string(node->var_name.span, node->var_name.span_size);
+                pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
+                if (slot->hash == 0)
+                {
+                    slot->hash = hash;
+                    slot->entry_name = node->var_name.span;
+                    slot->entry_name_size = node->var_name.span_size;
+                }
+                else
+                {
+                    // Error
+                    result = false;
+                }
             }
         }
         break;
@@ -130,17 +151,17 @@ b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope)
             struct ast_node *return_type;
             struct ast_node *statement_list;
         };*/
-            if (node->statement_list)
+            if (node->block)
             {
-                result = result & pinapl_check_scopes(a, node->statement_list, scope);
+                result = result && pinapl_check_scopes(a, node->block, scope);
             }
         }
         break;
 
         case AST_NODE_BINARY_OPERATOR:
         {
-            result = result & pinapl_check_scopes(a, node->lhs, scope);
-            result = result & pinapl_check_scopes(a, node->rhs, scope);
+            result = result && pinapl_check_scopes(a, node->lhs, scope);
+            result = result && pinapl_check_scopes(a, node->rhs, scope);
         }
         break;
 
