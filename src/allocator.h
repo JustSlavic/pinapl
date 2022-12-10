@@ -15,8 +15,11 @@ void initialize_memory_arena(allocator *a, void *memory, usize size);
 void initialize_memory_pool(allocator *a, void *memory, usize size);
 void initialize_memory_heap(allocator *a, void *memory, usize size);
 
-#define ALLOCATE_(ALLOCATOR, TYPE) allocate_((ALLOCATOR), sizeof(TYPE), alignof(TYPE))
-#define ALLOCATE(ALLOCATOR, TYPE) allocate((ALLOCATOR), sizeof(TYPE), alignof(TYPE))
+#define ALLOCATE_(ALLOCATOR, TYPE) allocate_(ALLOCATOR, sizeof(TYPE), alignof(TYPE))
+#define ALLOCATE(ALLOCATOR, TYPE) allocate(ALLOCATOR, sizeof(TYPE), alignof(TYPE))
+
+#define ALLOCATE_BUFFER_(ALLOCATOR, SIZE) allocate_(ALLOCATOR, SIZE, 1);
+#define ALLOCATE_BUFFER(ALLOCATOR, SIZE) allocate(ALLOCATOR, SIZE, 1);
 
 void *allocate_(allocator *a, usize size, usize alignment);
 void *allocate(allocator *a, usize size, usize alignment);

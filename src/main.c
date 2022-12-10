@@ -11,9 +11,10 @@ void print_ast(ast_node *node)
     {
         case AST_NODE_BINARY_OPERATOR:
         {
-            if (node->lhs) print_ast(node->lhs);
-            if (node->rhs) print_ast(node->rhs);
-            write(1, node->op.span, node->op.span_size); 
+            ast_node_binary_operator *binary_op = &node->binary_operator;
+            if (binary_op->lhs) print_ast(binary_op->lhs);
+            if (binary_op->rhs) print_ast(binary_op->rhs);
+            write(1, binary_op->op.span, binary_op->op.span_size); 
         }
         break;
 
@@ -32,17 +33,19 @@ void print_ast(ast_node *node)
         case AST_NODE_VARIABLE_DECLARATION:
         case AST_NODE_CONSTANT_DECLARATION:
         {
+            ast_node_variable_declaration *var = &node->variable_declaration;
+
             write(1, "VAR{", 4);
-            write(1, node->var_name.span, node->var_name.span_size);
+            write(1, var->var_name.span, var->var_name.span_size);
             write(1, ":", 1);
-            if (node->var_type.type != TOKEN_INVALID)
+            if (var->var_type.type != TOKEN_INVALID)
             {
-                write(1, node->var_type.span, node->var_type.span_size);
+                write(1, var->var_type.span, var->var_type.span_size);
             }
-            if (node->init)
+            if (var->init)
             {
-                write(1, node->is_constant ? ":" : "=", 1);
-                print_ast(node->init);
+                write(1, var->is_constant ? ":" : "=", 1);
+                print_ast(var->init);
             }
             write(1, "}", 1);
         }
@@ -51,9 +54,9 @@ void print_ast(ast_node *node)
         case AST_NODE_BLOCK:
         {
             write(1, "\n{", 2);
-            if (node->statement_list)
+            if (node->block.statement_list)
             {
-                print_ast(node->statement_list);
+                print_ast(node->block.statement_list);
             }
             write(1, "}\n", 2);
         }
@@ -62,9 +65,9 @@ void print_ast(ast_node *node)
         case AST_NODE_FUNCTION_DEFINITION:
         {
             write(1, "()", 2);
-            if (node->block)
+            if (node->function_definition.block)
             {
-                print_ast(node->block);
+                print_ast(node->function_definition.block);
             }
             write(1, "\n", 1);
         }
@@ -72,29 +75,29 @@ void print_ast(ast_node *node)
 
         case AST_NODE_FUNCTION_CALL:
         {
-            write(1, node->function_name.span, node->function_name.span_size);
+            write(1, node->function_call.name.span, node->function_call.name.span_size);
             write(1, "()", 2);
         }
         break;
 
         case AST_NODE_STATEMENT_LIST:
         {
-            print_ast(node->statement);
+            print_ast(node->statement_list.node);
             write(1, ";\n", 2);
-            if (node->next_statement)
+            if (node->statement_list.next)
             {
-                print_ast(node->next_statement);
+                print_ast(node->statement_list.next);
             }
         }
         break;
 
         case AST_NODE_GLOBAL_DECLARATION_LIST:
         {
-            print_ast(node->declaration);
+            print_ast(node->global_list.node);
             write(1, "\n\n", 2);
-            if (node->next_declaration)
+            if (node->global_list.next)
             {
-                print_ast(node->next_declaration);
+                print_ast(node->global_list.next);
             }
         }
         break;
@@ -113,11 +116,26 @@ int main(int argc, char **argv, char **env)
         return 1;
     }
 
-    int memory_buffer_size = 4096;
+    usize memory_buffer_size = MEGABYTES(5);
     void *memory_buffer = mmap2(0, memory_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 
-    allocator a;
-    initialize_memory_arena(&a, memory_buffer, memory_buffer_size);
+    void *memory_for_ast = memory_buffer;
+    usize memory_for_ast_size = MEGABYTES(1);
+
+    void *memory_for_scopes = memory_for_ast + memory_for_ast_size;
+    usize memory_for_scopes_size = MEGABYTES(1);
+
+    void *memory_for_err = memory_for_scopes + memory_for_scopes_size;
+    usize memory_for_err_size = KILOBYTES(2);
+
+    allocator ast_allocator;
+    initialize_memory_arena(&ast_allocator, memory_for_ast, memory_for_ast_size);
+
+    allocator scope_allocator;
+    initialize_memory_arena(&scope_allocator, memory_for_scopes, memory_for_scopes_size);
+
+    allocator err_allocator;
+    initialize_memory_arena(&err_allocator, memory_for_err, memory_for_err_size);
 
     int fd = open(argv[1], 0, O_RDONLY);
     if (fd <= 0)
@@ -132,22 +150,27 @@ int main(int argc, char **argv, char **env)
     write(1, buffer, buffer_size);
     write(1, "EOF\n", 4);
 
-    lexer l =
+    struct pinapl_parser parser =
     {
-        .buffer = buffer,
-        .buffer_size = buffer_size,
-        .line = 1,
-        .column = 1,
-        .next_token_valid = false,
+        .lexer = 
+        {
+            .buffer = buffer,
+            .buffer_size = buffer_size,
+            .line = 1,
+            .column = 1,
+            .next_token_valid = false,
+        },
+        .ast_allocator = ast_allocator,
+        .err_allocator = err_allocator,
     };
 
     // ast_node *expression = pinapl_parse_variable_declaration(&a, &l);
     // ast_node *expression = pinapl_parse_function_definition(&a, &l);
     // ast_node *expression = pinapl_parse_statement(&a, &l);
     // ast_node *expression = pinapl_parse_statement_list(&a, &l);
-    ast_node *expression = pinapl_parse_global_declaration_list(&a, &l);
+    ast_node *expression = pinapl_parse_global_declaration_list(&parser);
 
-    token t = lexer_get_token(&l);
+    token t = pinapl_get_token(&parser);
     if (expression && t.type == TOKEN_EOF)
     {
         write(1, "Language recognized!\n", 21);
@@ -159,7 +182,7 @@ int main(int argc, char **argv, char **env)
     }
 
     pinapl_scope global_scope = {0};
-    b32 good = pinapl_check_scopes(&a, expression, &global_scope);
+    b32 good = pinapl_check_scopes(&scope_allocator, expression, &global_scope);
     if (good)
     {
         write(1, "Check is good\n", 14);

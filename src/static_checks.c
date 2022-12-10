@@ -21,6 +21,10 @@ void pinapl_push_nested_scope(pinapl_scope *scope, pinapl_scope *nested)
     {
         scope->nested_scopes[scope->nested_scopes_count++] = nested;
     }
+    else
+    {
+        ASSERT_FAIL("Storage for nested scopes is depleted");
+    }
 }
 
 
@@ -82,20 +86,20 @@ b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope)
     {
         case AST_NODE_GLOBAL_DECLARATION_LIST:
         {
-            result = pinapl_check_scopes(a, node->declaration, scope);
-            if (node->next_declaration)
+            result = pinapl_check_scopes(a, node->global_list.node, scope);
+            if (node->global_list.next)
             {
-                result = result && pinapl_check_scopes(a, node->next_declaration, scope);
+                result = result && pinapl_check_scopes(a, node->global_list.next, scope);
             }
         }
         break;
 
         case AST_NODE_STATEMENT_LIST:
         {
-            result = pinapl_check_scopes(a, node->statement, scope);
-            if (node->next_statement)
+            result = pinapl_check_scopes(a, node->statement_list.node, scope);
+            if (node->statement_list.next)
             {
-                result = result && pinapl_check_scopes(a, node->next_statement, scope);
+                result = result && pinapl_check_scopes(a, node->statement_list.next, scope);
             }
         }
         break;
@@ -105,7 +109,7 @@ b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope)
             pinapl_scope *inner_scope = ALLOCATE(a, pinapl_scope);
             pinapl_push_nested_scope(scope, inner_scope);
 
-            result = pinapl_check_scopes(a, node->statement_list, inner_scope);
+            result = pinapl_check_scopes(a, node->block.statement_list, inner_scope);
         }
         break;
         
@@ -119,20 +123,22 @@ b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope)
             b32   is_constant;
             struct ast_node *init;
             */  
-            if (node->init)
+            ast_node_variable_declaration *var = &node->variable_declaration;
+
+            if (var->init)
             {
-                result = pinapl_check_scopes(a, node->init, scope);
+                result = pinapl_check_scopes(a, var->init, scope);
             }
 
             if (result)
             {
-                u32 hash = pinapl_hash_string(node->var_name.span, node->var_name.span_size);
+                u32 hash = pinapl_hash_string(var->var_name.span, var->var_name.span_size);
                 pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
                 if (slot->hash == 0)
                 {
                     slot->hash = hash;
-                    slot->entry_name = node->var_name.span;
-                    slot->entry_name_size = node->var_name.span_size;
+                    slot->entry_name = var->var_name.span;
+                    slot->entry_name_size = var->var_name.span_size;
                 }
                 else
                 {
@@ -151,17 +157,17 @@ b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope)
             struct ast_node *return_type;
             struct ast_node *statement_list;
         };*/
-            if (node->block)
+            if (node->function_definition.block)
             {
-                result = result && pinapl_check_scopes(a, node->block, scope);
+                result = result && pinapl_check_scopes(a, node->function_definition.block, scope);
             }
         }
         break;
 
         case AST_NODE_BINARY_OPERATOR:
         {
-            result = result && pinapl_check_scopes(a, node->lhs, scope);
-            result = result && pinapl_check_scopes(a, node->rhs, scope);
+            result = result && pinapl_check_scopes(a, node->binary_operator.lhs, scope);
+            result = result && pinapl_check_scopes(a, node->binary_operator.rhs, scope);
         }
         break;
 

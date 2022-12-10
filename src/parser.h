@@ -8,6 +8,11 @@
 typedef b32 predicate(char);
 
 
+struct pinapl_lexer;
+struct pinapl_parser;
+struct ast_node;
+
+
 typedef enum
 {
     TOKEN_INVALID = 0,
@@ -57,7 +62,7 @@ typedef struct
 } token;
 
 
-typedef struct
+struct pinapl_lexer
 {
     char *buffer;
     usize buffer_size;
@@ -69,7 +74,7 @@ typedef struct
 
     token next_token;
     b32 next_token_valid;
-} lexer;
+};
 
 
 b32 is_ascii_space(char c);
@@ -79,13 +84,13 @@ b32 is_ascii_digit(char c);
 b32 is_valid_identifier_head(char c);
 b32 is_valid_identifier_body(char c);
 
-char lexer_get_char(lexer *);
-char lexer_eat_char(lexer *);
-void consume_while(lexer *, predicate *);
-void consume_until(lexer *, predicate *);
+char pinapl_get_char(struct pinapl_lexer *);
+char pinapl_eat_char(struct pinapl_lexer *);
+void pinapl_consume_while(struct pinapl_lexer *, predicate *);
+void pinapl_consume_until(struct pinapl_lexer *, predicate *);
 
-token lexer_get_token(lexer *);
-token lexer_eat_token(lexer *);
+token pinapl_get_token(struct pinapl_parser *);
+token pinapl_eat_token(struct pinapl_parser *);
 
 
 typedef enum ast_node_type
@@ -110,52 +115,66 @@ typedef enum ast_node_type
 } ast_node_type;
 
 
+typedef struct ast_node_list
+{
+    struct ast_node *node;
+    struct ast_node *next;
+} ast_node_list;
+
+
+typedef struct ast_node_block
+{
+    struct ast_node *statement_list;
+} ast_node_block;
+
+
+typedef struct ast_node_function_definition
+{
+    struct ast_node *parameter_list;
+    struct ast_node *return_type;
+    struct ast_node *block;
+} ast_node_function_definition;
+
+
+typedef struct ast_node_function_call
+{
+    token name;
+    struct ast_node *argument_list;
+} ast_node_function_call;
+
+
+typedef struct ast_node_variable_declaration
+{
+    token var_name;
+    token var_type;
+    // for compound types:
+    // struct ast_node *var_type;
+    b32   is_constant;
+    struct ast_node *init;
+} ast_node_variable_declaration;
+
+
+typedef struct ast_node_binary_operator
+{
+    token op;
+    struct ast_node *lhs;
+    struct ast_node *rhs;
+} ast_node_binary_operator;
+
+
 typedef struct ast_node
 {
     ast_node_type type;
 
     union
     {
-        struct  // global declaration list
-        {
-            struct ast_node *declaration;
-            struct ast_node *next_declaration;
-        };
-        struct  // block
-        {
-            struct ast_node *statement_list;
-        };
-        struct  // function definition
-        {
-            struct ast_node *parameter_list;
-            struct ast_node *return_type;
-            struct ast_node *block;
-        };
-        struct  // function call
-        {
-            token function_name;
-            struct ast_node *argument_list;
-        };
-        struct  // statement list
-        {
-            struct ast_node *statement;
-            struct ast_node *next_statement;
-        };
-        struct  // variable/constant declaration
-        {
-            token var_name;
-            token var_type;
-            // for compound types:
-            // struct ast_node *var_type;
-            b32   is_constant;
-            struct ast_node *init;
-        };
-        struct  // binary operation
-        {
-            token  op;
-            struct ast_node *lhs;
-            struct ast_node *rhs;
-        };
+        struct ast_node_list global_list;
+        struct ast_node_block block;
+        struct ast_node_list statement_list;
+        struct ast_node_function_definition function_definition;
+        struct ast_node_function_call function_call;
+        struct ast_node_variable_declaration variable_declaration;
+        struct ast_node_binary_operator binary_operator;
         struct  // variable/constant usage
         {
             char *var_span;
@@ -171,12 +190,21 @@ typedef struct ast_node
 } ast_node;
 
 
-ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence);
-ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l);
-ast_node *pinapl_parse_function_definition(allocator *a, lexer *l);
-ast_node *pinapl_parse_statement(allocator *a, lexer *l);
-ast_node *pinapl_parse_statement_list(allocator *a, lexer *l);
-ast_node *pinapl_parse_global_declaration(allocator *a, lexer *l);
-ast_node *pinapl_parse_global_declaration_list(allocator *a, lexer *l);
+struct pinapl_parser
+{
+    allocator ast_allocator;
+    allocator err_allocator;
+    struct pinapl_lexer lexer;
+};
+
+
+ast_node *pinapl_parse_expression(struct pinapl_parser *p, int precedence);
+ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *p);
+ast_node *pinapl_parse_function_definition(struct pinapl_parser *p);
+ast_node *pinapl_parse_statement(struct pinapl_parser *p);
+ast_node *pinapl_parse_statement_list(struct pinapl_parser *p);
+ast_node *pinapl_parse_global_declaration(struct pinapl_parser *p);
+ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *p);
+
 
 #endif // LEXER_H

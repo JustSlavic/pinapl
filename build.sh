@@ -11,7 +11,7 @@ C_STD=c11
 BIN_DIR=bin/
 
 WARNINGS="-Wall -Werror"
-OPTIMIZATION="" #"-O2"
+OPTIMIZATION=""
 DEBUG_SYMBOLS="-g"
 
 C_SRC="main memory allocator string parser primes static_checks"

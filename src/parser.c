@@ -60,7 +60,7 @@ b32 is_valid_identifier_body(char c)
 }
 
 
-char lexer_get_char(lexer *l)
+char pinapl_get_char(struct pinapl_lexer *l)
 {
     char c = 0;
     if (l->index < l->buffer_size)
@@ -70,9 +70,9 @@ char lexer_get_char(lexer *l)
     return c;
 }
 
-char lexer_eat_char(lexer *l)
+char pinapl_eat_char(struct pinapl_lexer *l)
 {
-    char c = lexer_get_char(l);
+    char c = pinapl_get_char(l);
     l->index += 1;
     if (c == '\n')
     {
@@ -83,35 +83,38 @@ char lexer_eat_char(lexer *l)
     return c;
 }
 
-void consume_while(lexer *l, predicate *p)
+void consume_while(struct pinapl_lexer *l, predicate *p)
 {
-    char c = lexer_get_char(l);
+    char c = pinapl_get_char(l);
     while (p(c))
     {
-        lexer_eat_char(l);
-        c = lexer_get_char(l);
+        pinapl_eat_char(l);
+        c = pinapl_get_char(l);
     }
 }
 
-void consume_until(lexer *l, predicate *p)
+void consume_until(struct pinapl_lexer *l, predicate *p)
 {
-    char c = lexer_get_char(l);
+    char c = pinapl_get_char(l);
     while (!p(c))
     {
-        lexer_eat_char(l);
-        c = lexer_get_char(l);
+        pinapl_eat_char(l);
+        c = pinapl_get_char(l);
     }
 }
 
-token lexer_get_token(lexer *l)
+token pinapl_get_token(struct pinapl_parser *parser)
 {
+    // @todo: use normal name for the variable
+    struct pinapl_lexer *l = &parser->lexer;
+
     if (!l->next_token_valid)
     {
         consume_while(l, is_ascii_whitespace);
        
         token t = {0};
 
-        char c = lexer_get_char(l);
+        char c = pinapl_get_char(l);
         if (c == 0)
         {
             t.type = TOKEN_EOF;
@@ -127,14 +130,14 @@ token lexer_get_token(lexer *l)
             t.column = l->column;
             t.span = l->buffer + l->index;
 
-            lexer_eat_char(l);
-            c = lexer_get_char(l);
+            pinapl_eat_char(l);
+            c = pinapl_get_char(l);
             int span_size = 1;
 
             while (is_valid_identifier_body(c))
             {
-                lexer_eat_char(l);
-                c = lexer_get_char(l);
+                pinapl_eat_char(l);
+                c = pinapl_get_char(l);
                 span_size += 1;
             }
 
@@ -154,8 +157,8 @@ token lexer_get_token(lexer *l)
             {
                 integer *= 10;
                 integer += (c - '0');
-                lexer_eat_char(l);
-                c = lexer_get_char(l);
+                pinapl_eat_char(l);
+                c = pinapl_get_char(l);
                 t.span_size += 1;
             }
 
@@ -169,12 +172,12 @@ token lexer_get_token(lexer *l)
 
             if (c == '-')
             {
-                lexer_eat_char(l);
-                c = lexer_get_char(l);
+                pinapl_eat_char(l);
+                c = pinapl_get_char(l);
                 if (c == '>')
                 {
                     t.type = TOKEN_ARROW_RIGHT;
-                    lexer_eat_char(l);
+                    pinapl_eat_char(l);
                     t.span_size = 2;
                 }
                 else
@@ -185,7 +188,7 @@ token lexer_get_token(lexer *l)
             }
             else
             {
-                lexer_eat_char(l);
+                pinapl_eat_char(l);
                 t.type = (token_type) c;
                 t.span_size = 1;
             }
@@ -198,10 +201,10 @@ token lexer_get_token(lexer *l)
     return l->next_token;
 }
 
-token lexer_eat_token(lexer *l)
+token pinapl_eat_token(struct pinapl_parser *parser)
 {
-    token result = lexer_get_token(l);
-    l->next_token_valid = false;
+    token result = pinapl_get_token(parser);
+    parser->lexer.next_token_valid = false;
     return result;
 }
 
@@ -221,36 +224,36 @@ int parser_get_operator_precedence(token t)
     return 0;
 }
 
-ast_node *pinapl_parse_expression_operand(allocator *a, lexer *l)
+ast_node *pinapl_parse_expression_operand(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
 
-    token t = lexer_get_token(l);
+    token t = pinapl_get_token(parser);
     if (t.type == TOKEN_IDENTIFIER)
     {
-        lexer_eat_token(l);
+        pinapl_eat_token(parser);
 
-        token paren_open = lexer_get_token(l);
+        token paren_open = pinapl_get_token(parser);
         if (paren_open.type == '(')
         {
-            lexer_eat_token(l);
+            pinapl_eat_token(parser);
 
             // @todo: parse argument_list
 
-            token s = lexer_get_token(l);
+            token s = pinapl_get_token(parser);
             if (s.type == ')')
             {
-                lexer_eat_token(l);
+                pinapl_eat_token(parser);
 
-                result = ALLOCATE(a, ast_node);
+                result = ALLOCATE(&parser->ast_allocator, ast_node);
                 result->type = AST_NODE_FUNCTION_CALL;
-                result->function_name = t;
-                result->argument_list = NULL;
+                result->function_call.name = t;
+                result->function_call.argument_list = NULL;
             }
         }
         else
         {
-            result = ALLOCATE(a, ast_node);
+            result = ALLOCATE(&parser->ast_allocator, ast_node);
             result->type = AST_NODE_VARIABLE;
             result->var_span = t.span;
             result->var_span_size = t.span_size;
@@ -258,9 +261,9 @@ ast_node *pinapl_parse_expression_operand(allocator *a, lexer *l)
     }
     else if (t.type == TOKEN_LITERAL_INT)
     {
-        lexer_eat_token(l);
+        pinapl_eat_token(parser);
 
-        result = ALLOCATE(a, ast_node);
+        result = ALLOCATE(&parser->ast_allocator, ast_node);
         result->type = AST_NODE_LITERAL_INT;
         result->literal_span = t.span;
         result->literal_span_size = t.span_size;
@@ -270,24 +273,24 @@ ast_node *pinapl_parse_expression_operand(allocator *a, lexer *l)
     return result;
 }
 
-ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence)
+ast_node *pinapl_parse_expression(struct pinapl_parser *parser, int precedence)
 {
     ast_node *left_operand = NULL;
 
-    token open_paren = lexer_get_token(l);
+    token open_paren = pinapl_get_token(parser);
     if (open_paren.type == '(')
     {
-        lexer_eat_token(l);
-        left_operand = pinapl_parse_expression(a, l, precedence);
+        pinapl_eat_token(parser);
+        left_operand = pinapl_parse_expression(parser, precedence);
         if (left_operand == NULL)
         {
             return NULL;
         }
 
-        token close_paren = lexer_get_token(l);
+        token close_paren = pinapl_get_token(parser);
         if (close_paren.type == ')')
         {
-            lexer_eat_token(l);
+            pinapl_eat_token(parser);
         }
         else
         {
@@ -297,7 +300,7 @@ ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence)
     }
     else
     {
-        left_operand = pinapl_parse_expression_operand(a, l);
+        left_operand = pinapl_parse_expression_operand(parser);
         if (left_operand == NULL)
         {
             return NULL;
@@ -306,7 +309,7 @@ ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence)
 
     while (true)
     {
-        token operator = lexer_get_token(l);
+        token operator = pinapl_get_token(parser);
         if ((operator.type != '+') &&
             (operator.type != '-') &&
             (operator.type != '*') &&
@@ -319,20 +322,20 @@ ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence)
         int operator_precedence = parser_get_operator_precedence(operator);
         if (operator_precedence < precedence) break;
 
-        lexer_eat_token(l);
+        pinapl_eat_token(parser);
         
         // +1 for left associativity, +0 for right ass
-        ast_node *right_operand = pinapl_parse_expression(a, l, operator_precedence + 1);
+        ast_node *right_operand = pinapl_parse_expression(parser, operator_precedence + 1);
         if (right_operand == NULL)
         {
             return NULL;
         }
 
-        ast_node *binary_operator = ALLOCATE(a, ast_node);
+        ast_node *binary_operator = ALLOCATE(&parser->ast_allocator, ast_node);
         binary_operator->type = AST_NODE_BINARY_OPERATOR;
-        binary_operator->op   = operator;
-        binary_operator->lhs  = left_operand;
-        binary_operator->rhs  = right_operand;
+        binary_operator->binary_operator.op   = operator;
+        binary_operator->binary_operator.lhs  = left_operand;
+        binary_operator->binary_operator.rhs  = right_operand;
 
         left_operand = binary_operator;
     }
@@ -340,7 +343,7 @@ ast_node *pinapl_parse_expression(allocator *a, lexer *l, int precedence)
     return left_operand;
 }
 
-ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
+ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *parser)
 {
     //
     // x :: <expr>;
@@ -352,23 +355,23 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
 
     ast_node *result = NULL;
 
-    token var_name = lexer_eat_token(l);
+    token var_name = pinapl_eat_token(parser);
     if (var_name.type == TOKEN_IDENTIFIER)
     {
-        token colon = lexer_eat_token(l);
+        token colon = pinapl_eat_token(parser);
         if (colon.type == ':')
         {
             token type = {0};
             b32 is_constant = false;
             b32 should_init = true;
 
-            token t = lexer_get_token(l);
+            token t = pinapl_get_token(parser);
             if (t.type == '=')
             {
                 //
                 // <ident> := <expr>
                 //
-                lexer_eat_token(l);
+                pinapl_eat_token(parser);
                 is_constant = false;
             }
             else if (t.type == ':')
@@ -376,24 +379,24 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
                 //
                 // <ident> :: <expr>
                 //
-                lexer_eat_token(l);
+                pinapl_eat_token(parser);
                 is_constant = true;
             }
             else if (t.type == TOKEN_IDENTIFIER)
             {
-                lexer_eat_token(l);
+                pinapl_eat_token(parser);
                 if ((t.span_size == 3) &&
                     (t.span[0] == 'i') &&
                     (t.span[1] == 'n') &&
                     (t.span[2] == 't'))
                 {
-                    token t2 = lexer_get_token(l);
+                    token t2 = pinapl_get_token(parser);
                     if (t2.type == '=')
                     {
                         //
                         // <ident> : int = <expr>
                         //
-                        lexer_eat_token(l);
+                        pinapl_eat_token(parser);
                         type = t;
                         is_constant = false;
                     }
@@ -402,7 +405,7 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
                         //
                         // <ident> : int : <expr>
                         //
-                        lexer_eat_token(l);
+                        pinapl_eat_token(parser);
                         type = t;
                         is_constant = true;
                     }
@@ -413,12 +416,11 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
                         is_constant = false;
                         should_init = false;
 
-                        result = ALLOCATE(a, ast_node);
+                        result = ALLOCATE(&parser->ast_allocator, ast_node);
                         result->type = AST_NODE_VARIABLE_DECLARATION;
-                        result->var_name = var_name;
-                        result->var_type = type;
-                        result->is_constant = false;
-                        result->init = NULL;
+                        result->variable_declaration.var_name = var_name;
+                        result->variable_declaration.var_type = type;
+                        result->variable_declaration.init = NULL;
                     }
                     else
                     {
@@ -438,24 +440,23 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
 
             if (should_init)
             {
-                lexer checkpoint = *l;
-                ast_node *initializer = pinapl_parse_expression(a, l, 0);
+                struct pinapl_lexer checkpoint = parser->lexer;
+                ast_node *initializer = pinapl_parse_expression(parser, 0);
                 if (!initializer)
                 {
-                    *l = checkpoint;
-                    initializer = pinapl_parse_function_definition(a, l);
+                    parser->lexer = checkpoint;
+                    initializer = pinapl_parse_function_definition(parser);
                 }
 
                 if (initializer)
                 {
-                    result = ALLOCATE(a, ast_node);
+                    result = ALLOCATE(&parser->ast_allocator, ast_node);
                     result->type = is_constant 
                         ? AST_NODE_CONSTANT_DECLARATION
                         : AST_NODE_VARIABLE_DECLARATION;
-                    result->var_name = var_name;
-                    result->var_type = type;
-                    result->is_constant = is_constant;
-                    result->init = initializer;
+                    result->variable_declaration.var_name = var_name;
+                    result->variable_declaration.var_type = type;
+                    result->variable_declaration.init = initializer;
                 }
                 else
                 {
@@ -476,28 +477,28 @@ ast_node *pinapl_parse_variable_declaration(allocator *a, lexer *l)
     return result;
 }
 
-ast_node *pinapl_parse_block(allocator *a, lexer *l)
+ast_node *pinapl_parse_block(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
     //
     // block ::= { <statement-list> }
     //
-    token open_brace = lexer_eat_token(l);
+    token open_brace = pinapl_eat_token(parser);
     if (open_brace.type == '{')
     {
-        lexer checkpoint = *l;
-        ast_node *statement_list = pinapl_parse_statement_list(a, l);
+        struct pinapl_lexer checkpoint = parser->lexer;
+        ast_node *statement_list = pinapl_parse_statement_list(parser);
         if (!statement_list)
         {
-            *l = checkpoint;
+            parser->lexer = checkpoint;
         }
         
-        token close_brace = lexer_eat_token(l);
+        token close_brace = pinapl_eat_token(parser);
         if (close_brace.type == '}')
         {
-            result = ALLOCATE(a, ast_node);
+            result = ALLOCATE(&parser->ast_allocator, ast_node);
             result->type = AST_NODE_BLOCK;
-            result->statement_list = statement_list;
+            result->block.statement_list = statement_list;
         }
         else
         {
@@ -512,7 +513,7 @@ ast_node *pinapl_parse_block(allocator *a, lexer *l)
     return result;
 }
 
-ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
+ast_node *pinapl_parse_function_definition(struct pinapl_parser *parser)
 {
     //
     // function-definition ::= 
@@ -522,22 +523,22 @@ ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
 
     ast_node *result = NULL;
 
-    token open_paren = lexer_eat_token(l);
+    token open_paren = pinapl_eat_token(parser);
     if (open_paren.type == '(')
     {
         // @todo: argument parsing here
 
-        token close_paren = lexer_eat_token(l);
+        token close_paren = pinapl_eat_token(parser);
         if (close_paren.type == ')')
         {
-            ast_node *block = pinapl_parse_block(a, l);
+            ast_node *block = pinapl_parse_block(parser);
             if (block)
             {
-                result = ALLOCATE(a, ast_node);
+                result = ALLOCATE(&parser->ast_allocator, ast_node);
                 result->type = AST_NODE_FUNCTION_DEFINITION;
-                result->parameter_list = NULL; 
-                result->return_type = NULL;
-                result->block = block; 
+                result->function_definition.parameter_list = NULL; 
+                result->function_definition.return_type = NULL;
+                result->function_definition.block = block; 
             }
             else
             {
@@ -557,20 +558,20 @@ ast_node *pinapl_parse_function_definition(allocator *a, lexer *l)
     return result;
 }
 
-ast_node *pinapl_parse_statement(allocator *a, lexer *l)
+ast_node *pinapl_parse_statement(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
-    lexer checkpoint = *l;
+    struct pinapl_lexer checkpoint = parser->lexer;
 
-    ast_node *variable_declaration = pinapl_parse_variable_declaration(a, l);
+    ast_node *variable_declaration = pinapl_parse_variable_declaration(parser);
     if (variable_declaration)
     {
         result = variable_declaration;
     }
     else
     {
-        *l = checkpoint;
-        ast_node *expression = pinapl_parse_expression(a, l, 0);
+        parser->lexer = checkpoint;
+        ast_node *expression = pinapl_parse_expression(parser, 0);
         if (expression)
         {
             result = expression;
@@ -581,10 +582,10 @@ ast_node *pinapl_parse_statement(allocator *a, lexer *l)
         }
     }
 
-    token semicolon = lexer_get_token(l);
+    token semicolon = pinapl_get_token(parser);
     if (semicolon.type == ';')
     {
-        lexer_eat_token(l);
+        pinapl_eat_token(parser);
     }
     else
     {
@@ -596,31 +597,31 @@ ast_node *pinapl_parse_statement(allocator *a, lexer *l)
     return result;
 }
 
-ast_node *pinapl_parse_statement_list(allocator *a, lexer *l)
+ast_node *pinapl_parse_statement_list(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
 
-    ast_node *first_statement = pinapl_parse_statement(a, l);
+    ast_node *first_statement = pinapl_parse_statement(parser);
     if (first_statement)
     {
-        result = ALLOCATE(a, ast_node);
+        result = ALLOCATE(&parser->ast_allocator, ast_node);
         result->type = AST_NODE_STATEMENT_LIST;
-        result->statement = first_statement;
-        result->next_statement = NULL;
+        result->statement_list.node = first_statement;
+        result->statement_list.next = NULL;
 
         ast_node *last_list_node = result;
         
         while (true)
         {
-            ast_node *statement = pinapl_parse_statement(a, l);
+            ast_node *statement = pinapl_parse_statement(parser);
             if (statement)
             {
-                ast_node *new_list_node = ALLOCATE(a, ast_node);
+                ast_node *new_list_node = ALLOCATE(&parser->ast_allocator, ast_node);
                 new_list_node->type = AST_NODE_STATEMENT_LIST;
-                new_list_node->statement = statement;
-                new_list_node->next_statement = NULL;
+                new_list_node->statement_list.node = statement;
+                new_list_node->statement_list.next = NULL;
 
-                last_list_node->next_statement = new_list_node;
+                last_list_node->statement_list.next = new_list_node;
                 last_list_node = new_list_node;
             }
             else
@@ -633,36 +634,36 @@ ast_node *pinapl_parse_statement_list(allocator *a, lexer *l)
     return result;
 }
 
-ast_node *pinapl_parse_global_declaration(allocator *a, lexer *l)
+ast_node *pinapl_parse_global_declaration(struct pinapl_parser *parser)
 {
-    ast_node *result = pinapl_parse_variable_declaration(a, l);
+    ast_node *result = pinapl_parse_variable_declaration(parser);
     return result;
 }
 
-ast_node *pinapl_parse_global_declaration_list(allocator *a, lexer *l)
+ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
 
-    ast_node *first_declaration = pinapl_parse_global_declaration(a, l);
+    ast_node *first_declaration = pinapl_parse_global_declaration(parser);
     if (first_declaration)
     {
-        result = ALLOCATE(a, ast_node);
+        result = ALLOCATE(&parser->ast_allocator, ast_node);
         result->type = AST_NODE_GLOBAL_DECLARATION_LIST;
-        result->declaration = first_declaration;
-        result->next_declaration = NULL;
+        result->global_list.node = first_declaration;
+        result->global_list.next = NULL;
 
         ast_node *last_list_node = result;
         while (true)
         {
-            ast_node *declaration = pinapl_parse_global_declaration(a, l);
+            ast_node *declaration = pinapl_parse_global_declaration(parser);
             if (declaration)
             {
-                ast_node *next_list_node = ALLOCATE(a, ast_node);
+                ast_node *next_list_node = ALLOCATE(&parser->ast_allocator, ast_node);
                 next_list_node->type = AST_NODE_GLOBAL_DECLARATION_LIST;
-                next_list_node->declaration = declaration;
-                next_list_node->next_declaration = NULL;
+                next_list_node->global_list.node = declaration;
+                next_list_node->global_list.next = NULL;
 
-                last_list_node->next_declaration = next_list_node;
+                last_list_node->global_list.next = next_list_node;
                 last_list_node = next_list_node;
             }
             else

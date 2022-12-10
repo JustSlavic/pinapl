@@ -7,18 +7,23 @@
 #define NULL (void *)0
 #define ARRAY_COUNT(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
 
+#define ALWAYS_INLINE __attribute__((always_inline))
+#define INLINE __inline__
+
 #if defined(__arm__)
-__attribute__((always_inline))
-__inline__ static void debug_break(void)
-{
-    __asm__ volatile(".inst 0xe7f001f0");
-}
+#define DEBUG_BREAK() { __asm__ volatile(".inst 0xe7f001f0"); } (void)0
 #endif
 
 #define UNUSED(VAR) (void)(VAR)
-#define ASSERT(EXP) if (EXP) {} else { debug_break(); } (void)0
+#define ASSERT(EXP) if (EXP) {} else { DEBUG_BREAK(); } (void)0
 #define ASSERT_MSG(EXP, MSG) ASSERT(EXP)
+#define ASSERT_FAIL(MSG) ASSERT_MSG(false, MSG)
 #define NOT_IMPLEMENTED ASSERT(false)
+
+#define KILOBYTES(N) (1024 * N)
+#define MEGABYTES(N) (1024 * KILOBYTES(N))
+#define GIGABYTES(N) (1024 * MEGABYTES(N))
+
 
 typedef unsigned int b32;
 
