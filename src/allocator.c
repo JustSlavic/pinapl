@@ -10,45 +10,41 @@ enum allocator_type
 };
 
 
-struct allocator_base
+struct arena_allocator
 {
+    ALLOCATOR_BASE_STRUCT;
     enum allocator_type type;
 };
 
-
-struct arena_allocator
-{
-    struct allocator_base tag;
-
-    void *memory;
-    usize size;
-    usize used;
-    usize last_allocation_size;
-};
-
+static_assert(sizeof(struct arena_allocator) >= sizeof(ALLOCATOR_BASE_STRUCT), "size of arena_allocator is too small!");
 static_assert(sizeof(struct arena_allocator) <= sizeof(struct allocator), "size of arena_allocator is too large!");
 
 
-void initialize_memory_arena(allocator *a, void *memory, usize size)
+enum allocator_type allocator_get_type(struct allocator *allocator)
+{
+    enum allocator_type result = *(enum allocator_type *) ((u8 *) allocator + sizeof(ALLOCATOR_BASE_STRUCT));
+    return result;
+}
+
+void initialize_memory_arena(struct allocator *a, void *memory, usize size)
 {
     struct arena_allocator *arena = (struct arena_allocator *) a;
 
-    arena->tag.type = ALLOCATOR_ARENA;
+    arena->type = ALLOCATOR_ARENA;
     arena->memory = memory;
     arena->size = size;
     arena->used = 0;
-    arena->last_allocation_size = 0;
 }
 
-void initialize_memory_pool(allocator *a, void *memory, usize size);
-void initialize_memory_heap(allocator *a, void *memory, usize size);
+void initialize_memory_pool(struct allocator *a, void *memory, usize size);
+void initialize_memory_heap(struct allocator *a, void *memory, usize size);
 
-void *allocate_(allocator *a, usize size, usize alignment)
+void *allocate_(struct allocator *a, usize size, usize alignment)
 {
     void *result = NULL;
 
-    struct allocator_base *base = (struct allocator_base *) a;
-    switch (base->type)
+    enum allocator_type type = allocator_get_type(a);
+    switch (type)
     {
         case ALLOCATOR_INVALID:
         {
@@ -66,7 +62,6 @@ void *allocate_(allocator *a, usize size, usize alignment)
             {
                 result = arena->memory + arena->used + padding;
                 arena->used += size + padding;
-                arena->last_allocation_size = size;
             }
         }
         break;
@@ -87,7 +82,7 @@ void *allocate_(allocator *a, usize size, usize alignment)
     return result;
 }
 
-void *allocate(allocator *a, usize size, usize alignment)
+void *allocate(struct allocator *a, usize size, usize alignment)
 {
     void *result = allocate_(a, size, alignment);
     if (result)
@@ -97,6 +92,14 @@ void *allocate(allocator *a, usize size, usize alignment)
     return result;
 }
 
-void *reallocate(allocator *a, void *memory, usize size);
-void deallocate(allocator *a, void *memory, usize size);
+void *reallocate(struct allocator *a, void *memory, usize size)
+{
+    NOT_IMPLEMENTED();
+    return NULL;
+}
+
+void deallocate(struct allocator *a, void *memory, usize size)
+{
+    // Nothing to do yet
+}
 

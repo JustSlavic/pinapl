@@ -9,14 +9,14 @@
 typedef struct pinapl_scope_entry
 {
     char *entry_name;
-    u32   entry_name_size;
+    usize entry_name_size;
     u32   hash;
 } pinapl_scope_entry;
 
 
 typedef struct pinapl_scope
 {
-    pinapl_scope_entry hash_table[128];
+    pinapl_scope_entry hash_table[64];
 
     ast_node *parent_ast_node;
     struct pinapl_scope *next_scope;
@@ -26,7 +26,7 @@ typedef struct pinapl_scope
 
 
 void pinapl_push_nested_scope(pinapl_scope *scope, pinapl_scope *nested);
-b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope);
+b32 pinapl_check_scopes(struct allocator *a, ast_node *node, pinapl_scope *scope);
 
 
 #endif // STATIC_CHECKS_H

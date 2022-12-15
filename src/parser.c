@@ -1,4 +1,9 @@
 #include "parser.h"
+#include <string.h>
+
+
+GLOBAL char const *spaces = "                                             ";
+GLOBAL char const *carets = "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^";
 
 
 char *token_type_to_cstring(token_type t)
@@ -60,13 +65,41 @@ b32 is_valid_identifier_body(char c)
 }
 
 
-char pinapl_get_char(struct pinapl_lexer *l)
+struct pinapl_lexer pinapl_init_lexer_with_buffer(char *buffer, usize size)
+{
+    struct pinapl_lexer result = {0};
+    result.buffer = buffer;
+    result.buffer_size = size;
+    result.line = 1;
+    result.column = 1;
+
+    return result;
+}
+
+struct pinapl_parser pinapl_init_parser(struct allocator *ast_allocator, struct allocator *err_allocator, char const *filename, char *buffer, usize size)
+{
+    struct pinapl_parser result = {0};
+    result.filename = filename;
+    result.lexer = pinapl_init_lexer_with_buffer(buffer, size);
+    result.ast_allocator = ast_allocator;
+    result.err_allocator = err_allocator;
+
+    return result;
+}
+
+char pinapl_get_char_at(struct pinapl_lexer *l, usize index)
 {
     char c = 0;
-    if (l->index < l->buffer_size)
+    if (index < l->buffer_size)
     {
-        c = l->buffer[l->index];
+        c = l->buffer[index];
     }
+    return c;
+}
+
+char pinapl_get_char(struct pinapl_lexer *l)
+{
+    char c = pinapl_get_char_at(l, l->index);
     return c;
 }
 
@@ -74,8 +107,21 @@ char pinapl_eat_char(struct pinapl_lexer *l)
 {
     char c = pinapl_get_char(l);
     l->index += 1;
-    if (c == '\n')
+    char c1 = pinapl_get_char(l);
+
+    if ((c == '\n') || (c == '\r'))
     {
+        if (((c == '\n') && (c1 == '\r')) || ((c == '\r') && (c1 == '\n')))
+        {
+            l->index += 1;
+        }
+
+        struct pinapl_line_info info;
+        info.start_index_in_buffer = l->index - l->column;
+        info.length = l->column;
+
+        l->lines[l->lines_count++] = info;
+
         l->line += 1;
         l->column = 0;
     }
@@ -224,6 +270,89 @@ int parser_get_operator_precedence(token t)
     return 0;
 }
 
+void pinapl_report_compiler_error(struct pinapl_parser *parser, char const *data, usize size)
+{
+    char *buffer = ALLOCATE_BUFFER_(parser->err_allocator, size);
+    memcpy(buffer, data, size);
+}
+
+void pinapl_report_compiler_error_cstring(struct pinapl_parser *parser, char const *c_string)
+{
+    usize size_no0 = cstring_size_no0(c_string);
+    pinapl_report_compiler_error(parser, c_string, size_no0);
+}
+
+void pinapl_report_compiler_error_string(struct pinapl_parser *parser, struct string string)
+{
+    pinapl_report_compiler_error(parser, string.data, string.size);
+}
+
+void pinapl_report_highlight_token(struct pinapl_parser *parser, token t)
+{
+    int skip_lines_up = 1;
+    int skip_lines_down = 0; // @todo: decide if I need post lines to show up
+    UNUSED(skip_lines_up);
+    UNUSED(skip_lines_down);
+
+    int line_index = (t.line - 1) - skip_lines_up;
+    while (skip_lines_up)
+    {
+        if (0 <= line_index && line_index < parser->lexer.lines_count)
+        {
+            struct pinapl_line_info info = parser->lexer.lines[line_index];
+
+            char *data = parser->lexer.buffer + info.start_index_in_buffer;
+            usize size = info.length;
+
+            pinapl_report_compiler_error(parser, data, size);
+        }
+        else
+        {
+            pinapl_report_compiler_error_cstring(parser, "Caramba!\n");
+        }
+
+        skip_lines_up -= 1;
+        line_index += 1;
+    }
+
+    char *line_start = t.span - (t.column - 1);
+    usize line_length = (t.column - 1) + t.span_size;
+    char *p = t.span + t.span_size;
+    while (*p)
+    {
+        char c = *p;
+        if (c == '\n' || c == '\r')
+        {
+            line_length += 1;
+            char c1 = *(p + 1);
+            if (((c == '\n') && (c1 == '\r')) || ((c == '\r') && (c1 == '\n')))
+            {
+                line_length += 1;
+            }
+
+            break;
+        }
+
+        p++;
+        line_length += 1;
+    }
+
+    pinapl_report_compiler_error(parser, line_start, line_length);
+    pinapl_report_compiler_error(parser, spaces, t.column - 1);
+    pinapl_report_compiler_error(parser, carets, t.span_size);
+    pinapl_report_compiler_error(parser, "\n", 1);
+}
+
+struct string pinapl_parser_get_error_string(struct pinapl_parser *parser)
+{
+    struct string result = {0};
+
+    result.data = parser->err_allocator->memory;
+    result.size = parser->err_allocator->used;
+
+    return result;
+}
+
 ast_node *pinapl_parse_expression_operand(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
@@ -245,7 +374,7 @@ ast_node *pinapl_parse_expression_operand(struct pinapl_parser *parser)
             {
                 pinapl_eat_token(parser);
 
-                result = ALLOCATE(&parser->ast_allocator, ast_node);
+                result = ALLOCATE(parser->ast_allocator, ast_node);
                 result->type = AST_NODE_FUNCTION_CALL;
                 result->function_call.name = t;
                 result->function_call.argument_list = NULL;
@@ -253,7 +382,7 @@ ast_node *pinapl_parse_expression_operand(struct pinapl_parser *parser)
         }
         else
         {
-            result = ALLOCATE(&parser->ast_allocator, ast_node);
+            result = ALLOCATE(parser->ast_allocator, ast_node);
             result->type = AST_NODE_VARIABLE;
             result->var_span = t.span;
             result->var_span_size = t.span_size;
@@ -263,7 +392,7 @@ ast_node *pinapl_parse_expression_operand(struct pinapl_parser *parser)
     {
         pinapl_eat_token(parser);
 
-        result = ALLOCATE(&parser->ast_allocator, ast_node);
+        result = ALLOCATE(parser->ast_allocator, ast_node);
         result->type = AST_NODE_LITERAL_INT;
         result->literal_span = t.span;
         result->literal_span_size = t.span_size;
@@ -331,7 +460,7 @@ ast_node *pinapl_parse_expression(struct pinapl_parser *parser, int precedence)
             return NULL;
         }
 
-        ast_node *binary_operator = ALLOCATE(&parser->ast_allocator, ast_node);
+        ast_node *binary_operator = ALLOCATE(parser->ast_allocator, ast_node);
         binary_operator->type = AST_NODE_BINARY_OPERATOR;
         binary_operator->binary_operator.op   = operator;
         binary_operator->binary_operator.lhs  = left_operand;
@@ -416,7 +545,7 @@ ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *parser)
                         is_constant = false;
                         should_init = false;
 
-                        result = ALLOCATE(&parser->ast_allocator, ast_node);
+                        result = ALLOCATE(parser->ast_allocator, ast_node);
                         result->type = AST_NODE_VARIABLE_DECLARATION;
                         result->variable_declaration.var_name = var_name;
                         result->variable_declaration.var_type = type;
@@ -424,18 +553,22 @@ ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *parser)
                     }
                     else
                     {
-                        // error: expected ':', '=', or ';'
+                        pinapl_report_compiler_error_cstring(parser, "Error: expected ':', '=', or ';'\nIn file: '");
+                        pinapl_report_compiler_error_cstring(parser, parser->filename);
+                        pinapl_report_compiler_error(parser, "'\n", 2);
+                        pinapl_report_highlight_token(parser, t2);
                     }
                 }
                 else
                 {
-                    // error: I do not allow other types other than 'int' YET
+                    pinapl_report_compiler_error_cstring(parser, "Error: I do not allow other types other than 'int' YET.\n");
                 }
             }
             else
             {
                 should_init = false;
-                // error: expected '-', ':', or a type
+                pinapl_report_compiler_error_cstring(parser, "Error: expected '=', ':', or a type.\n");
+                pinapl_report_highlight_token(parser, t);
             }
 
             if (should_init)
@@ -450,7 +583,7 @@ ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *parser)
 
                 if (initializer)
                 {
-                    result = ALLOCATE(&parser->ast_allocator, ast_node);
+                    result = ALLOCATE(parser->ast_allocator, ast_node);
                     result->type = is_constant 
                         ? AST_NODE_CONSTANT_DECLARATION
                         : AST_NODE_VARIABLE_DECLARATION;
@@ -460,18 +593,18 @@ ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *parser)
                 }
                 else
                 {
-                    // error: expression expected (probably should print error, that comes from that call
+                    pinapl_report_compiler_error_cstring(parser, "Error: expression expected (probably should print error, that comes from that call.\n");
                 }
             }
         }
         else
         {
-            // error: token ':' expected
+            pinapl_report_compiler_error_cstring(parser, "Error: token ':' expected.\n");
         }
     }
     else
     {
-        // error: variable declaration is not started with identifier
+        pinapl_report_compiler_error_cstring(parser, "Error: variable declaration is not started with identifier.\n");
     }
 
     return result;
@@ -496,7 +629,7 @@ ast_node *pinapl_parse_block(struct pinapl_parser *parser)
         token close_brace = pinapl_eat_token(parser);
         if (close_brace.type == '}')
         {
-            result = ALLOCATE(&parser->ast_allocator, ast_node);
+            result = ALLOCATE(parser->ast_allocator, ast_node);
             result->type = AST_NODE_BLOCK;
             result->block.statement_list = statement_list;
         }
@@ -534,7 +667,7 @@ ast_node *pinapl_parse_function_definition(struct pinapl_parser *parser)
             ast_node *block = pinapl_parse_block(parser);
             if (block)
             {
-                result = ALLOCATE(&parser->ast_allocator, ast_node);
+                result = ALLOCATE(parser->ast_allocator, ast_node);
                 result->type = AST_NODE_FUNCTION_DEFINITION;
                 result->function_definition.parameter_list = NULL; 
                 result->function_definition.return_type = NULL;
@@ -604,7 +737,7 @@ ast_node *pinapl_parse_statement_list(struct pinapl_parser *parser)
     ast_node *first_statement = pinapl_parse_statement(parser);
     if (first_statement)
     {
-        result = ALLOCATE(&parser->ast_allocator, ast_node);
+        result = ALLOCATE(parser->ast_allocator, ast_node);
         result->type = AST_NODE_STATEMENT_LIST;
         result->statement_list.node = first_statement;
         result->statement_list.next = NULL;
@@ -616,7 +749,7 @@ ast_node *pinapl_parse_statement_list(struct pinapl_parser *parser)
             ast_node *statement = pinapl_parse_statement(parser);
             if (statement)
             {
-                ast_node *new_list_node = ALLOCATE(&parser->ast_allocator, ast_node);
+                ast_node *new_list_node = ALLOCATE(parser->ast_allocator, ast_node);
                 new_list_node->type = AST_NODE_STATEMENT_LIST;
                 new_list_node->statement_list.node = statement;
                 new_list_node->statement_list.next = NULL;
@@ -647,7 +780,7 @@ ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *parser)
     ast_node *first_declaration = pinapl_parse_global_declaration(parser);
     if (first_declaration)
     {
-        result = ALLOCATE(&parser->ast_allocator, ast_node);
+        result = ALLOCATE(parser->ast_allocator, ast_node);
         result->type = AST_NODE_GLOBAL_DECLARATION_LIST;
         result->global_list.node = first_declaration;
         result->global_list.next = NULL;
@@ -658,7 +791,7 @@ ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *parser)
             ast_node *declaration = pinapl_parse_global_declaration(parser);
             if (declaration)
             {
-                ast_node *next_list_node = ALLOCATE(&parser->ast_allocator, ast_node);
+                ast_node *next_list_node = ALLOCATE(parser->ast_allocator, ast_node);
                 next_list_node->type = AST_NODE_GLOBAL_DECLARATION_LIST;
                 next_list_node->global_list.node = declaration;
                 next_list_node->global_list.next = NULL;

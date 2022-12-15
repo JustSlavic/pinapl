@@ -1,6 +1,10 @@
 #ifndef BASE_H
 #define BASE_H
 
+#define GLOBAL static
+#define PERSIST static
+#define INTERNAL static
+
 #define static_assert(VAR, MSG) _Static_assert((VAR), MSG)
 #define alignof(TYPE) _Alignof(TYPE)
 
@@ -18,7 +22,7 @@
 #define ASSERT(EXP) if (EXP) {} else { DEBUG_BREAK(); } (void)0
 #define ASSERT_MSG(EXP, MSG) ASSERT(EXP)
 #define ASSERT_FAIL(MSG) ASSERT_MSG(false, MSG)
-#define NOT_IMPLEMENTED ASSERT(false)
+#define NOT_IMPLEMENTED() ASSERT(false)
 
 #define KILOBYTES(N) (1024 * N)
 #define MEGABYTES(N) (1024 * KILOBYTES(N))

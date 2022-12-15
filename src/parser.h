@@ -62,6 +62,13 @@ typedef struct
 } token;
 
 
+struct pinapl_line_info
+{
+    usize start_index_in_buffer;
+    usize length;
+};
+
+
 struct pinapl_lexer
 {
     char *buffer;
@@ -74,6 +81,10 @@ struct pinapl_lexer
 
     token next_token;
     b32 next_token_valid;
+
+    // @todo: figure out better solution
+    struct pinapl_line_info lines[4096]; // Did you ever see a programm more than 4096 lines? Me neither. 
+    usize lines_count;
 };
 
 
@@ -84,6 +95,8 @@ b32 is_ascii_digit(char c);
 b32 is_valid_identifier_head(char c);
 b32 is_valid_identifier_body(char c);
 
+struct pinapl_parser pinapl_init_parser(struct allocator *ast_allocator, struct allocator *err_allocator, char const *filename, char *buffer, usize size);
+char pinapl_get_char_at(struct pinapl_lexer *, usize);
 char pinapl_get_char(struct pinapl_lexer *);
 char pinapl_eat_char(struct pinapl_lexer *);
 void pinapl_consume_while(struct pinapl_lexer *, predicate *);
@@ -149,7 +162,6 @@ typedef struct ast_node_variable_declaration
     token var_type;
     // for compound types:
     // struct ast_node *var_type;
-    b32   is_constant;
     struct ast_node *init;
 } ast_node_variable_declaration;
 
@@ -192,11 +204,14 @@ typedef struct ast_node
 
 struct pinapl_parser
 {
-    allocator ast_allocator;
-    allocator err_allocator;
+    char const *filename;
+    struct allocator *ast_allocator;
+    struct allocator *err_allocator;
     struct pinapl_lexer lexer;
 };
 
+
+struct string pinapl_parser_get_error_string(struct pinapl_parser *p);
 
 ast_node *pinapl_parse_expression(struct pinapl_parser *p, int precedence);
 ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *p);
@@ -208,3 +223,4 @@ ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *p);
 
 
 #endif // LEXER_H
+

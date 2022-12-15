@@ -78,7 +78,7 @@ pinapl_scope_entry *pinapl_push_scope_entry(pinapl_scope *scope, char *string, u
 }
 
 
-b32 pinapl_check_scopes(allocator *a, ast_node *node, pinapl_scope *scope)
+b32 pinapl_check_scopes(struct allocator *a, ast_node *node, pinapl_scope *scope)
 {
     b32 result = true;
 
