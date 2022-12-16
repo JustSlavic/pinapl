@@ -415,8 +415,8 @@ ast_node *pinapl_parse_expression_operand(struct pinapl_parser *parser)
         {
             result = ALLOCATE(parser->ast_allocator, ast_node);
             result->type = AST_NODE_VARIABLE;
-            result->var_span = t.span;
-            result->var_span_size = t.span_size;
+            result->variable.span = t.span;
+            result->variable.span_size = t.span_size;
         }
     }
     else if (t.type == TOKEN_LITERAL_INT)
@@ -425,9 +425,9 @@ ast_node *pinapl_parse_expression_operand(struct pinapl_parser *parser)
 
         result = ALLOCATE(parser->ast_allocator, ast_node);
         result->type = AST_NODE_LITERAL_INT;
-        result->literal_span = t.span;
-        result->literal_span_size = t.span_size;
-        result->integer_value = t.integer_value;
+        result->integer_literal.span = t.span;
+        result->integer_literal.span_size = t.span_size;
+        result->integer_literal.integer_value = t.integer_value;
     }
     else
     {

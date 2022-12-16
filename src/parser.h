@@ -173,6 +173,19 @@ typedef struct ast_node_binary_operator
     struct ast_node *rhs;
 } ast_node_binary_operator;
 
+struct ast_node_variable
+{
+    char *span;
+    usize span_size;
+};
+
+struct ast_node_integer_literal
+{
+    char *span;
+    usize span_size;
+    int integer_value;
+};
+
 
 typedef struct ast_node
 {
@@ -187,17 +200,8 @@ typedef struct ast_node
         struct ast_node_function_call function_call;
         struct ast_node_variable_declaration variable_declaration;
         struct ast_node_binary_operator binary_operator;
-        struct  // variable/constant usage
-        {
-            char *var_span;
-            usize var_span_size;
-        };
-        struct  // integer literal
-        {
-            char *literal_span;
-            usize literal_span_size;
-            int integer_value;
-        };
+        struct ast_node_variable variable;
+        struct ast_node_integer_literal integer_literal;
     };
 } ast_node;
 
@@ -220,6 +224,16 @@ ast_node *pinapl_parse_statement(struct pinapl_parser *p);
 ast_node *pinapl_parse_statement_list(struct pinapl_parser *p);
 ast_node *pinapl_parse_global_declaration(struct pinapl_parser *p);
 ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *p);
+
+
+struct pinapl_rename_stage
+{
+    usize global_variable_counter;
+};
+
+
+usize pinapl_allocate_new_variable(struct pinapl_rename_stage *stage);
+void pinapl_enumerate_variables(struct pinapl_rename_stage *rename_stage, struct ast_node *ast);
 
 
 #endif // LEXER_H

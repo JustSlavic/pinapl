@@ -22,13 +22,13 @@ void print_ast(ast_node *node, int depth)
 
         case AST_NODE_VARIABLE:
         {
-            write(1, node->var_span, node->var_span_size);
+            write(1, node->variable.span, node->variable.span_size);
         }
         break;
 
         case AST_NODE_LITERAL_INT:
         {
-            write(1, node->literal_span, node->literal_span_size);
+            write(1, node->integer_literal.span, node->integer_literal.span_size);
         }
         break;
         

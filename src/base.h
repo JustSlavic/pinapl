@@ -24,12 +24,10 @@
 #define ASSERT_FAIL(MSG) ASSERT_MSG(false, MSG)
 #define NOT_IMPLEMENTED() ASSERT(false)
 
-#define KILOBYTES(N) (1024 * N)
-#define MEGABYTES(N) (1024 * KILOBYTES(N))
-#define GIGABYTES(N) (1024 * MEGABYTES(N))
-
-
 typedef unsigned int b32;
+
+#define true 1
+#define false 0
 
 typedef unsigned char u8;
 typedef   signed char s8;
@@ -43,8 +41,33 @@ typedef   signed int s32;
 typedef unsigned int usize;
 typedef   signed int ssize;
 
-#define true 1
-#define false 0
+#define INT8_MAX 0x7F
+#define INT8_MIN 0x80
+
+#define UINT8_MAX 0xFF
+#define UINT8_MIN 0x0
+
+#define INT16_MAX 0x7FFF
+#define INT16_MIN 0x8000
+
+#define UINT16_MAX 0xFFFF
+#define UINT16_MIN 0x0
+
+#define INT32_MAX 0x7FFFFFFF
+#define INT32_MIN 0x80000000
+
+#define UINT32_MAX 0xFFFFFFFF
+#define UINT32_MIN 0x0
+
+#define SIZE_MAX INT32_MAX
+#define SIZE_MIN INT32_MiN
+
+#define USIZE_MAX UINT32_MAX
+#define USIZE_MIN UINT32_MIN
+
+#define KILOBYTES(N) (1024 * N)
+#define MEGABYTES(N) (1024 * KILOBYTES(N))
+#define GIGABYTES(N) (1024 * MEGABYTES(N))
 
 
 #endif // BASE_H

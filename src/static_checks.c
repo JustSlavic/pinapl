@@ -184,7 +184,7 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, pinapl_scope *scope
         };
             */
 
-            pinapl_scope_entry *entry = pinapl_get_scope_entry(scope, node->var_span, node->var_span_size);
+            pinapl_scope_entry *entry = pinapl_get_scope_entry(scope, node->variable.span, node->variable.span_size);
             if (entry == NULL)
             {
                 // Error! used non-defined variable!
