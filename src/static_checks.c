@@ -84,6 +84,9 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, pinapl_scope *scope
 
     switch (node->type)
     {
+        case AST_NODE_EMPTY_LIST:
+        break;
+
         case AST_NODE_GLOBAL_DECLARATION_LIST:
         {
             result = pinapl_check_scopes(a, node->global_list.node, scope);

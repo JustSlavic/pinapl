@@ -614,6 +614,7 @@ ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *parser)
                 ast_node *initializer = pinapl_parse_expression(parser, 0);
                 if (!initializer)
                 {
+                    parser->err_allocator->used = 0; // Clear up error buffer
                     parser->lexer = checkpoint;
                     initializer = pinapl_parse_function_definition(parser);
                 }
@@ -630,7 +631,7 @@ ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *parser)
                 }
                 else
                 {
-                    pinapl_report_compiler_error_cstring(parser, "Error: expression expected (probably should print error, that comes from that call.\n");
+                    pinapl_report_compiler_error_cstring(parser, "Error: expression expected, or function declaration.\n");
                 }
             }
         }
@@ -732,6 +733,7 @@ ast_node *pinapl_parse_statement(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
     struct pinapl_lexer checkpoint = parser->lexer;
+    b32 have_to_end_with_semicolon = true;
 
     ast_node *variable_declaration = pinapl_parse_variable_declaration(parser);
     if (variable_declaration)
@@ -740,27 +742,44 @@ ast_node *pinapl_parse_statement(struct pinapl_parser *parser)
     }
     else
     {
+        parser->err_allocator->used = 0; // Clear up error buffer
         parser->lexer = checkpoint;
-        ast_node *expression = pinapl_parse_expression(parser, 0);
-        if (expression)
+
+        ast_node *block = pinapl_parse_block(parser);
+        if (block)
         {
-            result = expression;
+            result = block;
+            have_to_end_with_semicolon = false; // Exception for blocks @todo better algorithm? 
         }
         else
         {
-            pinapl_report_compiler_error_cstring(parser, "Error!!! I don't know what it is!\n");
+            parser->err_allocator->used = 0;
+            parser->lexer = checkpoint;
+
+            ast_node *expression = pinapl_parse_expression(parser, 0);
+            if (expression)
+            {
+                result = expression;
+            }
+            else
+            {
+                pinapl_report_compiler_error_cstring(parser, "Error!!! I don't know what it is!\n");
+            }
         }
     }
 
-    token semicolon = pinapl_get_token(parser);
-    if (semicolon.type == ';')
+    if (have_to_end_with_semicolon)
     {
-        pinapl_eat_token(parser);
-    }
-    else
-    {
-        pinapl_report_compiler_error_cstring(parser, "Error! statement should end with a semicolon!\n");
-        result = NULL; // @leak
+        token semicolon = pinapl_get_token(parser);
+        if (semicolon.type == ';')
+        {
+            pinapl_eat_token(parser);
+        }
+        else
+        {
+            pinapl_report_compiler_error_cstring(parser, "Error! statement should end with a semicolon!\n");
+            result = NULL; // @leak
+        }
     }
 
     return result;
@@ -770,32 +789,52 @@ ast_node *pinapl_parse_statement_list(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
 
-    ast_node *first_statement = pinapl_parse_statement(parser);
-    if (first_statement)
+    token close_brace = pinapl_get_token(parser);
+    if (close_brace.type == '}')
     {
         result = ALLOCATE(parser->ast_allocator, ast_node);
-        result->type = AST_NODE_STATEMENT_LIST;
-        result->statement_list.node = first_statement;
-        result->statement_list.next = NULL;
-
-        ast_node *last_list_node = result;
-        
-        while (true)
+        result->type = AST_NODE_EMPTY_LIST;
+    }
+    else
+    {
+        ast_node *first_statement = pinapl_parse_statement(parser);
+        if (first_statement)
         {
-            ast_node *statement = pinapl_parse_statement(parser);
-            if (statement)
-            {
-                ast_node *new_list_node = ALLOCATE(parser->ast_allocator, ast_node);
-                new_list_node->type = AST_NODE_STATEMENT_LIST;
-                new_list_node->statement_list.node = statement;
-                new_list_node->statement_list.next = NULL;
+            result = ALLOCATE(parser->ast_allocator, ast_node);
+            result->type = AST_NODE_STATEMENT_LIST;
+            result->statement_list.node = first_statement;
+            result->statement_list.next = NULL;
 
-                last_list_node->statement_list.next = new_list_node;
-                last_list_node = new_list_node;
-            }
-            else
+            ast_node *last_list_node = result;
+        
+            while (true)
             {
-                break;
+                close_brace = pinapl_get_token(parser);
+                if (close_brace.type == '}')
+                {
+                    // Ok. This is the end of the list
+                    break;
+                }
+                else
+                {
+                    ast_node *statement = pinapl_parse_statement(parser);
+                    if (statement)
+                    {
+                        ast_node *new_list_node = ALLOCATE(parser->ast_allocator, ast_node);
+                        new_list_node->type = AST_NODE_STATEMENT_LIST;
+                        new_list_node->statement_list.node = statement;
+                        new_list_node->statement_list.next = NULL;
+
+                        last_list_node->statement_list.next = new_list_node;
+                        last_list_node = new_list_node;
+                    }
+                    else
+                    {
+                        // Not ok! Statement not parsed, something went wrong!
+                        result = NULL; // @leak!
+                        break;
+                    }
+                }
             }
         }
     }
@@ -843,6 +882,5 @@ ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *parser)
     }
 
     return result;
-
 }
 
