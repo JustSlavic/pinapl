@@ -289,10 +289,14 @@ void pinapl_report_compiler_error_string(struct pinapl_parser *parser, struct st
 
 void pinapl_report_highlight_token(struct pinapl_parser *parser, token t)
 {
+    int line_number_width = 3;
     int skip_lines_up = 1;
     int skip_lines_down = 0; // @todo: decide if I need post lines to show up
-    UNUSED(skip_lines_up);
     UNUSED(skip_lines_down);
+
+    pinapl_report_compiler_error_cstring(parser, "In file '");
+    pinapl_report_compiler_error_cstring(parser, parser->filename);
+    pinapl_report_compiler_error_cstring(parser, "'\n");
 
     int line_index = (t.line - 1) - skip_lines_up;
     while (skip_lines_up)
@@ -304,11 +308,22 @@ void pinapl_report_highlight_token(struct pinapl_parser *parser, token t)
             char *data = parser->lexer.buffer + info.start_index_in_buffer;
             usize size = info.length;
 
+            char number_buffer[8] = {0};
+            int number_index = ARRAY_COUNT(number_buffer);
+
+            int n = line_index + 1;
+            while (n)
+            {
+                number_index -= 1;
+                number_buffer[number_index] = '0' + (n % 10);
+                n = n / 10;
+            }
+            int count = ARRAY_COUNT(number_buffer) - number_index;
+
+            pinapl_report_compiler_error(parser, number_buffer + number_index, count);
+            if (line_number_width - count > 0) pinapl_report_compiler_error(parser, spaces, line_number_width - count);
+            pinapl_report_compiler_error(parser, "| ", 2);
             pinapl_report_compiler_error(parser, data, size);
-        }
-        else
-        {
-            pinapl_report_compiler_error_cstring(parser, "Caramba!\n");
         }
 
         skip_lines_up -= 1;
@@ -337,8 +352,24 @@ void pinapl_report_highlight_token(struct pinapl_parser *parser, token t)
         line_length += 1;
     }
 
+    char number_buffer[8] = {0};
+    int number_index = ARRAY_COUNT(number_buffer);
+
+    int n = t.line;
+    while (n)
+    {
+        number_index -= 1;
+        number_buffer[number_index] = '0' + (n % 10);
+        n = n / 10;
+    }
+    int count = ARRAY_COUNT(number_buffer) - number_index;
+
+    pinapl_report_compiler_error(parser, number_buffer + number_index, count);
+    if (line_number_width - count > 0) pinapl_report_compiler_error(parser, spaces, line_number_width - count);
+    pinapl_report_compiler_error(parser, "| ", 2);
+
     pinapl_report_compiler_error(parser, line_start, line_length);
-    pinapl_report_compiler_error(parser, spaces, t.column - 1);
+    pinapl_report_compiler_error(parser, spaces, (t.column - 1) + (line_number_width + 2));
     pinapl_report_compiler_error(parser, carets, t.span_size);
     pinapl_report_compiler_error(parser, "\n", 1);
 }
@@ -398,6 +429,11 @@ ast_node *pinapl_parse_expression_operand(struct pinapl_parser *parser)
         result->literal_span_size = t.span_size;
         result->integer_value = t.integer_value;
     }
+    else
+    {
+        pinapl_report_compiler_error_cstring(parser, "Error 1.\n");
+        pinapl_report_highlight_token(parser, t);
+    }
 
     return result;
 }
@@ -423,8 +459,8 @@ ast_node *pinapl_parse_expression(struct pinapl_parser *parser, int precedence)
         }
         else
         {
-            // @leak left_operand
-            return NULL;
+            pinapl_report_compiler_error_cstring(parser, "Error: expected ')'\n");
+            return NULL; // @leak left_operand
         }
     }
     else
@@ -457,6 +493,7 @@ ast_node *pinapl_parse_expression(struct pinapl_parser *parser, int precedence)
         ast_node *right_operand = pinapl_parse_expression(parser, operator_precedence + 1);
         if (right_operand == NULL)
         {
+            pinapl_report_compiler_error_cstring(parser, "Error 2.\n");
             return NULL;
         }
 
@@ -635,12 +672,12 @@ ast_node *pinapl_parse_block(struct pinapl_parser *parser)
         }
         else
         {
-            // error: expected '}'
+            pinapl_report_compiler_error_cstring(parser, "Error: expected '}'\n");
         }
     }
     else
     {
-        // error: expected '{'
+        pinapl_report_compiler_error_cstring(parser, "Error: expected '{'\n");
     }
 
     return result;
@@ -675,17 +712,17 @@ ast_node *pinapl_parse_function_definition(struct pinapl_parser *parser)
             }
             else
             {
-                // Do I allow forward-declarations for functions in pinapl ?
+                pinapl_report_compiler_error_cstring(parser, "Do I allow forward-declarations for functions in pinapl ?\n");
             }
         }
         else
         {
-            // Error: expected ')'
+            pinapl_report_compiler_error_cstring(parser, "Error: expected ')'\n");
         }
     }
     else
     {
-        // Error: expected '('
+        pinapl_report_compiler_error_cstring(parser, "Error: expected '('\n");
     }
 
     return result;
@@ -711,7 +748,7 @@ ast_node *pinapl_parse_statement(struct pinapl_parser *parser)
         }
         else
         {
-            // @error!!! I don't know what it is!
+            pinapl_report_compiler_error_cstring(parser, "Error!!! I don't know what it is!\n");
         }
     }
 
@@ -722,9 +759,8 @@ ast_node *pinapl_parse_statement(struct pinapl_parser *parser)
     }
     else
     {
-        // Error! statement should end with a semicolon!
-        // @leak
-        result = NULL;
+        pinapl_report_compiler_error_cstring(parser, "Error! statement should end with a semicolon!\n");
+        result = NULL; // @leak
     }
 
     return result;
