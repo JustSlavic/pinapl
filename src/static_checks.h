@@ -16,11 +16,11 @@ struct pinapl_scope_entry
 
 struct pinapl_scope
 {
-    struct pinapl_scope_entry hash_table[64];
-
     struct pinapl_scope *parent_scope;
     struct pinapl_scope *next_scope;
     struct pinapl_scope *nested_scope;
+    
+    struct pinapl_scope_entry hash_table[64];
 };
 
 

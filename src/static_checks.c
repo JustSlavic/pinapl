@@ -47,31 +47,42 @@ struct pinapl_scope_entry *pinapl_get_scope_entry_slot(struct pinapl_scope *scop
 }
 
 
-struct pinapl_scope_entry *pinapl_get_scope_entry(struct pinapl_scope *scope, char *string, usize string_size)
+b32 pinapl_is_variable_declared_in_scope(struct pinapl_scope *scope, char *string, usize string_size)
 {
-    struct pinapl_scope_entry *result = NULL;
-
     u32 hash = pinapl_hash_string(string, string_size);
     struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
-    if (slot->hash != 0)
-    {
-        result = slot;
-    }
-    return result;
+    b32 is_declared = (slot && slot->hash);
+    return is_declared;
 }
 
 
-struct pinapl_scope_entry *pinapl_push_scope_entry(struct pinapl_scope *scope, char *string, usize string_size)
+b32 pinapl_is_variable_declared(struct pinapl_scope *scope, char *string, usize string_size)
 {
     u32 hash = pinapl_hash_string(string, string_size);
-    struct pinapl_scope_entry *result = pinapl_get_scope_entry_slot(scope, hash);
-    if (result->hash == 0)
+
+    b32 is_declared = false;
+    while (scope)
     {
-        result->hash = hash;
-        result->entry_name = string;
-        result->entry_name_size = string_size;
+        struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
+        if ((is_declared = (slot && slot->hash))) break;
+        scope = scope->parent_scope;
     }
-    return result;
+
+    return is_declared;
+}
+
+
+struct pinapl_scope_entry *pinapl_declare_variable_in_scope(struct pinapl_scope *scope, char *string, usize string_size)
+{
+    u32 hash = pinapl_hash_string(string, string_size);
+    struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
+    if (slot && slot->hash == 0)
+    {
+        slot->hash = hash;
+        slot->entry_name = string;
+        slot->entry_name_size = string_size;
+    }
+    return slot;
 }
 
 
@@ -116,50 +127,39 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope
         case AST_NODE_VARIABLE_DECLARATION:
         case AST_NODE_CONSTANT_DECLARATION:
         {
-            /*token var_name;
-            token var_type;
-            // for compound types:
-            // struct ast_node *var_type;
-            b32   is_constant;
-            struct ast_node *init;
-            */  
             ast_node_variable_declaration *var = &node->variable_declaration;
+            char *name = var->var_name.span;
+            usize name_size = var->var_name.span_size;
 
-            if (var->init)
+            b32 is_declared = pinapl_is_variable_declared_in_scope(scope, name, name_size);
+            if (!is_declared)
             {
                 result = pinapl_check_scopes(a, var->init, scope);
-            }
 
-            if (result)
-            {
-                u32 hash = pinapl_hash_string(var->var_name.span, var->var_name.span_size);
-                struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
-                if (slot->hash == 0)
+                if (result)
                 {
-                    slot->hash = hash;
-                    slot->entry_name = var->var_name.span;
-                    slot->entry_name_size = var->var_name.span_size;
+                    // Init expression is ok
+                    pinapl_declare_variable_in_scope(scope, name, name_size);
                 }
                 else
                 {
-                    // Error
+                    // Pass error from check_scopes up
                     result = false;
                 }
+            }
+            else
+            {
+                // Error: variable is already declared
+                result = false;
             }
         }
         break;
 
         case AST_NODE_FUNCTION_DEFINITION:
         {
-        /* struct  // function definition
-        {
-            struct ast_node *parameter_list;
-            struct ast_node *return_type;
-            struct ast_node *statement_list;
-        };*/
             if (node->function_definition.block)
             {
-                result = result && pinapl_check_scopes(a, node->function_definition.block, scope);
+                result = pinapl_check_scopes(a, node->function_definition.block, scope);
             }
         }
         break;
@@ -176,16 +176,10 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope
 
         case AST_NODE_VARIABLE:
         {
-            /*
-        struct  // variable/constant usage
-        {
-            char *var_span;
-            usize var_span_size;
-        };
-            */
-
-            struct pinapl_scope_entry *entry = pinapl_get_scope_entry(scope, node->variable.span, node->variable.span_size);
-            if (entry == NULL)
+            char *name = node->variable.span;
+            usize name_size = node->variable.span_size;
+            b32 is_declared = pinapl_is_variable_declared(scope, name, name_size);
+            if (!is_declared)
             {
                 // Error! used non-defined variable!
                 result = false;
@@ -195,13 +189,14 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope
 
         case AST_NODE_FUNCTION_CALL:
         {
-        /*
-        struct  // function call
-        {
-            token function_name;
-            struct ast_node *argument_list;
-        };
-        */
+            char *name = node->function_call.name.span;
+            usize name_size = node->function_call.name.span_size;
+            b32 is_declared = pinapl_is_variable_declared(scope, name, name_size);
+            if (!is_declared)
+            {
+                // Error! used non-defined function!
+                result = false;
+            }
         }
         break;
 
