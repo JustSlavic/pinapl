@@ -4,13 +4,9 @@
 _start:
     ldr     r0, [sp]
     add     r1, sp, #4
-    mov     r2, sp
-get_env_loop:
-    add     r2, #4
-    ldr     r3, [r2]
-    cmp     r3, #0
-    bne     get_env_loop
-    add     r2, #4
+    mov     r3, #4
+    mla     r2, r0, r3, r1
+    add     r2, #4 
     bl      main
 
 _exit:
