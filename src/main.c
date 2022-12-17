@@ -11,6 +11,9 @@ void print_ast(ast_node *node, int depth)
 {
     switch (node->type)
     {
+        case AST_NODE_EMPTY_LIST:
+        break;
+
         case AST_NODE_BINARY_OPERATOR:
         {
             ast_node_binary_operator *binary_op = &node->binary_operator;
@@ -51,7 +54,7 @@ void print_ast(ast_node *node, int depth)
                 write(1, is_constant ? ":" : "=", 1);
                 print_ast(var->init, depth);
             }
-            write(1, "}", 1);
+            write(1, "};", 2);
         }
         break;
 
@@ -89,7 +92,7 @@ void print_ast(ast_node *node, int depth)
         case AST_NODE_STATEMENT_LIST:
         {
             print_ast(node->statement_list.node, depth);
-            write(1, ";\n", 2);
+            write(1, "\n", 2);
             if (node->statement_list.next)
             {
                 print_ast(node->statement_list.next, depth);
@@ -115,7 +118,7 @@ void print_ast(ast_node *node, int depth)
 
 
 int main(int argc, char **argv, char **env)
-{   
+{
     if (argc < 2)
     {
         write(1, "Usage: ./pinapl FILEPATH\n", 25);
@@ -160,21 +163,16 @@ int main(int argc, char **argv, char **env)
     write(1, "EOF\n", 4);
 
     struct pinapl_parser parser = pinapl_init_parser(&ast_allocator, &err_allocator, filename, buffer, buffer_size);
-    
-    // ast_node *expression = pinapl_parse_variable_declaration(&a, &l);
-    // ast_node *expression = pinapl_parse_function_definition(&a, &l);
-    // ast_node *expression = pinapl_parse_statement(&a, &l);
-    // ast_node *expression = pinapl_parse_statement_list(&a, &l);
-    ast_node *expression = pinapl_parse_global_declaration_list(&parser);
+    ast_node *ast = pinapl_parse_global_declaration_list(&parser);
 
     token t = pinapl_get_token(&parser);
-    if (expression && t.type == TOKEN_EOF)
+    if (ast && t.type == TOKEN_EOF)
     {
         write(1, "Language recognized!\n", 21);
-        print_ast(expression, 0);
+        print_ast(ast, 0);
     
-        pinapl_scope global_scope = {0};
-        b32 good = pinapl_check_scopes(&scope_allocator, expression, &global_scope);
+        struct pinapl_scope global_scope = {0};
+        b32 good = pinapl_check_scopes(&scope_allocator, ast, &global_scope);
         if (good)
         {
             write(1, "Check is good\n", 14);

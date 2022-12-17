@@ -15,26 +15,23 @@ u32 pinapl_hash_string(char *string, usize string_size)
 }
 
 
-void pinapl_push_nested_scope(pinapl_scope *scope, pinapl_scope *nested)
+void pinapl_push_nested_scope(struct pinapl_scope *parent, struct pinapl_scope *nested)
 {
-    if (scope->nested_scopes_count < ARRAY_COUNT(scope->nested_scopes))
-    {
-        scope->nested_scopes[scope->nested_scopes_count++] = nested;
-    }
-    else
-    {
-        ASSERT_FAIL("Storage for nested scopes is depleted");
-    }
+    struct pinapl_scope *scope = parent->nested_scope;
+
+    nested->parent_scope = parent;
+    nested->next_scope = scope;
+    parent->nested_scope = nested;
 }
 
 
-pinapl_scope_entry *pinapl_get_scope_entry_slot(pinapl_scope *scope, u32 hash)
+struct pinapl_scope_entry *pinapl_get_scope_entry_slot(struct pinapl_scope *scope, u32 hash)
 {     
-    pinapl_scope_entry *result = NULL;
+    struct pinapl_scope_entry *result = NULL;
     for (int offset = 0; offset < ARRAY_COUNT(scope->hash_table); offset++)
     {
         int index = (hash + offset) % ARRAY_COUNT(scope->hash_table);
-        pinapl_scope_entry *entry = scope->hash_table + index;
+        struct pinapl_scope_entry *entry = scope->hash_table + index;
         if (entry->hash == hash)
         {
             result = entry;
@@ -50,12 +47,12 @@ pinapl_scope_entry *pinapl_get_scope_entry_slot(pinapl_scope *scope, u32 hash)
 }
 
 
-pinapl_scope_entry *pinapl_get_scope_entry(pinapl_scope *scope, char *string, usize string_size)
+struct pinapl_scope_entry *pinapl_get_scope_entry(struct pinapl_scope *scope, char *string, usize string_size)
 {
-    pinapl_scope_entry *result = NULL;
+    struct pinapl_scope_entry *result = NULL;
 
     u32 hash = pinapl_hash_string(string, string_size);
-    pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
+    struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
     if (slot->hash != 0)
     {
         result = slot;
@@ -64,10 +61,10 @@ pinapl_scope_entry *pinapl_get_scope_entry(pinapl_scope *scope, char *string, us
 }
 
 
-pinapl_scope_entry *pinapl_push_scope_entry(pinapl_scope *scope, char *string, usize string_size)
+struct pinapl_scope_entry *pinapl_push_scope_entry(struct pinapl_scope *scope, char *string, usize string_size)
 {
     u32 hash = pinapl_hash_string(string, string_size);
-    pinapl_scope_entry *result = pinapl_get_scope_entry_slot(scope, hash);
+    struct pinapl_scope_entry *result = pinapl_get_scope_entry_slot(scope, hash);
     if (result->hash == 0)
     {
         result->hash = hash;
@@ -78,7 +75,7 @@ pinapl_scope_entry *pinapl_push_scope_entry(pinapl_scope *scope, char *string, u
 }
 
 
-b32 pinapl_check_scopes(struct allocator *a, ast_node *node, pinapl_scope *scope)
+b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope *scope)
 {
     b32 result = true;
 
@@ -109,7 +106,7 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, pinapl_scope *scope
 
         case AST_NODE_BLOCK:
         {
-            pinapl_scope *inner_scope = ALLOCATE(a, pinapl_scope);
+            struct pinapl_scope *inner_scope = ALLOCATE(a, struct pinapl_scope);
             pinapl_push_nested_scope(scope, inner_scope);
 
             result = pinapl_check_scopes(a, node->block.statement_list, inner_scope);
@@ -136,7 +133,7 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, pinapl_scope *scope
             if (result)
             {
                 u32 hash = pinapl_hash_string(var->var_name.span, var->var_name.span_size);
-                pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
+                struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
                 if (slot->hash == 0)
                 {
                     slot->hash = hash;
@@ -187,7 +184,7 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, pinapl_scope *scope
         };
             */
 
-            pinapl_scope_entry *entry = pinapl_get_scope_entry(scope, node->variable.span, node->variable.span_size);
+            struct pinapl_scope_entry *entry = pinapl_get_scope_entry(scope, node->variable.span, node->variable.span_size);
             if (entry == NULL)
             {
                 // Error! used non-defined variable!
