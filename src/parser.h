@@ -1,5 +1,5 @@
-#ifndef LEXER_H
-#define LEXER_H
+#ifndef PARSER_H
+#define PARSER_H
 
 #include <base.h>
 #include <allocator.h>
@@ -153,6 +153,7 @@ typedef struct ast_node_function_definition
 typedef struct ast_node_function_call
 {
     token name;
+    usize symbol_id;
     struct ast_node *argument_list;
 } ast_node_function_call;
 
@@ -161,6 +162,7 @@ typedef struct ast_node_variable_declaration
 {
     token var_name;
     token var_type;
+    usize symbol_id;
     // for compound types:
     // struct ast_node *var_type;
     struct ast_node *init;
@@ -178,6 +180,7 @@ struct ast_node_variable
 {
     char *span;
     usize span_size;
+    usize symbol_id;
 };
 
 struct ast_node_integer_literal
@@ -194,15 +197,15 @@ typedef struct ast_node
 
     union
     {
-        struct ast_node_list global_list;
-        struct ast_node_block block;
-        struct ast_node_list statement_list;
-        struct ast_node_function_definition function_definition;
-        struct ast_node_function_call function_call;
+        struct ast_node_list                 global_list;
+        struct ast_node_block                block;
+        struct ast_node_list                 statement_list;
+        struct ast_node_function_definition  function_definition;
+        struct ast_node_function_call        function_call;
         struct ast_node_variable_declaration variable_declaration;
-        struct ast_node_binary_operator binary_operator;
-        struct ast_node_variable variable;
-        struct ast_node_integer_literal integer_literal;
+        struct ast_node_binary_operator      binary_operator;
+        struct ast_node_variable             variable;
+        struct ast_node_integer_literal      integer_literal;
     };
 } ast_node;
 
@@ -218,13 +221,35 @@ struct pinapl_parser
 
 struct string pinapl_parser_get_error_string(struct pinapl_parser *p);
 
-ast_node *pinapl_parse_expression(struct pinapl_parser *p, int precedence);
-ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *p);
-ast_node *pinapl_parse_function_definition(struct pinapl_parser *p);
-ast_node *pinapl_parse_statement(struct pinapl_parser *p);
-ast_node *pinapl_parse_statement_list(struct pinapl_parser *p);
-ast_node *pinapl_parse_global_declaration(struct pinapl_parser *p);
-ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *p);
+ast_node *pinapl_parse_expression              (struct pinapl_parser *p, int precedence);
+ast_node *pinapl_parse_variable_declaration    (struct pinapl_parser *p);
+ast_node *pinapl_parse_function_definition     (struct pinapl_parser *p);
+ast_node *pinapl_parse_statement               (struct pinapl_parser *p);
+ast_node *pinapl_parse_statement_list          (struct pinapl_parser *p);
+ast_node *pinapl_parse_global_declaration      (struct pinapl_parser *p);
+ast_node *pinapl_parse_global_declaration_list (struct pinapl_parser *p);
+
+
+struct pinapl_scope_entry
+{
+    char *entry_name;
+    usize entry_name_size;
+    u32   hash;
+};
+
+
+struct pinapl_scope
+{
+    struct pinapl_scope *parent_scope;
+    struct pinapl_scope *next_scope;
+    struct pinapl_scope *nested_scope;
+    
+    struct pinapl_scope_entry hash_table[64];
+};
+
+
+void pinapl_push_nested_scope(struct pinapl_scope *scope, struct pinapl_scope *nested);
+b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope *scope);
 
 
 struct pinapl_rename_stage
@@ -233,9 +258,8 @@ struct pinapl_rename_stage
 };
 
 
-usize pinapl_allocate_new_variable(struct pinapl_rename_stage *stage);
-void pinapl_enumerate_variables(struct pinapl_rename_stage *rename_stage, struct ast_node *ast);
+void pinapl_rename_variables(struct pinapl_rename_stage *stage, ast_node *ast);
 
 
-#endif // LEXER_H
+#endif // PARSER_H
 

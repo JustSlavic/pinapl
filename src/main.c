@@ -2,7 +2,6 @@
 #include "string.h"
 #include "parser.h"
 #include "allocator.h"
-#include "static_checks.h"
 
 
 char const *spaces = "                                           ";
@@ -41,7 +40,6 @@ void print_ast(ast_node *node, int depth)
             b32 is_constant = (node->type == AST_NODE_CONSTANT_DECLARATION);
             ast_node_variable_declaration *var = &node->variable_declaration;
 
-            write(1, spaces, depth * 2);
             write(1, "VAR{", 4);
             write(1, var->var_name.span, var->var_name.span_size);
             write(1, ":", 1);
@@ -54,13 +52,12 @@ void print_ast(ast_node *node, int depth)
                 write(1, is_constant ? ":" : "=", 1);
                 print_ast(var->init, depth);
             }
-            write(1, "};", 2);
+            write(1, "}", 1);
         }
         break;
 
         case AST_NODE_BLOCK:
         {
-            write(1, spaces, depth * 2);
             write(1, "{\n", 3);
             if (node->block.statement_list)
             {
@@ -77,6 +74,7 @@ void print_ast(ast_node *node, int depth)
             if (node->function_definition.block)
             {
                 write(1, "\n", 1);
+                write(1, spaces, (depth + 1) * 2);
                 print_ast(node->function_definition.block, depth + 1);
             }
         }
@@ -91,8 +89,13 @@ void print_ast(ast_node *node, int depth)
 
         case AST_NODE_STATEMENT_LIST:
         {
+            write(1, spaces, depth * 2);
             print_ast(node->statement_list.node, depth);
-            write(1, "\n", 2);
+            if (node->statement_list.node->type != AST_NODE_BLOCK)
+            {
+                write(1, ";", 1);
+            }
+            write(1, "\n", 1);
             if (node->statement_list.next)
             {
                 print_ast(node->statement_list.next, depth);
@@ -103,7 +106,7 @@ void print_ast(ast_node *node, int depth)
         case AST_NODE_GLOBAL_DECLARATION_LIST:
         {
             print_ast(node->global_list.node, depth);
-            write(1, "\n\n", 2);
+            write(1, "\n", 1);
             if (node->global_list.next)
             {
                 print_ast(node->global_list.next, depth);
