@@ -110,10 +110,11 @@ typedef enum ast_node_type
 {
     AST_NODE_INVALID = 0,
 
+    AST_NODE_LIST,
     AST_NODE_EMPTY_LIST,
     AST_NODE_GLOBAL_DECLARATION_LIST,
-    AST_NODE_BLOCK,
     AST_NODE_STATEMENT_LIST,
+    AST_NODE_BLOCK,
 
     // Statements
     AST_NODE_VARIABLE_DECLARATION,
@@ -197,9 +198,8 @@ typedef struct ast_node
 
     union
     {
-        struct ast_node_list                 global_list;
+        struct ast_node_list                 list;
         struct ast_node_block                block;
-        struct ast_node_list                 statement_list;
         struct ast_node_function_definition  function_definition;
         struct ast_node_function_call        function_call;
         struct ast_node_variable_declaration variable_declaration;
@@ -234,6 +234,7 @@ struct pinapl_scope_entry
 {
     char *entry_name;
     usize entry_name_size;
+    ast_node *declaration_node;
     u32   hash;
 };
 
@@ -248,17 +249,15 @@ struct pinapl_scope
 };
 
 
-void pinapl_push_nested_scope(struct pinapl_scope *scope, struct pinapl_scope *nested);
-b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope *scope);
-
-
 struct pinapl_rename_stage
 {
     usize global_variable_counter;
+    struct allocator *scope_allocator;
+    struct allocator *err_allocator;
 };
 
 
-void pinapl_rename_variables(struct pinapl_rename_stage *stage, ast_node *ast);
+b32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_node *ast, struct pinapl_scope *scope);
 
 
 #endif // PARSER_H

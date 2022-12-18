@@ -24,7 +24,14 @@ void print_ast(ast_node *node, int depth)
 
         case AST_NODE_VARIABLE:
         {
+            char buffer[32];
+            buffer[0] = '0' + node->variable.symbol_id;
+            buffer[1] = 0;
+
             write(1, node->variable.span, node->variable.span_size);
+            write(1, "(", 1);
+            write(1, buffer, 1);
+            write(1, ")", 1);
         }
         break;
 
@@ -40,7 +47,13 @@ void print_ast(ast_node *node, int depth)
             b32 is_constant = (node->type == AST_NODE_CONSTANT_DECLARATION);
             ast_node_variable_declaration *var = &node->variable_declaration;
 
-            write(1, "VAR{", 4);
+            char buffer[32];
+            buffer[0] = '0' + var->symbol_id;
+            buffer[1] = 0;
+
+            write(1, "VAR(", 4);
+            write(1, buffer, 1);
+            write(1, ") {", 3);
             write(1, var->var_name.span, var->var_name.span_size);
             write(1, ":", 1);
             if (var->var_type.type != TOKEN_INVALID)
@@ -90,26 +103,26 @@ void print_ast(ast_node *node, int depth)
         case AST_NODE_STATEMENT_LIST:
         {
             write(1, spaces, depth * 2);
-            print_ast(node->statement_list.node, depth);
-            if (node->statement_list.node->type != AST_NODE_BLOCK)
+            print_ast(node->list.node, depth);
+            if (node->list.node->type != AST_NODE_BLOCK)
             {
                 write(1, ";", 1);
             }
             write(1, "\n", 1);
-            if (node->statement_list.next)
+            if (node->list.next)
             {
-                print_ast(node->statement_list.next, depth);
+                print_ast(node->list.next, depth);
             }
         }
         break;
 
         case AST_NODE_GLOBAL_DECLARATION_LIST:
         {
-            print_ast(node->global_list.node, depth);
+            print_ast(node->list.node, depth);
             write(1, "\n", 1);
-            if (node->global_list.next)
+            if (node->list.next)
             {
-                print_ast(node->global_list.next, depth);
+                print_ast(node->list.next, depth);
             }
         }
         break;
@@ -172,13 +185,21 @@ int main(int argc, char **argv, char **env)
     if (ast && t.type == TOKEN_EOF)
     {
         write(1, "Language recognized!\n", 21);
-        print_ast(ast, 0);
     
         struct pinapl_scope global_scope = {0};
-        b32 good = pinapl_check_scopes(&scope_allocator, ast, &global_scope);
+
+        struct pinapl_rename_stage rename_stage =
+        {
+            .global_variable_counter = 0,
+            .scope_allocator = &scope_allocator,
+            .err_allocator = &err_allocator,
+        };
+
+        b32 good = pinapl_check_and_rename_variables(&rename_stage, ast, &global_scope);
         if (good)
         {
             write(1, "Check is good\n", 14);
+            print_ast(ast, 0);
         }
         else
         {

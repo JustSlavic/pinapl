@@ -803,8 +803,8 @@ ast_node *pinapl_parse_statement_list(struct pinapl_parser *parser)
         {
             result = ALLOCATE(parser->ast_allocator, ast_node);
             result->type = AST_NODE_STATEMENT_LIST;
-            result->statement_list.node = first_statement;
-            result->statement_list.next = NULL;
+            result->list.node = first_statement;
+            result->list.next = NULL;
 
             ast_node *last_list_node = result;
         
@@ -823,10 +823,10 @@ ast_node *pinapl_parse_statement_list(struct pinapl_parser *parser)
                     {
                         ast_node *new_list_node = ALLOCATE(parser->ast_allocator, ast_node);
                         new_list_node->type = AST_NODE_STATEMENT_LIST;
-                        new_list_node->statement_list.node = statement;
-                        new_list_node->statement_list.next = NULL;
+                        new_list_node->list.node = statement;
+                        new_list_node->list.next = NULL;
 
-                        last_list_node->statement_list.next = new_list_node;
+                        last_list_node->list.next = new_list_node;
                         last_list_node = new_list_node;
                     }
                     else
@@ -858,8 +858,8 @@ ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *parser)
     {
         result = ALLOCATE(parser->ast_allocator, ast_node);
         result->type = AST_NODE_GLOBAL_DECLARATION_LIST;
-        result->global_list.node = first_declaration;
-        result->global_list.next = NULL;
+        result->list.node = first_declaration;
+        result->list.next = NULL;
 
         ast_node *last_list_node = result;
         while (true)
@@ -869,10 +869,10 @@ ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *parser)
             {
                 ast_node *next_list_node = ALLOCATE(parser->ast_allocator, ast_node);
                 next_list_node->type = AST_NODE_GLOBAL_DECLARATION_LIST;
-                next_list_node->global_list.node = declaration;
-                next_list_node->global_list.next = NULL;
+                next_list_node->list.node = declaration;
+                next_list_node->list.next = NULL;
 
-                last_list_node->global_list.next = next_list_node;
+                last_list_node->list.next = next_list_node;
                 last_list_node = next_list_node;
             }
             else
@@ -930,33 +930,44 @@ struct pinapl_scope_entry *pinapl_get_scope_entry_slot(struct pinapl_scope *scop
 }
 
 
-b32 pinapl_is_variable_declared_in_scope(struct pinapl_scope *scope, char *string, usize string_size)
+struct pinapl_scope_entry *pinapl_is_variable_declared_in_scope(struct pinapl_scope *scope, char *string, usize string_size)
 {
     u32 hash = pinapl_hash_string(string, string_size);
     struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
-    b32 is_declared = (slot && slot->hash);
-    return is_declared;
+    struct pinapl_scope_entry *result = NULL;
+    if (slot && slot->hash)
+    {
+        result = slot;
+    }
+    return result;
 }
 
 
-b32 pinapl_is_variable_declared(struct pinapl_scope *scope, char *string, usize string_size)
+struct pinapl_scope_entry *pinapl_is_variable_declared(struct pinapl_scope *scope, char *string, usize string_size)
 {
     u32 hash = pinapl_hash_string(string, string_size);
 
-    b32 is_declared = false;
+    struct pinapl_scope_entry *result = NULL;
     while (scope)
     {
         struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
-        if ((is_declared = (slot && slot->hash))) break;
+        if (slot && slot->hash)
+        {
+            result = slot;
+            break;
+        }
         scope = scope->parent_scope;
     }
 
-    return is_declared;
+    return result;
 }
 
 
-struct pinapl_scope_entry *pinapl_declare_variable_in_scope(struct pinapl_scope *scope, char *string, usize string_size)
+struct pinapl_scope_entry *pinapl_declare_variable_in_scope(struct pinapl_scope *scope, ast_node *node)
 {
+    char *string = node->variable_declaration.var_name.span;
+    usize string_size = node->variable_declaration.var_name.span_size;
+
     u32 hash = pinapl_hash_string(string, string_size);
     struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
     if (slot && slot->hash == 0)
@@ -964,14 +975,15 @@ struct pinapl_scope_entry *pinapl_declare_variable_in_scope(struct pinapl_scope 
         slot->hash = hash;
         slot->entry_name = string;
         slot->entry_name_size = string_size;
+        slot->declaration_node = node;
     }
     return slot;
 }
 
 
-b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope *scope)
+b32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_node *node, struct pinapl_scope *scope)
 {
-    b32 result = true;
+    b32 is_ok = true;
 
     switch (node->type)
     {
@@ -979,31 +991,23 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope
         break;
 
         case AST_NODE_GLOBAL_DECLARATION_LIST:
-        {
-            result = pinapl_check_scopes(a, node->global_list.node, scope);
-            if (node->global_list.next)
-            {
-                result = result && pinapl_check_scopes(a, node->global_list.next, scope);
-            }
-        }
-        break;
-
         case AST_NODE_STATEMENT_LIST:
+        case AST_NODE_LIST:
         {
-            result = pinapl_check_scopes(a, node->statement_list.node, scope);
-            if (node->statement_list.next)
+            is_ok = pinapl_check_and_rename_variables(stage, node->list.node, scope);
+            if (is_ok && node->list.next)
             {
-                result = result && pinapl_check_scopes(a, node->statement_list.next, scope);
+                is_ok = pinapl_check_and_rename_variables(stage, node->list.next, scope);
             }
         }
         break;
 
         case AST_NODE_BLOCK:
         {
-            struct pinapl_scope *inner_scope = ALLOCATE(a, struct pinapl_scope);
+            struct pinapl_scope *inner_scope = ALLOCATE(stage->scope_allocator, struct pinapl_scope);
             pinapl_push_nested_scope(scope, inner_scope);
 
-            result = pinapl_check_scopes(a, node->block.statement_list, inner_scope);
+            is_ok = pinapl_check_and_rename_variables(stage, node->block.statement_list, inner_scope);
         }
         break;
         
@@ -1014,35 +1018,36 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope
             char *name = var->var_name.span;
             usize name_size = var->var_name.span_size;
 
-            b32 is_declared = pinapl_is_variable_declared_in_scope(scope, name, name_size);
-            if (!is_declared)
+            struct pinapl_scope_entry *entry = pinapl_is_variable_declared_in_scope(scope, name, name_size);
+            if (entry == NULL) // i.e. not declared
             {
                 if (var->init->type == AST_NODE_FUNCTION_DEFINITION)
                 {
-                    pinapl_declare_variable_in_scope(scope, name, name_size);
-                    is_declared = true;
+                    var->symbol_id = stage->global_variable_counter++;
+                    entry = pinapl_declare_variable_in_scope(scope, node);
                 }
 
-                result = pinapl_check_scopes(a, var->init, scope);
+                is_ok = pinapl_check_and_rename_variables(stage, var->init, scope);
 
-                if (result)
+                if (is_ok)
                 {
                     // Init expression is ok
-                    if (!is_declared)
+                    if (entry == NULL) // i.e. not declared
                     {
-                        pinapl_declare_variable_in_scope(scope, name, name_size);
+                        var->symbol_id = stage->global_variable_counter++;
+                        entry = pinapl_declare_variable_in_scope(scope, node);
                     }
                 }
                 else
                 {
                     // Pass error from check_scopes up
-                    result = false;
+                    is_ok = false;
                 }
             }
             else
             {
                 // Error: variable is already declared
-                result = false;
+                is_ok = false;
             }
         }
         break;
@@ -1051,15 +1056,18 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope
         {
             if (node->function_definition.block)
             {
-                result = pinapl_check_scopes(a, node->function_definition.block, scope);
+                is_ok = pinapl_check_and_rename_variables(stage, node->function_definition.block, scope);
             }
         }
         break;
 
         case AST_NODE_BINARY_OPERATOR:
         {
-            result = result && pinapl_check_scopes(a, node->binary_operator.lhs, scope);
-            result = result && pinapl_check_scopes(a, node->binary_operator.rhs, scope);
+            is_ok = pinapl_check_and_rename_variables(stage, node->binary_operator.lhs, scope);
+            if (is_ok)
+            {
+                is_ok = pinapl_check_and_rename_variables(stage, node->binary_operator.rhs, scope);
+            }
         }
         break;
 
@@ -1070,11 +1078,15 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope
         {
             char *name = node->variable.span;
             usize name_size = node->variable.span_size;
-            b32 is_declared = pinapl_is_variable_declared(scope, name, name_size);
-            if (!is_declared)
+            struct pinapl_scope_entry *entry = pinapl_is_variable_declared(scope, name, name_size);
+            if (entry) // i.e. is declared
+            {
+                node->variable.symbol_id = entry->declaration_node->variable_declaration.symbol_id;
+            }
+            else // i.e. not declared
             {
                 // Error! used non-defined variable!
-                result = false;
+                is_ok = false;
             }
         }
         break;
@@ -1083,22 +1095,22 @@ b32 pinapl_check_scopes(struct allocator *a, ast_node *node, struct pinapl_scope
         {
             char *name = node->function_call.name.span;
             usize name_size = node->function_call.name.span_size;
-            b32 is_declared = pinapl_is_variable_declared(scope, name, name_size);
-            if (!is_declared)
+            struct pinapl_scope_entry *entry = pinapl_is_variable_declared(scope, name, name_size);
+            if (entry == NULL) // i.e. not declared
             {
                 // Error! used non-defined function!
-                result = false;
+                is_ok = false;
             }
         }
         break;
 
         case AST_NODE_INVALID:
         {
-            result = false;
+            is_ok = false;
         }
         break;
     }
 
-    return result;
+    return is_ok;
 }
 
