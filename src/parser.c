@@ -7,7 +7,7 @@ GLOBAL char const *spaces = "                                             ";
 GLOBAL char const *carets = "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^";
 
 
-char *token_type_to_cstring(token_type t)
+char *token_type_to_cstring(enum pinapl_token_type t)
 {
     switch (t)
     {
@@ -236,7 +236,7 @@ token pinapl_get_token(struct pinapl_parser *parser)
             else
             {
                 pinapl_eat_char(l);
-                t.type = (token_type) c;
+                t.type = (enum pinapl_token_type) c;
                 t.span_size = 1;
             }
         }
@@ -1112,5 +1112,153 @@ b32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_nod
     }
 
     return is_ok;
+}
+
+
+struct pinapl_tac *pinapl_push_tac(struct pinapl_flatten_stage *stage, struct pinapl_tac code)
+{
+    struct pinapl_tac *result = stage->codes + stage->code_count++;
+    *result = code;
+    return result;
+}
+
+
+struct pinapl_tac *pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_node *node)
+{
+    switch (node->type)
+    {
+        case AST_NODE_INVALID:
+        case AST_NODE_EMPTY_LIST:
+        break;
+
+        case AST_NODE_LIST:
+        case AST_NODE_GLOBAL_DECLARATION_LIST:
+        case AST_NODE_STATEMENT_LIST:
+        {
+            struct pinapl_tac *result = pinapl_flatten_ast(stage, node->list.node);
+            if (node->list.next)
+            {
+                result = pinapl_flatten_ast(stage, node->list.next);
+            }
+            return result;
+        }
+        break;
+
+        case AST_NODE_BLOCK:
+        {
+            return pinapl_flatten_ast(stage, node->block.statement_list);
+        }
+        break;
+
+        case AST_NODE_VARIABLE_DECLARATION:
+        case AST_NODE_CONSTANT_DECLARATION:
+        {
+            struct pinapl_tac *result = NULL;
+            if (node->variable_declaration.init)
+            {
+                result = pinapl_flatten_ast(stage, node->variable_declaration.init);
+            }
+            
+            struct pinapl_tac code;
+            if (result == NULL)
+            {
+                code.type = TAC_MOV_INT;
+                code.dst  = node->variable_declaration.symbol_id;
+                code.lhs  = 0;
+                UNUSED(code.rhs);
+            }
+            else
+            {
+                code.type = TAC_MOV_REG;
+                code.dst  = node->variable_declaration.symbol_id;
+                code.lhs  = result->dst;
+                UNUSED(code.rhs);
+            }
+
+            result = pinapl_push_tac(stage, code);
+            return result;
+        }
+        break; 
+
+        // @todo: flatten all other ast nodes
+        case AST_NODE_FUNCTION_DEFINITION:
+        {
+            pinapl_flatten_ast(stage, node->function_definition.block);
+        }
+        break;
+
+        case AST_NODE_BINARY_OPERATOR:
+        {
+            enum pinapl_token_type op_type = node->binary_operator.op.type;
+            struct pinapl_tac *lhs = pinapl_flatten_ast(stage, node->binary_operator.lhs);
+            struct pinapl_tac *rhs = pinapl_flatten_ast(stage, node->binary_operator.rhs);
+
+            enum pinapl_tac_type code_type = TAC_NOP;
+            switch (op_type)
+            {
+                case TOKEN_PLUS:
+                {
+                    code_type = TAC_ADD;
+                }
+                break;
+
+                case TOKEN_MINUS:
+                {
+                    code_type = TAC_SUB;
+                }
+                break;
+
+                case TOKEN_ASTERICS:
+                {
+                    code_type = TAC_MUL;
+                }
+                break;
+
+                case TOKEN_SLASH:
+                {
+                    code_type = TAC_DIV;
+                }
+                break;
+
+                default:
+                break;
+            }
+
+            struct pinapl_tac code;
+            code.type = code_type;
+            code.dst = stage->global_variable_counter++; // New variable
+            code.lhs = lhs->dst;
+            code.rhs = rhs->dst;
+            return pinapl_push_tac(stage, code);
+        }
+        break;
+
+        case AST_NODE_LITERAL_INT:
+        {
+            struct pinapl_tac code;
+            code.type = TAC_MOV_INT;
+            code.dst = stage->global_variable_counter++; // New variable
+            code.lhs = node->integer_literal.integer_value;
+            UNUSED(code.rhs);
+            return pinapl_push_tac(stage, code);
+        }
+        break;
+
+        case AST_NODE_VARIABLE:
+        {
+            struct pinapl_tac code;
+            code.type = TAC_MOV_REG;
+            code.dst = stage->global_variable_counter++;
+            code.lhs = node->variable.symbol_id;
+            UNUSED(code.rhs);
+            return pinapl_push_tac(stage, code);
+        }
+        break;
+
+        case AST_NODE_FUNCTION_CALL:
+        break;
+   }
+
+   return NULL;
 }
 

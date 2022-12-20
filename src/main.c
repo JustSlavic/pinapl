@@ -133,6 +133,66 @@ void print_ast(ast_node *node, int depth)
 }
 
 
+void print_tacs(struct pinapl_tac *codes, usize code_count)
+{
+    usize code_index = 0;
+    while (code_index < code_count)
+    {
+        struct pinapl_tac *code = codes + code_index++;
+        switch (code->type)
+        {
+            case TAC_NOP:
+            {
+                write(1, "nop\n", 4);
+            }
+            break;
+
+            case TAC_MOV_REG:
+            {
+                write(1, "mov %reg\n", 9);
+            }
+            break;
+
+            case TAC_MOV_INT:
+            {
+                write(1, "mov %int\n", 9);
+            }
+            break;
+
+            case TAC_ADD:
+            {
+                write(1, "add %reg %reg %reg\n", 19);
+            }
+            break;
+
+            case TAC_SUB:
+            {
+                write(1, "sub %reg %reg %reg\n", 19);
+            }
+            break;
+
+            case TAC_MUL:
+            {
+                write(1, "mul %reg %reg %reg\n", 19);
+            }
+            break;
+
+            case TAC_DIV:
+            {
+                write(1, "div %reg %reg %reg\n", 19);
+            }
+            break;
+
+            default:
+            {
+                write(1, "<ERROR!!!>\n", 11);
+            }
+            break;
+        }
+    }
+}
+
+
 int main(int argc, char **argv, char **env)
 {
     if (argc < 2)
@@ -144,23 +204,36 @@ int main(int argc, char **argv, char **env)
     usize memory_buffer_size = MEGABYTES(5);
     void *memory_buffer = mmap2(0, memory_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 
-    void *memory_for_ast = memory_buffer;
-    usize memory_for_ast_size = MEGABYTES(1);
+    struct allocator arenas;
+    initialize_memory_arena(&arenas, memory_buffer, memory_buffer_size);
 
-    void *memory_for_scopes = memory_for_ast + memory_for_ast_size;
-    usize memory_for_scopes_size = MEGABYTES(1);
-
-    void *memory_for_err = memory_for_scopes + memory_for_scopes_size;
-    usize memory_for_err_size = KILOBYTES(5);
 
     struct allocator ast_allocator;
-    initialize_memory_arena(&ast_allocator, memory_for_ast, memory_for_ast_size);
+    {
+        usize memory_for_ast_size = MEGABYTES(1);
+        void *memory_for_ast = ALLOCATE_BUFFER_(&arenas, memory_for_ast_size);
+        initialize_memory_arena(&ast_allocator, memory_for_ast, memory_for_ast_size);
+    }
 
     struct allocator scope_allocator;
-    initialize_memory_arena(&scope_allocator, memory_for_scopes, memory_for_scopes_size);
+    {
+        usize memory_for_scopes_size = MEGABYTES(1);
+        void *memory_for_scopes = ALLOCATE_BUFFER_(&arenas, memory_for_scopes_size); 
+        initialize_memory_arena(&scope_allocator, memory_for_scopes, memory_for_scopes_size);
+    }
+
+    usize memory_for_three_address_codes_size = MEGABYTES(1);
+    void *memory_for_three_address_codes = ALLOCATE_BUFFER_(&arenas, memory_for_three_address_codes_size);
+
+    usize memory_for_labels_size = KILOBYTES(5);
+    void *memory_for_labels = ALLOCATE_BUFFER_(&arenas, memory_for_labels_size);
 
     struct allocator err_allocator;
-    initialize_memory_arena(&err_allocator, memory_for_err, memory_for_err_size);
+    {
+        usize memory_for_err_size = KILOBYTES(5);
+        void *memory_for_err = ALLOCATE_BUFFER_(&arenas, memory_for_err_size);
+        initialize_memory_arena(&err_allocator, memory_for_err, memory_for_err_size);
+    }
 
     char const *filename = argv[1];
 
@@ -200,6 +273,23 @@ int main(int argc, char **argv, char **env)
         {
             write(1, "Check is good\n", 14);
             print_ast(ast, 0);
+
+            struct pinapl_flatten_stage flatten_stage =
+            {
+                .global_variable_counter = rename_stage.global_variable_counter,
+
+                .codes = memory_for_three_address_codes,
+                .codes_size = memory_for_three_address_codes_size / sizeof(struct pinapl_tac),
+                .code_count = 0,
+
+                .labels = memory_for_labels,
+                .labels_size = memory_for_labels_size,
+                .label_count = 0,
+            };
+
+            pinapl_flatten_ast(&flatten_stage, ast);
+
+            print_tacs(flatten_stage.codes, flatten_stage.code_count);
         }
         else
         {

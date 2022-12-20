@@ -13,7 +13,7 @@ struct pinapl_parser;
 struct ast_node;
 
 
-typedef enum
+enum pinapl_token_type
 {
     TOKEN_INVALID = 0,
 
@@ -42,15 +42,15 @@ typedef enum
     TOKEN_KW_RETURN = 300,
     
     TOKEN_EOF = 500,
-} token_type;
+};
 
 
-char *token_type_to_cstring(token_type);
+char *token_type_to_cstring(enum pinapl_token_type);
 
 
 typedef struct
 {
-    token_type type;
+    enum pinapl_token_type type;
 
     int line;
     int column;
@@ -258,6 +258,46 @@ struct pinapl_rename_stage
 
 
 b32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_node *ast, struct pinapl_scope *scope);
+
+
+enum pinapl_tac_type
+{
+    TAC_NOP,
+
+    TAC_MOV_REG,
+    TAC_MOV_INT,
+
+    TAC_ADD,
+    TAC_SUB,
+    TAC_MUL,
+    TAC_DIV,
+};
+
+
+struct pinapl_tac
+{
+    enum pinapl_tac_type type;
+    usize dst; // 'register' index
+    usize lhs; // 'register' index OR integer number
+    usize rhs; // 'register' index OR integer number
+};
+
+
+struct pinapl_flatten_stage
+{
+    usize global_variable_counter;
+
+    struct pinapl_tac *codes;
+    usize codes_size;
+    usize code_count;
+
+    struct pinapl_label *labels;
+    usize labels_size;
+    usize label_count;
+};
+
+
+struct pinapl_tac *pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_node *ast);
 
 
 #endif // PARSER_H
