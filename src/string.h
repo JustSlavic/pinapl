@@ -6,7 +6,7 @@
 
 struct string
 {
-    char const *data;
+    char *data;
     usize size;
 };
 

@@ -20,7 +20,7 @@ struct string make_string_from_cstring(char const *s)
     usize size = cstring_size_no0(s);
 
     struct string result;
-    result.data = s;
+    result.data = (char *) s;
     result.size = size;
     return result;
 }

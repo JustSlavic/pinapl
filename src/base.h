@@ -14,6 +14,11 @@
 #define ALWAYS_INLINE __attribute__((always_inline))
 #define INLINE __inline__
 
+typedef __builtin_va_list va_list;
+#define va_start __builtin_va_start
+#define va_arg   __builtin_va_arg
+#define va_end   __builtin_va_end
+
 #if defined(__arm__)
 #define DEBUG_BREAK() { __asm__ volatile(".inst 0xe7f001f0"); } (void)0
 #endif

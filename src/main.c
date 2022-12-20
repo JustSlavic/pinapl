@@ -1,7 +1,8 @@
-#include "syscall.h"
-#include "string.h"
-#include "parser.h"
-#include "allocator.h"
+#include <syscall.h>
+#include <allocator.h>
+#include <print.h>
+#include <string.h>
+#include <parser.h>
 
 
 char const *spaces = "                                           ";
@@ -18,26 +19,20 @@ void print_ast(ast_node *node, int depth)
             ast_node_binary_operator *binary_op = &node->binary_operator;
             if (binary_op->lhs) print_ast(binary_op->lhs, depth);
             if (binary_op->rhs) print_ast(binary_op->rhs, depth);
-            write(1, binary_op->op.span, binary_op->op.span_size); 
+            print_n(binary_op->op.span, binary_op->op.span_size); 
         }
         break;
 
         case AST_NODE_VARIABLE:
         {
-            char buffer[32];
-            buffer[0] = '0' + node->variable.symbol_id;
-            buffer[1] = 0;
-
-            write(1, node->variable.span, node->variable.span_size);
-            write(1, "(", 1);
-            write(1, buffer, 1);
-            write(1, ")", 1);
+            print_n(node->variable.span, node->variable.span_size);
+            print_f("(%d)", node->variable.symbol_id);
         }
         break;
 
         case AST_NODE_LITERAL_INT:
         {
-            write(1, node->integer_literal.span, node->integer_literal.span_size);
+            print_n(node->integer_literal.span, node->integer_literal.span_size);
         }
         break;
         
@@ -47,47 +42,41 @@ void print_ast(ast_node *node, int depth)
             b32 is_constant = (node->type == AST_NODE_CONSTANT_DECLARATION);
             ast_node_variable_declaration *var = &node->variable_declaration;
 
-            char buffer[32];
-            buffer[0] = '0' + var->symbol_id;
-            buffer[1] = 0;
-
-            write(1, "VAR(", 4);
-            write(1, buffer, 1);
-            write(1, ") {", 3);
-            write(1, var->var_name.span, var->var_name.span_size);
-            write(1, ":", 1);
+            print_f("VAR(%d) {", var->symbol_id);
+            print_n(var->var_name.span, var->var_name.span_size);
+            print(":");
             if (var->var_type.type != TOKEN_INVALID)
             {
-                write(1, var->var_type.span, var->var_type.span_size);
+                print_n(var->var_type.span, var->var_type.span_size);
             }
             if (var->init)
             {
-                write(1, is_constant ? ":" : "=", 1);
+                print(is_constant ? ":" : "=");
                 print_ast(var->init, depth);
             }
-            write(1, "}", 1);
+            print("}");
         }
         break;
 
         case AST_NODE_BLOCK:
         {
-            write(1, "{\n", 3);
+            print("{\n");
             if (node->block.statement_list)
             {
                 print_ast(node->block.statement_list, depth + 1);
             }
-            write(1, spaces, depth * 2);
-            write(1, "}\n", 2);
+            print_n(spaces, depth * 2);
+            print("}\n");
         }
         break;
 
         case AST_NODE_FUNCTION_DEFINITION:
         {
-            write(1, "()", 2);
+            print("()");
             if (node->function_definition.block)
             {
-                write(1, "\n", 1);
-                write(1, spaces, (depth + 1) * 2);
+                print("\n");
+                print_n(spaces, (depth + 1) * 2);
                 print_ast(node->function_definition.block, depth + 1);
             }
         }
@@ -95,20 +84,20 @@ void print_ast(ast_node *node, int depth)
 
         case AST_NODE_FUNCTION_CALL:
         {
-            write(1, node->function_call.name.span, node->function_call.name.span_size);
-            write(1, "()", 2);
+            print_n(node->function_call.name.span, node->function_call.name.span_size);
+            print("()");
         }
         break;
 
         case AST_NODE_STATEMENT_LIST:
         {
-            write(1, spaces, depth * 2);
+            print_n(spaces, depth * 2);
             print_ast(node->list.node, depth);
             if (node->list.node->type != AST_NODE_BLOCK)
             {
-                write(1, ";", 1);
+                print(";");
             }
-            write(1, "\n", 1);
+            print("\n");
             if (node->list.next)
             {
                 print_ast(node->list.next, depth);
@@ -119,7 +108,7 @@ void print_ast(ast_node *node, int depth)
         case AST_NODE_GLOBAL_DECLARATION_LIST:
         {
             print_ast(node->list.node, depth);
-            write(1, "\n", 1);
+            print("\n");
             if (node->list.next)
             {
                 print_ast(node->list.next, depth);
@@ -128,7 +117,9 @@ void print_ast(ast_node *node, int depth)
         break;
 
         default:
-            write(1, "<!!!>", 5);
+        {
+            print("<!!!>");
+        }
     }
 }
 
@@ -143,49 +134,49 @@ void print_tacs(struct pinapl_tac *codes, usize code_count)
         {
             case TAC_NOP:
             {
-                write(1, "nop\n", 4);
+                print("nop\n");
             }
             break;
 
             case TAC_MOV_REG:
             {
-                write(1, "mov %reg\n", 9);
+                print_f("mov r%d, r%d\n", code->dst, code->lhs);
             }
             break;
 
             case TAC_MOV_INT:
             {
-                write(1, "mov %int\n", 9);
+                print_f("mov r%d, #%d\n", code->dst, code->lhs);
             }
             break;
 
             case TAC_ADD:
             {
-                write(1, "add %reg %reg %reg\n", 19);
+                print_f("add r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
             }
             break;
 
             case TAC_SUB:
             {
-                write(1, "sub %reg %reg %reg\n", 19);
+                print_f("sub r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
             }
             break;
 
             case TAC_MUL:
             {
-                write(1, "mul %reg %reg %reg\n", 19);
+                print_f("mul r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
             }
             break;
 
             case TAC_DIV:
             {
-                write(1, "div %reg %reg %reg\n", 19);
+                print_f("div r%d r%d r%d\n", code->dst, code->lhs, code->rhs);
             }
             break;
 
             default:
             {
-                write(1, "<ERROR!!!>\n", 11);
+                print("<ERROR!!!>\n");
             }
             break;
         }
@@ -207,6 +198,10 @@ int main(int argc, char **argv, char **env)
     struct allocator arenas;
     initialize_memory_arena(&arenas, memory_buffer, memory_buffer_size);
 
+    usize memory_for_print_buffer_size = KILOBYTES(5);
+    void *memory_for_print_buffer = ALLOCATE_BUFFER_(&arenas, memory_for_print_buffer_size);
+
+    initialize_print_buffer(memory_for_print_buffer, memory_for_print_buffer_size);
 
     struct allocator ast_allocator;
     {
@@ -302,6 +297,10 @@ int main(int argc, char **argv, char **env)
         struct string err = pinapl_parser_get_error_string(&parser);
         write(1, err.data, err.size);
     }
+
+    print_f("blah %d foo %d\n", 42, -1);
+
+    print_flush();
 
     return 0;
 }
