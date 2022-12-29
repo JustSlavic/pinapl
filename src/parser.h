@@ -262,17 +262,27 @@ b32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_nod
 
 enum pinapl_tac_type
 {
-    TAC_NOP     = 0,
-    TAC_LABEL   = 1,
-    TAC_MOV     = 2,
-    TAC_ADD     = 3,
-    TAC_SUB     = 4,
-    TAC_MUL     = 5,
-    TAC_DIV     = 6,
-    
-    TAC_REG_REG = 0x00010000, // 2^16
-    TAC_REG_INT = 0x00020000, // 2^17
-    TAC_INT_REG = 0x00040000, // 2^18
+    TAC_NOP     = 0x00000001,
+    TAC_LABEL   = 0x00000002,
+    TAC_MOV     = 0x00000004,
+    TAC_ADD     = 0x00000008,
+    TAC_SUB     = 0x00000010,
+    TAC_MUL     = 0x00000020,
+    TAC_DIV     = 0x00000040,
+   
+    TAC_NO_LHS  = 0x00010000, // 2^16
+    TAC_LHS_INT = 0x00020000, // 2^17
+    TAC_LHS_REG = 0x00040000, // 2^18
+
+    TAC_NO_RHS  = 0x01000000, // 2^24
+    TAC_RHS_INT = 0x02000000, // 2^25
+    TAC_RHS_REG = 0x04000000, // 2^26
+
+    TAC_REG     = TAC_LHS_REG | TAC_NO_RHS,
+    TAC_INT     = TAC_LHS_INT | TAC_NO_RHS,
+    TAC_REG_REG = TAC_LHS_REG | TAC_RHS_REG,
+    TAC_REG_INT = TAC_LHS_REG | TAC_RHS_INT,
+    TAC_INT_REG = TAC_LHS_INT | TAC_RHS_REG,
 };
 
 

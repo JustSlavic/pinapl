@@ -130,85 +130,59 @@ void print_tacs(struct pinapl_tac *codes, usize code_count)
     while (code_index < code_count)
     {
         struct pinapl_tac *code = codes + code_index++;
-        switch (code->type)
+        
+        if (code->type & TAC_NOP)
         {
-            case TAC_NOP:
-            {
-                print("nop\n");
-            }
-            break;
-
-            case TAC_LABEL:
-            {
-                print("L.%d:\n", code->dst);
-            }
-            break;
-
-            case TAC_MOV | TAC_REG_REG:
-            {
-                print("mov r%d, r%d\n", code->dst, code->lhs);
-            }
-            break;
-
-            case TAC_MOV | TAC_REG_INT:
-            {
-                print("mov r%d, #%d\n", code->dst, code->lhs);
-            }
-
-            case TAC_ADD | TAC_REG_REG:
-            {
-                print("add r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
-            }
-            break;
-
-            case TAC_ADD | TAC_REG_INT:
-            {
-                print("add r%d, r%d, #%d\n", code->dst, code->lhs, code->rhs);
-            }
-            break;
-
-            case TAC_ADD | TAC_INT_REG:
-            {
-                print("add r%d, #%d, r%d\n", code->dst, code->lhs, code->rhs);
-            }
-            break;
-
-            case TAC_SUB | TAC_REG_REG:
-            {
-                print("sub r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
-            }
-            break;
-
-            case TAC_SUB | TAC_REG_INT:
-            {
-                print("sub r%d, r%d, #%d\n", code->dst, code->lhs, code->rhs);
-            }
-            break;
-
-            case TAC_SUB | TAC_INT_REG:
-            {
-                print("sub r%d, #%d, r%d\n", code->dst, code->lhs, code->rhs);
-            }
-            break;
-
-            case TAC_MUL:
-            {
-                print("mul r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
-            }
-            break;
-
-            case TAC_DIV:
-            {
-                print("div r%d r%d r%d\n", code->dst, code->lhs, code->rhs);
-            }
-            break;
-
-            default:
-            {
-                print("<ERROR!!!>\n");
-            }
-            break;
+            print("    nop");
         }
+        else if (code->type & TAC_LABEL)
+        {
+            print(".L%d:", code->dst);
+        }
+        else if (code->type & TAC_MOV)
+        {
+            print("    mov  r%d", code->dst);
+        }
+        else if (code->type & TAC_ADD)
+        {
+            print("    add  r%d", code->dst);
+        }
+        else if (code->type & TAC_SUB)
+        {
+            print("    sub  r%d", code->dst);
+        }
+        else if (code->type & TAC_MUL)
+        {
+            print("    mul  r%d", code->dst);
+        }
+        else if (code->type & TAC_DIV)
+        {
+            print("    div  r%d", code->dst);
+        }
+        else
+        {
+            ASSERT_FAIL();
+        }
+
+        if (code->type & TAC_LHS_REG)
+        {
+            print(", r%d", code->lhs);
+        }
+        else if (code->type & TAC_LHS_INT)
+        {
+            print(", #%d", code->lhs);
+        }
+        
+        if (code->type & TAC_RHS_REG)
+        {
+            print(", r%d", code->rhs);
+        }
+        else if (code->type & TAC_RHS_INT)
+        {
+            print(", #%d", code->rhs);
+        }
+        
+        print("\n");
     }
 }
 
@@ -217,15 +191,14 @@ int main(int argc, char **argv, char **env)
 {
     if (argc < 2)
     {
-        write(1, "Usage: ./pinapl FILEPATH\n", 25);
+        print("Usage: ./pinapl FILEPATH\n", 25);
         return 1;
     }
 
-    usize memory_buffer_size = MEGABYTES(5);
-    void *memory_buffer = mmap2(0, memory_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    struct memory_block memory_buffer = allocate_pages(MEGABYTES(5));
 
     struct allocator arenas;
-    initialize_memory_arena(&arenas, memory_buffer, memory_buffer_size);
+    initialize_memory_arena(&arenas, memory_buffer.memory, memory_buffer.size);
 
     usize memory_for_print_buffer_size = KILOBYTES(5);
     void *memory_for_print_buffer = ALLOCATE_BUFFER_(&arenas, memory_for_print_buffer_size);

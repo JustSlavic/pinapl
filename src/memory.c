@@ -39,18 +39,18 @@ void *align_pointer(void *pointer, usize alignment)
 }
 
 
-memory_block allocate_pages(usize size)
+struct memory_block allocate_pages(usize size)
 {
-    memory_block result;
+    struct memory_block result;
     result.memory = mmap2(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
     result.size = size;
 
     return result; 
 }
 
-memory_block allocate_pages_at(void *address, usize size)
+struct memory_block allocate_pages_at(void *address, usize size)
 {
-    memory_block result;
+    struct memory_block result;
     result.memory = mmap2(address, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
     result.size = size;
 

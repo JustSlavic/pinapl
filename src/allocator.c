@@ -92,6 +92,22 @@ void *allocate(struct allocator *a, usize size, usize alignment)
     return result;
 }
 
+struct memory_block allocate_block_(struct allocator *a, usize size, usize alignment)
+{
+    struct memory_block result;
+    result.memory = allocate_(a, size, alignment);
+    result.size   = size;
+    return result;
+}
+
+struct memory_block allocate_block(struct allocator *a, usize size, usize alignment)
+{
+    struct memory_block result;
+    result.memory = allocate(a, size, alignment);
+    result.size   = size;
+    return result;
+}
+
 void *reallocate(struct allocator *a, void *memory, usize size)
 {
     NOT_IMPLEMENTED();
