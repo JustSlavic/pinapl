@@ -5,48 +5,6 @@
 #include <parser.h>
 
 
-int test_idiv(int x, int y)
-{
-    return x / y;
-}
-
-int test_imod(int x, int y)
-{
-    return x % y;
-}
-
-
-void test_divs(void)
-{
-    int a = test_idiv(1, 0);
-    print("1 / 0 = %d\n", a);
-    a = test_idiv(10, 2);
-    print("10 / 2 = %d\n", a);
-    a = test_idiv(11, 7);
-    print("11 / 7 = %d\n", a);
-    a = test_idiv(-5, 2);
-    print("-5 / 2 = %d\n", a);
-    a = test_idiv(9, -4);
-    print("9 / (-4) = %d\n", a);
-    a = test_idiv(-65, -10);
-    print("-65 / (-10) = %d\n", a);
-
-    a = test_imod(1, 0);
-    print("1 % 0 = %d\n", a);
-    a = test_imod(10, 2);
-    print("10 % 2 = %d\n", a);
-    a = test_imod(11, 7);
-    print("11 % 7 = %d\n", a);
-    a = test_imod(-5, 2);
-    print("-5 % 2 = %d\n", a);
-    a = test_imod(9, -4);
-    print("9 % (-4) = %d\n", a);
-    a = test_imod(-65, -10);
-    print("-65 % (-10) = %d\n", a);
-
-}
-
-
 char const *spaces = "                                           ";
 
 void print_ast(ast_node *node, int depth)
@@ -368,8 +326,6 @@ int main(int argc, char **argv, char **env)
         struct string err = pinapl_parser_get_error_string(&parser);
         write(1, err.data, err.size);
     }
-
-    test_divs();
 
     print_flush();
     return 0;
