@@ -19,13 +19,6 @@ void print_flush(void)
 }
 
 
-void print(char const *c_string)
-{
-    usize size = cstring_size_no0(c_string);
-    print_n(c_string, size);
-}
-
-
 void print_n(char const *string, usize size)
 {
     if (global_print_allocator.used + size >= global_print_allocator.size)
@@ -44,7 +37,7 @@ void print_s(struct string string)
 }
 
 
-void print_f(char const *fmt, ...)
+void print(char const *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);

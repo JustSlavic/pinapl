@@ -5,6 +5,48 @@
 #include <parser.h>
 
 
+int test_idiv(int x, int y)
+{
+    return x / y;
+}
+
+int test_imod(int x, int y)
+{
+    return x % y;
+}
+
+
+void test_divs(void)
+{
+    int a = test_idiv(1, 0);
+    print("1 / 0 = %d\n", a);
+    a = test_idiv(10, 2);
+    print("10 / 2 = %d\n", a);
+    a = test_idiv(11, 7);
+    print("11 / 7 = %d\n", a);
+    a = test_idiv(-5, 2);
+    print("-5 / 2 = %d\n", a);
+    a = test_idiv(9, -4);
+    print("9 / (-4) = %d\n", a);
+    a = test_idiv(-65, -10);
+    print("-65 / (-10) = %d\n", a);
+
+    a = test_imod(1, 0);
+    print("1 % 0 = %d\n", a);
+    a = test_imod(10, 2);
+    print("10 % 2 = %d\n", a);
+    a = test_imod(11, 7);
+    print("11 % 7 = %d\n", a);
+    a = test_imod(-5, 2);
+    print("-5 % 2 = %d\n", a);
+    a = test_imod(9, -4);
+    print("9 % (-4) = %d\n", a);
+    a = test_imod(-65, -10);
+    print("-65 % (-10) = %d\n", a);
+
+}
+
+
 char const *spaces = "                                           ";
 
 void print_ast(ast_node *node, int depth)
@@ -26,7 +68,7 @@ void print_ast(ast_node *node, int depth)
         case AST_NODE_VARIABLE:
         {
             print_n(node->variable.span, node->variable.span_size);
-            print_f("(%d)", node->variable.symbol_id);
+            print("(%d)", node->variable.symbol_id);
         }
         break;
 
@@ -42,7 +84,7 @@ void print_ast(ast_node *node, int depth)
             b32 is_constant = (node->type == AST_NODE_CONSTANT_DECLARATION);
             ast_node_variable_declaration *var = &node->variable_declaration;
 
-            print_f("VAR(%d) {", var->symbol_id);
+            print("VAR(%d) {", var->symbol_id);
             print_n(var->var_name.span, var->var_name.span_size);
             print(":");
             if (var->var_type.type != TOKEN_INVALID)
@@ -138,39 +180,68 @@ void print_tacs(struct pinapl_tac *codes, usize code_count)
             }
             break;
 
-            case TAC_MOV_REG:
+            case TAC_LABEL:
             {
-                print_f("mov r%d, r%d\n", code->dst, code->lhs);
+                print("L.%d:\n", code->dst);
             }
             break;
 
-            case TAC_MOV_INT:
+            case TAC_MOV | TAC_REG_REG:
             {
-                print_f("mov r%d, #%d\n", code->dst, code->lhs);
+                print("mov r%d, r%d\n", code->dst, code->lhs);
             }
             break;
 
-            case TAC_ADD:
+            case TAC_MOV | TAC_REG_INT:
             {
-                print_f("add r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
+                print("mov r%d, #%d\n", code->dst, code->lhs);
+            }
+
+            case TAC_ADD | TAC_REG_REG:
+            {
+                print("add r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
             }
             break;
 
-            case TAC_SUB:
+            case TAC_ADD | TAC_REG_INT:
             {
-                print_f("sub r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
+                print("add r%d, r%d, #%d\n", code->dst, code->lhs, code->rhs);
+            }
+            break;
+
+            case TAC_ADD | TAC_INT_REG:
+            {
+                print("add r%d, #%d, r%d\n", code->dst, code->lhs, code->rhs);
+            }
+            break;
+
+            case TAC_SUB | TAC_REG_REG:
+            {
+                print("sub r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
+            }
+            break;
+
+            case TAC_SUB | TAC_REG_INT:
+            {
+                print("sub r%d, r%d, #%d\n", code->dst, code->lhs, code->rhs);
+            }
+            break;
+
+            case TAC_SUB | TAC_INT_REG:
+            {
+                print("sub r%d, #%d, r%d\n", code->dst, code->lhs, code->rhs);
             }
             break;
 
             case TAC_MUL:
             {
-                print_f("mul r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
+                print("mul r%d, r%d, r%d\n", code->dst, code->lhs, code->rhs);
             }
             break;
 
             case TAC_DIV:
             {
-                print_f("div r%d r%d r%d\n", code->dst, code->lhs, code->rhs);
+                print("div r%d r%d r%d\n", code->dst, code->lhs, code->rhs);
             }
             break;
 
@@ -298,10 +369,9 @@ int main(int argc, char **argv, char **env)
         write(1, err.data, err.size);
     }
 
-    print_f("blah %d foo %d\n", 42, -1);
+    test_divs();
 
     print_flush();
-
     return 0;
 }
 

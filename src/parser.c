@@ -1123,8 +1123,12 @@ struct pinapl_tac *pinapl_push_tac(struct pinapl_flatten_stage *stage, struct pi
 }
 
 
-struct pinapl_tac *pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_node *node)
+
+
+struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_node *node)
 {
+    struct flatten_result result = {0};
+
     switch (node->type)
     {
         case AST_NODE_INVALID:
@@ -1135,123 +1139,214 @@ struct pinapl_tac *pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_no
         case AST_NODE_GLOBAL_DECLARATION_LIST:
         case AST_NODE_STATEMENT_LIST:
         {
-            struct pinapl_tac *result = pinapl_flatten_ast(stage, node->list.node);
+            result = pinapl_flatten_ast(stage, node->list.node);
             if (node->list.next)
             {
                 result = pinapl_flatten_ast(stage, node->list.next);
             }
-            return result;
         }
         break;
 
         case AST_NODE_BLOCK:
         {
-            return pinapl_flatten_ast(stage, node->block.statement_list);
+            result = pinapl_flatten_ast(stage, node->block.statement_list);
         }
         break;
 
         case AST_NODE_VARIABLE_DECLARATION:
         case AST_NODE_CONSTANT_DECLARATION:
         {
-            struct pinapl_tac *result = NULL;
             if (node->variable_declaration.init)
             {
-                result = pinapl_flatten_ast(stage, node->variable_declaration.init);
-            }
-            
-            struct pinapl_tac code;
-            if (result == NULL)
-            {
-                code.type = TAC_MOV_INT;
-                code.dst  = node->variable_declaration.symbol_id;
-                code.lhs  = 0;
-                UNUSED(code.rhs);
+                struct flatten_result init_result = pinapl_flatten_ast(stage, node->variable_declaration.init);
+                
+                if (init_result.type == FLATTEN_RESULT_INTEGER)
+                {
+                    // mov %dst #int
+                    struct pinapl_tac code;
+                    code.type = TAC_MOV | TAC_REG_INT;
+                    code.dst  = node->variable_declaration.symbol_id;
+                    code.lhs  = init_result.integer_value;
+                    UNUSED(code.rhs);
+
+                    result.type = FLATTEN_RESULT_INSTRUCTION;
+                    result.instruction = pinapl_push_tac(stage, code);
+                }
+                else if (init_result.type == FLATTEN_RESULT_INSTRUCTION)
+                {
+                    // patch instruction so that it's dst becomes ours
+                    init_result.instruction->dst = node->variable_declaration.symbol_id;
+                }
+                else if (init_result.type == FLATTEN_RESULT_VARIABLE)
+                {
+                    // mov %dst %src
+                    struct pinapl_tac code;
+                    code.type = TAC_MOV | TAC_REG_REG;
+                    code.dst  = node->variable_declaration.symbol_id;
+                    code.lhs  = init_result.variable_id;
+                    UNUSED(code.rhs);
+
+                    result.type = FLATTEN_RESULT_INSTRUCTION;
+                    result.instruction = pinapl_push_tac(stage, code);
+                }
             }
             else
             {
-                code.type = TAC_MOV_REG;
+                struct pinapl_tac code;
+                code.type = TAC_MOV | TAC_REG_INT;
                 code.dst  = node->variable_declaration.symbol_id;
-                code.lhs  = result->dst;
+                code.lhs  = 0;
                 UNUSED(code.rhs);
-            }
 
-            result = pinapl_push_tac(stage, code);
-            return result;
+                result.type = FLATTEN_RESULT_INSTRUCTION;
+                result.instruction = pinapl_push_tac(stage, code);
+            }
         }
         break; 
 
-        // @todo: flatten all other ast nodes
         case AST_NODE_FUNCTION_DEFINITION:
         {
+            usize label_to = stage->code_count;
+
+            struct pinapl_tac code;
+            code.type = TAC_LABEL;
+            code.dst  = label_to;
+            UNUSED(code.lhs);
+            UNUSED(code.rhs);
+
+            struct pinapl_tac *instruction = pinapl_push_tac(stage, code);
+
             pinapl_flatten_ast(stage, node->function_definition.block);
+
+            ASSERT(stage->label_count < stage->labels_size);
+            stage->labels[stage->label_count++] = label_to;
+
+            result.type = FLATTEN_RESULT_INSTRUCTION;
+            result.instruction = instruction;
         }
         break;
 
         case AST_NODE_BINARY_OPERATOR:
         {
+            ast_node *lhs_node = node->binary_operator.lhs;
+            struct flatten_result lhs_result = pinapl_flatten_ast(stage, lhs_node);
+
+            ast_node *rhs_node = node->binary_operator.rhs;
+            struct flatten_result rhs_result = pinapl_flatten_ast(stage, rhs_node);
+
             enum pinapl_token_type op_type = node->binary_operator.op.type;
-            struct pinapl_tac *lhs = pinapl_flatten_ast(stage, node->binary_operator.lhs);
-            struct pinapl_tac *rhs = pinapl_flatten_ast(stage, node->binary_operator.rhs);
-
-            enum pinapl_tac_type code_type = TAC_NOP;
-            switch (op_type)
+            if (lhs_result.type == FLATTEN_RESULT_INTEGER && rhs_result.type == FLATTEN_RESULT_INTEGER)
             {
-                case TOKEN_PLUS:
+                result.type = FLATTEN_RESULT_INTEGER;
+                switch (op_type)
                 {
-                    code_type = TAC_ADD;
-                }
-                break;
+                    case TOKEN_PLUS:
+                        result.integer_value = lhs_result.integer_value + rhs_result.integer_value;
+                    break;
+                    
+                    case TOKEN_MINUS:
+                        result.integer_value = lhs_result.integer_value - rhs_result.integer_value;
+                    break;
+                    
+                    case TOKEN_ASTERICS:
+                        result.integer_value = lhs_result.integer_value * rhs_result.integer_value;
+                    break;
+                    
+                    case TOKEN_SLASH:
+                        result.integer_value = lhs_result.integer_value % rhs_result.integer_value;
+                    break;
 
-                case TOKEN_MINUS:
-                {
-                    code_type = TAC_SUB;
+                    default:
+                    break;
                 }
-                break;
-
-                case TOKEN_ASTERICS:
-                {
-                    code_type = TAC_MUL;
-                }
-                break;
-
-                case TOKEN_SLASH:
-                {
-                    code_type = TAC_DIV;
-                }
-                break;
-
-                default:
-                break;
             }
+            else if (lhs_result.type == FLATTEN_RESULT_INSTRUCTION && rhs_result.type == FLATTEN_RESULT_INTEGER)
+            {
+                result.type = FLATTEN_RESULT_INSTRUCTION;
+                switch (op_type)
+                {
+                    case TOKEN_PLUS:
+                    {
+                        struct pinapl_tac code;
+                        code.type = TAC_ADD | TAC_REG_INT;
+                        code.dst = stage->global_variable_counter++;
+                        code.lhs = lhs_result.instruction->dst;
+                        code.rhs = rhs_result.integer_value;
 
-            struct pinapl_tac code;
-            code.type = code_type;
-            code.dst = stage->global_variable_counter++; // New variable
-            code.lhs = lhs->dst;
-            code.rhs = rhs->dst;
-            return pinapl_push_tac(stage, code);
+                        result.instruction = pinapl_push_tac(stage, code);
+                    }
+                    break;
+
+                    // @todo: all other operators
+
+                    default:
+                    break;
+                }
+            }
+            else if (lhs_result.type == FLATTEN_RESULT_INTEGER && rhs_result.type == FLATTEN_RESULT_INSTRUCTION)
+            {
+                result.type = FLATTEN_RESULT_INSTRUCTION;
+                switch (op_type)
+                {
+                    case TOKEN_PLUS:
+                    {
+                        struct pinapl_tac code;
+                        code.type = TAC_ADD | TAC_INT_REG;
+                        code.dst = stage->global_variable_counter++;
+                        code.lhs = lhs_result.integer_value;
+                        code.rhs = rhs_result.instruction->dst;
+
+                        result.instruction = pinapl_push_tac(stage, code);
+                    }
+                    break;
+
+                    // @todo: all other operators
+
+                    default:
+                    break;
+                }
+            }
+            else if (lhs_result.type == FLATTEN_RESULT_INSTRUCTION && rhs_result.type == FLATTEN_RESULT_INSTRUCTION)
+            {
+                result.type = FLATTEN_RESULT_INSTRUCTION;
+                switch (op_type)
+                {
+                    case TOKEN_PLUS:
+                    {
+                        struct pinapl_tac code;
+                        code.type = TAC_ADD | TAC_REG_REG;
+                        code.dst = stage->global_variable_counter++;
+                        code.lhs = lhs_result.instruction->dst;
+                        code.rhs = rhs_result.instruction->dst;
+
+                        result.instruction = pinapl_push_tac(stage, code);
+                    }
+                    break;
+
+                    // @todo: all other operators
+
+                    default:
+                    break;
+                }
+            }
+            else
+            {
+                ASSERT(false);
+            }
         }
         break;
 
         case AST_NODE_LITERAL_INT:
         {
-            struct pinapl_tac code;
-            code.type = TAC_MOV_INT;
-            code.dst = stage->global_variable_counter++; // New variable
-            code.lhs = node->integer_literal.integer_value;
-            UNUSED(code.rhs);
-            return pinapl_push_tac(stage, code);
+            result.type = FLATTEN_RESULT_INTEGER;
+            result.integer_value = node->integer_literal.integer_value;
         }
         break;
 
         case AST_NODE_VARIABLE:
         {
-            struct pinapl_tac code;
-            code.type = TAC_MOV_REG;
-            code.dst = stage->global_variable_counter++;
-            code.lhs = node->variable.symbol_id;
-            UNUSED(code.rhs);
-            return pinapl_push_tac(stage, code);
+            result.type = FLATTEN_RESULT_VARIABLE;
+            result.variable_id = node->variable.symbol_id;
         }
         break;
 
@@ -1259,6 +1354,6 @@ struct pinapl_tac *pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_no
         break;
    }
 
-   return NULL;
+   return result;
 }
 

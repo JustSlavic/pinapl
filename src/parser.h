@@ -262,22 +262,24 @@ b32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_nod
 
 enum pinapl_tac_type
 {
-    TAC_NOP,
-
-    TAC_MOV_REG,
-    TAC_MOV_INT,
-
-    TAC_ADD,
-    TAC_SUB,
-    TAC_MUL,
-    TAC_DIV,
+    TAC_NOP     = 0,
+    TAC_LABEL   = 1,
+    TAC_MOV     = 2,
+    TAC_ADD     = 3,
+    TAC_SUB     = 4,
+    TAC_MUL     = 5,
+    TAC_DIV     = 6,
+    
+    TAC_REG_REG = 0x00010000, // 2^16
+    TAC_REG_INT = 0x00020000, // 2^17
+    TAC_INT_REG = 0x00040000, // 2^18
 };
 
 
 struct pinapl_tac
 {
-    enum pinapl_tac_type type;
-    usize dst; // 'register' index
+    u32 type;
+    usize dst; // 'register' index OR instruction index of label
     usize lhs; // 'register' index OR integer number
     usize rhs; // 'register' index OR integer number
 };
@@ -291,13 +293,34 @@ struct pinapl_flatten_stage
     usize codes_size;
     usize code_count;
 
-    struct pinapl_label *labels;
+    usize *labels;
     usize labels_size;
     usize label_count;
 };
 
 
-struct pinapl_tac *pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_node *ast);
+enum flatten_result_type
+{
+    FLATTEN_RESULT_INVALID = 0,
+    FLATTEN_RESULT_INSTRUCTION,
+    FLATTEN_RESULT_VARIABLE,
+    FLATTEN_RESULT_INTEGER,
+};
+
+
+struct flatten_result
+{
+    enum flatten_result_type type;
+    union
+    {
+        struct pinapl_tac *instruction;
+        int variable_id;
+        int integer_value;
+    };
+};
+
+
+struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_node *node);
 
 
 #endif // PARSER_H

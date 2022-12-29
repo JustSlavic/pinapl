@@ -74,6 +74,9 @@ typedef   signed int ssize;
 #define MEGABYTES(N) (1024 * KILOBYTES(N))
 #define GIGABYTES(N) (1024 * MEGABYTES(N))
 
+#define TOGGLE(VALUE) { VALUE = !(VALUE); } (void)0
+
+#define SWAP(A, B) { A ^= B; B ^= A; A ^= B; } (void)0
 
 #endif // BASE_H
 
