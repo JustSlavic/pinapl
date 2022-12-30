@@ -118,7 +118,6 @@ void print_ast(ast_node *node, int depth)
 
         case AST_NODE_RETURN_STATEMENT:
         {
-            print_n(spaces, depth * 2);
             print("return ");
             print_ast(node->return_statement.expression, depth);
         }
