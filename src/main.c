@@ -189,12 +189,6 @@ void print_tacs(struct pinapl_tac *codes, usize code_count)
 
 int main(int argc, char **argv, char **env)
 {
-    if (argc < 2)
-    {
-        print("Usage: ./pinapl FILEPATH\n", 25);
-        return 1;
-    }
-
     struct memory_block memory_buffer = allocate_pages(MEGABYTES(5));
 
     struct allocator arenas;
@@ -202,8 +196,13 @@ int main(int argc, char **argv, char **env)
 
     usize memory_for_print_buffer_size = KILOBYTES(5);
     void *memory_for_print_buffer = ALLOCATE_BUFFER_(&arenas, memory_for_print_buffer_size);
-
     initialize_print_buffer(memory_for_print_buffer, memory_for_print_buffer_size);
+
+    if (argc < 2)
+    {
+        print("Usage: ./pinapl FILEPATH\n");
+        return 1;
+    }
 
     struct allocator ast_allocator;
     {
@@ -237,7 +236,7 @@ int main(int argc, char **argv, char **env)
     int fd = open(filename, 0, O_RDONLY);
     if (fd <= 0)
     {
-        write(1, "Error < 0\n", 10);
+        print("Error < 0\n");
         return 1;
     }
 
@@ -245,8 +244,8 @@ int main(int argc, char **argv, char **env)
     int  buffer_size = read(fd, buffer, ARRAY_COUNT(buffer) - 1);
     close(fd);
 
-    write(1, buffer, buffer_size);
-    write(1, "EOF\n", 4);
+    print_n(buffer, buffer_size);
+    print("EOF\n");
 
     struct pinapl_parser parser = pinapl_init_parser(&ast_allocator, &err_allocator, filename, buffer, buffer_size);
     ast_node *ast = pinapl_parse_global_declaration_list(&parser);
@@ -254,7 +253,7 @@ int main(int argc, char **argv, char **env)
     token t = pinapl_get_token(&parser);
     if (ast && t.type == TOKEN_EOF)
     {
-        write(1, "Language recognized!\n", 21);
+        print("Language recognized!\n");
     
         struct pinapl_scope global_scope = {0};
 
@@ -268,7 +267,7 @@ int main(int argc, char **argv, char **env)
         b32 good = pinapl_check_and_rename_variables(&rename_stage, ast, &global_scope);
         if (good)
         {
-            write(1, "Check is good\n", 14);
+            print("Check is good\n");
             print_ast(ast, 0);
 
             struct pinapl_flatten_stage flatten_stage =
@@ -290,14 +289,14 @@ int main(int argc, char **argv, char **env)
         }
         else
         {
-            write(1, "Check is bad\n", 13);
+            print("Check is bad\n");
         }
     }
     else
     {
-        write(1, "Language is not recognized!\n", 28);
+        print("Language is not recognized!\n");
         struct string err = pinapl_parser_get_error_string(&parser);
-        write(1, err.data, err.size);
+        print_n(err.data, err.size);
     }
 
     print_flush();
