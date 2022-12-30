@@ -29,7 +29,7 @@ b32 strings_equal(struct string a, struct string b)
 {
     b32 equal = (a.size == b.size);
     usize n = a.size;
-    while (n-->0)
+    while (equal && n-->0)
     {
         equal &= (*a.data++ == *b.data++);
     }
