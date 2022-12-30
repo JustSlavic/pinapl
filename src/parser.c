@@ -5,6 +5,14 @@
 
 GLOBAL char const *spaces = "                                             ";
 GLOBAL char const *carets = "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^";
+GLOBAL char const *keywords[] =
+{
+    "return",
+};
+GLOBAL enum pinapl_token_type keyword_types[] =
+{
+    TOKEN_KW_RETURN,
+};
 
 
 char *token_type_to_cstring(enum pinapl_token_type t)
@@ -187,8 +195,21 @@ token pinapl_get_token(struct pinapl_parser *parser)
                 c = pinapl_get_char(l);
                 span_size += 1;
             }
-
+            
             t.span_size = span_size;
+
+            // @todo @efficiency
+            // Maybe precompute hashes of keywrods
+            for (int keyword_index = 0; keyword_index < ARRAY_COUNT(keywords); keyword_index++)
+            {
+                struct string keyword = make_string_from_cstring(keywords[keyword_index]);
+                struct string testing = { .data = t.span, .size = t.span_size };
+                if (strings_equal(keyword, testing))
+                {
+                    t.type = keyword_types[keyword_index];
+                    break;
+                }
+            }
         }
         else if (is_ascii_digit(c))
         {
@@ -730,6 +751,31 @@ ast_node *pinapl_parse_function_definition(struct pinapl_parser *parser)
     return result;
 }
 
+ast_node *pinapl_parse_return_statement(struct pinapl_parser *parser)
+{
+    ast_node *result = NULL;
+
+    token keyword = pinapl_get_token(parser);
+    if (keyword.type == TOKEN_KW_RETURN)
+    {
+        pinapl_eat_token(parser);
+        ast_node *return_expression = pinapl_parse_expression(parser, 0);
+
+        if (return_expression)
+        {
+            result = ALLOCATE(parser->ast_allocator, ast_node);
+            result->type = AST_NODE_RETURN_STATEMENT;
+            result->return_statement.expression = return_expression;
+        }
+    }
+    else
+    {
+        pinapl_report_compiler_error_cstring(parser, "Error: expected 'return' keyword\n");
+    }
+
+    return result;
+}
+
 ast_node *pinapl_parse_statement(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
@@ -764,7 +810,18 @@ ast_node *pinapl_parse_statement(struct pinapl_parser *parser)
             }
             else
             {
-                pinapl_report_compiler_error_cstring(parser, "Error!!! I don't know what it is!\n");
+                parser->err_allocator->used = 0;
+                parser->lexer = checkpoint;
+
+                ast_node *return_statement = pinapl_parse_return_statement(parser);
+                if (return_statement)
+                {
+                    result = return_statement;
+                }
+                else
+                {
+                    pinapl_report_compiler_error_cstring(parser, "Error!!! I don't know what it is!\n");
+                }
             }
         }
     }
@@ -1002,6 +1059,12 @@ b32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_nod
         }
         break;
 
+        case AST_NODE_RETURN_STATEMENT:
+        {
+            pinapl_check_and_rename_variables(stage, node->return_statement.expression, scope);
+        }
+        break;
+
         case AST_NODE_BLOCK:
         {
             struct pinapl_scope *inner_scope = ALLOCATE(stage->scope_allocator, struct pinapl_scope);
@@ -1144,6 +1207,40 @@ struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast
             {
                 result = pinapl_flatten_ast(stage, node->list.next);
             }
+        }
+        break;
+
+        case AST_NODE_RETURN_STATEMENT:
+        {
+            struct flatten_result ret_expr = pinapl_flatten_ast(stage, node->return_statement.expression);
+
+            struct pinapl_tac code;
+            code.type = TAC_RET;
+            code.dst  = 0;
+            UNUSED(code.rhs);
+
+            if (ret_expr.type == FLATTEN_RESULT_INTEGER)
+            {
+                code.type |= TAC_LHS_INT;
+                code.lhs = ret_expr.integer_value;
+            }
+            else if (ret_expr.type == FLATTEN_RESULT_VARIABLE)
+            {
+                code.type |= TAC_LHS_REG;
+                code.lhs = ret_expr.variable_id;
+            }
+            else if (ret_expr.type == FLATTEN_RESULT_INSTRUCTION)
+            {
+                code.type |= TAC_LHS_REG;
+                code.lhs = ret_expr.instruction->dst;
+            }
+            else
+            {
+                ASSERT_FAIL();
+            }
+
+            result.type = FLATTEN_RESULT_INSTRUCTION;
+            result.instruction = pinapl_push_tac(stage, code);
         }
         break;
 

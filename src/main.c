@@ -116,6 +116,14 @@ void print_ast(ast_node *node, int depth)
         }
         break;
 
+        case AST_NODE_RETURN_STATEMENT:
+        {
+            print_n(spaces, depth * 2);
+            print("return ");
+            print_ast(node->return_statement.expression, depth);
+        }
+        break;
+
         default:
         {
             print("<!!!>");
@@ -158,6 +166,10 @@ void print_tacs(struct pinapl_tac *codes, usize code_count)
         else if (code->type & TAC_DIV)
         {
             print("    div  r%d", code->dst);
+        }
+        else if (code->type & TAC_RET)
+        {
+            print("    ret  r%d", code->dst);
         }
         else
         {

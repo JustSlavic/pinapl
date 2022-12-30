@@ -120,6 +120,7 @@ typedef enum ast_node_type
     AST_NODE_VARIABLE_DECLARATION,
     AST_NODE_CONSTANT_DECLARATION,
     AST_NODE_FUNCTION_DEFINITION,
+    AST_NODE_RETURN_STATEMENT,
 
     // Expressions
     AST_NODE_BINARY_OPERATOR,
@@ -191,6 +192,11 @@ struct ast_node_integer_literal
     int integer_value;
 };
 
+struct ast_node_return_statement
+{
+    struct ast_node *expression;
+};
+
 
 typedef struct ast_node
 {
@@ -206,6 +212,7 @@ typedef struct ast_node
         struct ast_node_binary_operator      binary_operator;
         struct ast_node_variable             variable;
         struct ast_node_integer_literal      integer_literal;
+        struct ast_node_return_statement     return_statement;
     };
 } ast_node;
 
@@ -269,6 +276,7 @@ enum pinapl_tac_type
     TAC_SUB     = 0x00000010,
     TAC_MUL     = 0x00000020,
     TAC_DIV     = 0x00000040,
+    TAC_RET     = 0x00000080,
 
     TAC_INSTR_MASK = 0x00001111, 
     TAC_LHS_MASK   = 0x00110000,
