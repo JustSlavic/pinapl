@@ -1235,22 +1235,23 @@ struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast
             struct flatten_result rhs_result = pinapl_flatten_ast(stage, rhs_node);
 
             struct pinapl_tac code;
-            code.type = 0;
-            code.dst  = stage->global_variable_counter++;
+
+            int code_lhs_type = 0;
+            int code_rhs_type = 0;
 
             if (lhs_result.type == FLATTEN_RESULT_INTEGER)
             {
-                code.type |= TAC_LHS_INT;
+                code_lhs_type = TAC_LHS_INT;
                 code.lhs = lhs_result.integer_value;
             }
             else if (lhs_result.type == FLATTEN_RESULT_VARIABLE)
             {
-                code.type |= TAC_LHS_REG;
+                code_lhs_type = TAC_LHS_REG;
                 code.lhs = lhs_result.variable_id;
             }
             else if (lhs_result.type == FLATTEN_RESULT_INSTRUCTION)
             {
-                code.type |= TAC_LHS_REG;
+                code_lhs_type = TAC_LHS_REG;
                 code.lhs = lhs_result.instruction->dst;
             }
             else
@@ -1260,17 +1261,17 @@ struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast
             
             if (rhs_result.type == FLATTEN_RESULT_INTEGER)
             {
-                code.type |= TAC_RHS_INT;
+                code_rhs_type = TAC_RHS_INT;
                 code.rhs = rhs_result.integer_value;
             }
             else if (rhs_result.type == FLATTEN_RESULT_VARIABLE)
             {
-                code.type |= TAC_RHS_REG;
+                code_rhs_type = TAC_RHS_REG;
                 code.rhs = rhs_result.variable_id;
             }
             else if (rhs_result.type == FLATTEN_RESULT_INSTRUCTION)
             {
-                code.type |= TAC_RHS_REG;
+                code_rhs_type = TAC_RHS_REG;
                 code.rhs = rhs_result.instruction->dst;
             }
             else
@@ -1282,19 +1283,30 @@ struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast
             switch (op_type)
             {
                 case TOKEN_PLUS:
-                    code.type |= TAC_ADD;
+                    code.type = TAC_ADD | code_lhs_type | code_rhs_type;
+                    code.dst  = stage->global_variable_counter++;
                 break;
                 
                 case TOKEN_MINUS:
-                    code.type |= TAC_SUB;
+                    code.type = TAC_SUB | code_lhs_type | code_rhs_type;
+                    code.dst  = stage->global_variable_counter++;
                 break;
                 
                 case TOKEN_ASTERICS:
-                    code.type |= TAC_MUL;
+                    code.type = TAC_MUL | code_lhs_type | code_rhs_type;
+                    code.dst  = stage->global_variable_counter++;
                 break;
                 
                 case TOKEN_SLASH:
-                    code.type |= TAC_DIV;
+                    code.type = TAC_DIV | code_lhs_type | code_rhs_type;
+                    code.dst  = stage->global_variable_counter++;
+                break;
+
+                case TOKEN_EQUALS:
+                    code.type = TAC_MOV | (code_rhs_type >> 8) | TAC_NO_RHS; // SHR go from RHS to LHS
+                    code.dst = code.lhs;
+                    code.lhs = code.rhs;
+                    code.rhs = 0;
                 break;
 
                 default:

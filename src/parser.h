@@ -269,7 +269,11 @@ enum pinapl_tac_type
     TAC_SUB     = 0x00000010,
     TAC_MUL     = 0x00000020,
     TAC_DIV     = 0x00000040,
-   
+
+    TAC_INSTR_MASK = 0x00001111, 
+    TAC_LHS_MASK   = 0x00110000,
+    TAC_RHS_MASK   = 0x11000000,
+
     TAC_NO_LHS  = 0x00010000, // 2^16
     TAC_LHS_INT = 0x00020000, // 2^17
     TAC_LHS_REG = 0x00040000, // 2^18
