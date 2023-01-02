@@ -1,6 +1,7 @@
 #include "parser.h"
 #include <string.h>
 #include <primes.h>
+#include <print.h>
 
 
 GLOBAL char const *spaces = "                                             ";
@@ -468,7 +469,7 @@ ast_node *pinapl_parse_expression(struct pinapl_parser *parser, int precedence)
     if (open_paren.type == '(')
     {
         pinapl_eat_token(parser);
-        left_operand = pinapl_parse_expression(parser, precedence);
+        left_operand = pinapl_parse_expression(parser, 0);
         if (left_operand == NULL)
         {
             return NULL;
@@ -1434,5 +1435,142 @@ struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast
    }
 
    return result;
+}
+
+
+void pinapl_make_register_assignment_map(struct pinapl_register_assignment_map *map, struct pinapl_flatten_stage *stage)
+{
+    usize use_count = stage->code_count;
+    usize var_count = 0;
+    for (int tac_index = 0; tac_index < stage->code_count; tac_index++)
+    {
+        struct pinapl_tac code = stage->codes[tac_index];
+        if (code.dst > var_count) var_count = code.dst;
+        if (code.lhs > var_count && (code.type & TAC_LHS_REG)) var_count = code.lhs;
+        if (code.rhs > var_count && (code.type & TAC_RHS_REG)) var_count = code.rhs;
+    }
+
+    map->use_count = use_count;
+    map->var_count = var_count + 1;
+    map->table = ALLOCATE_BUFFER(map->allocator, map->use_count * map->var_count * sizeof(enum pinapl_register_assignment_map_usage));
+    map->segments = ALLOCATE_BUFFER(map->allocator, (map->use_count + 1) * map->var_count * sizeof(int));
+
+    int segment_pitch = (map->use_count + 1) * map->var_count;
+
+    for (int tac_index = 0; tac_index < stage->code_count; tac_index++)
+    {
+        struct pinapl_tac code = stage->codes[tac_index];
+        
+        // dst
+        if ((code.type & TAC_LABEL) == 0) // NOT A LABEL
+        {
+            enum pinapl_register_assignment_map_usage *cell = map->table + code.dst * use_count + tac_index;
+            *cell = REGISTER_WRITE;
+
+            int reg = code.dst;
+            int *row = map->segments + (reg * segment_pitch);
+            row[1 + row[0]] = tac_index;
+            row[1 + row[0] + 1] = tac_index;
+            row[0] += 2;
+        }
+        // lhs
+        if (code.type & TAC_LHS_REG)
+        {
+            enum pinapl_register_assignment_map_usage *cell = map->table + code.lhs * use_count + tac_index;
+            *cell = REGISTER_READ;
+
+            int reg = code.lhs;
+            int *row = map->segments + (reg * segment_pitch);
+            if (row[0] > 0)
+            {
+            }
+            else
+            {
+                // READING GARBAGE FROM THE REGISTER
+                row[0] += 2;
+            }
+            row[row[0]] = tac_index;
+        }
+        // rhs
+        if (code.type & TAC_RHS_REG)
+        {
+            enum pinapl_register_assignment_map_usage *cell = map->table + code.rhs * use_count + tac_index;
+            *cell = REGISTER_READ;
+
+            int reg = code.rhs;
+            int *row = map->segments + (reg * segment_pitch);
+            if (row[0] > 0)
+            {
+            }
+            else
+            {
+                // READING GARBAGE FROM THE REGISTER
+                row[0] += 1;
+            }
+            row[row[0]] = tac_index;
+        }
+    }
+}
+
+void print_register_assignment_map(struct pinapl_register_assignment_map *map)
+{
+    for (int var_index = 0; var_index < map->var_count; var_index++)
+    {
+        int segment_pitch = (map->use_count + 1) * map->var_count;
+        int *row = map->segments + var_index * segment_pitch;
+
+        int *seg_end_pointer = row + 2;
+
+        b32 in_segment = false;
+        for (int t_index = 0; t_index < map->use_count; t_index++)
+        {
+            if (map->table[var_index * map->use_count + t_index] == REGISTER_READ)
+            {
+                b32 closing_bracket = (*seg_end_pointer == t_index);
+                if (closing_bracket)
+                {
+                    print("_R ");
+                    seg_end_pointer += 2;
+                    in_segment = false;
+                }
+                else
+                {
+                    print("_R_");
+                }
+            }
+            else if (map->table[var_index * map->use_count + t_index] == REGISTER_WRITE)
+            {
+                if (*seg_end_pointer == t_index)
+                {
+                    print(" W ");
+                    seg_end_pointer += 2;
+                }
+                else
+                {
+                    print(" W_");
+                    in_segment = true;
+                }
+            }
+            else
+            {
+                if (in_segment)
+                {
+                    print("___");
+                }
+                else
+                {
+                    print("   ");
+                }
+            }
+        }
+        
+        print("| %d: ", row[0]);
+        for (int i = 0; i < row[0]; i+=2)
+        {
+            print("[%d, %d] ", row[1 + i], row[1 + (i + 1)]);
+        }
+
+        print("\n");
+    }
 }
 

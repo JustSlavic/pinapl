@@ -297,6 +297,12 @@ int main(int argc, char **argv, char **env)
             pinapl_flatten_ast(&flatten_stage, ast);
 
             print_tacs(flatten_stage.codes, flatten_stage.code_count);
+            
+            struct pinapl_register_assignment_map ass_map;
+            ass_map.allocator = &ast_allocator;
+
+            pinapl_make_register_assignment_map(&ass_map, &flatten_stage);
+            print_register_assignment_map(&ass_map);
         }
         else
         {

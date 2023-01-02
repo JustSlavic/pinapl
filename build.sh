@@ -14,7 +14,7 @@ WARNINGS="-Wall -Werror"
 OPTIMIZATION=""
 DEBUG_SYMBOLS="-g"
 
-C_SRC="main memory allocator print string parser primes"
+C_SRC="main memory allocator array print string parser primes"
 S_SRC="start syscall"
 
 function add_prefix_and_suffix

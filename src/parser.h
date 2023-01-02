@@ -301,9 +301,9 @@ enum pinapl_tac_type
 struct pinapl_tac
 {
     u32 type;
-    usize dst; // 'register' index OR instruction index of label
-    usize lhs; // 'register' index OR integer number
-    usize rhs; // 'register' index OR integer number
+    u32 dst; // 'register' index OR instruction index of label
+    u32 lhs; // 'register' index OR integer number
+    u32 rhs; // 'register' index OR integer number
 };
 
 
@@ -344,6 +344,69 @@ struct flatten_result
 
 struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_node *node);
 
+enum pinapl_register_assignment_map_usage
+{
+    REGISTER_NOT_USED = 0,
+    REGISTER_READ     = 1,
+    REGISTER_WRITE    = 2,
+};
+
+struct pinapl_register_assignment_map
+{
+    struct allocator *allocator;
+    enum pinapl_register_assignment_map_usage *table;
+    usize var_count; // "rows"
+    usize use_count; // "columns"
+
+    int *segments;
+};
+
+void pinapl_make_register_assignment_map(struct pinapl_register_assignment_map *map, struct pinapl_flatten_stage *stage);
+void print_register_assignment_map(struct pinapl_register_assignment_map *map);
+
+enum pinapl_arm_instruction
+{
+    ARM_NOP,
+
+    ARM_MOV,
+    ARM_ADD,
+    ARM_SUB,
+    ARM_MUL,
+    ARM_DIV,
+
+    ARM_BX, // Function call
+    ARM_B,  // Unconditional jump
+};
+
+enum pinapl_instruction_operand
+{
+    INSTRUCTION_OPERAND_REGISTER  = 0x1,
+    INSTRUCTION_OPERAND_IMMEDIATE = 0x2,
+    INSTRUCTION_OPERAND_LABEL     = 0x4,
+};
+
+struct pinapl_instruction
+{
+    union
+    {
+        enum pinapl_arm_instruction arm;
+    };
+    u32 dst;
+    u32 lhs;
+    u32 rhs;
+};
+
+struct pinapl_instruction_stream
+{
+    struct pinapl_instruction *buffer;
+    usize count;
+    usize size;
+};
+
+void pinapl_make_register_assignment_map(struct pinapl_register_assignment_map *map, struct pinapl_flatten_stage *stage);
+void print_register_assignment_map(struct pinapl_register_assignment_map *map);
+
+// @todo: ELF builder
 
 #endif // PARSER_H
 

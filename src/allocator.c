@@ -92,6 +92,15 @@ void *allocate(struct allocator *a, usize size, usize alignment)
     return result;
 }
 
+struct array allocate_array(struct allocator *a, usize size, usize alignment)
+{
+    struct array result;
+    result.data = allocate_(a, size, alignment);
+    result.size = 0;
+    result.capacity = 0;
+    return result;
+}
+
 struct memory_block allocate_block_(struct allocator *a, usize size, usize alignment)
 {
     struct memory_block result;
