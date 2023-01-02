@@ -22,13 +22,13 @@ void initialize_memory_heap(struct allocator *a, void *memory, usize size);
 #define ALLOCATE_(ALLOCATOR, TYPE) allocate_(ALLOCATOR, sizeof(TYPE), alignof(TYPE))
 #define ALLOCATE(ALLOCATOR, TYPE) allocate(ALLOCATOR, sizeof(TYPE), alignof(TYPE))
 
-#define ALLOCATE_BUFFER_(ALLOCATOR, SIZE) allocate_(ALLOCATOR, SIZE, 4);
-#define ALLOCATE_BUFFER(ALLOCATOR, SIZE) allocate(ALLOCATOR, SIZE, 4);
+#define ALLOCATE_BUFFER_(ALLOCATOR, SIZE) allocate_(ALLOCATOR, SIZE, 1);
+#define ALLOCATE_BUFFER(ALLOCATOR, SIZE) allocate(ALLOCATOR, SIZE, 1);
 
 #define ALLOCATE_ARRAY(ALLOCATOR, TYPE, COUNT) allocate_array(ALLOCATOR, sizeof(TYPE) * COUNT, alignof(TYPE))
 
-#define ALLOCATE_BLOCK_(ALLOCATOR, SIZE) allocate_block_(ALLOCATOR, SIZE, 4);
-#define ALLOCATE_BLOCK(ALLOCATOR, SIZE) allocate_block(ALLOCATOR, SIZE, 4);
+#define ALLOCATE_BLOCK_(ALLOCATOR, SIZE) allocate_block_(ALLOCATOR, SIZE, 1);
+#define ALLOCATE_BLOCK(ALLOCATOR, SIZE) allocate_block(ALLOCATOR, SIZE, 1);
 
 void *allocate_(struct allocator *a, usize size, usize alignment);
 void *allocate(struct allocator *a, usize size, usize alignment);

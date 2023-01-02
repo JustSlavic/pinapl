@@ -21,12 +21,14 @@ void print_flush(void)
 
 void print_n(char const *string, usize size)
 {
-    if (global_print_allocator.used + size >= global_print_allocator.size)
+    void *buffer = ALLOCATE_BUFFER_(&global_print_allocator, size);
+    if (buffer == NULL)
     {
         print_flush();
+        buffer = ALLOCATE_BUFFER_(&global_print_allocator, size);
+        ASSERT_MSG(buffer, "Error: trying to print more than the print allocator could handle!");
     }
 
-    void *buffer = ALLOCATE_BUFFER_(&global_print_allocator, size);
     memcpy(buffer, string, size);
 }
 
@@ -105,7 +107,7 @@ void print(char const *fmt, ...)
         }
     }
 
-    print_n(fmt + start, index - start + 1);
+    print_n(fmt + start, index - start);
 
     va_end(args); 
 }

@@ -1574,3 +1574,64 @@ void print_register_assignment_map(struct pinapl_register_assignment_map *map)
     }
 }
 
+struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *allocator, struct pinapl_flatten_stage *stage)
+{
+    struct pinapl_dependency_graph graph = {0};
+    for (int i = 0; i < ARRAY_COUNT(graph.colors); i++)
+    {
+        graph.colors[i] = -1;
+    }
+
+    for (int tac_index = 0; tac_index < stage->code_count; tac_index++)
+    {
+        struct pinapl_tac code = stage->codes[tac_index];
+
+        if ((code.type & TAC_LABEL) == 0) // NOT A LABEL
+        {
+            if (code.type & TAC_LHS_REG)
+            {
+                graph.edges[code.dst][code.lhs] = true;
+            }
+            
+            if (code.type & TAC_RHS_REG)
+            {
+                graph.edges[code.dst][code.rhs] = true;
+            }
+        }
+    }
+
+    return graph;
+}
+
+void print_dependency_graph(struct pinapl_dependency_graph *graph)
+{
+    print("  : ");
+    for (int k = 0; k < 32; k++)
+    {
+        if (k < 10) print(" %d ", k);
+        if (k >  9) print("%d ", k);
+    }
+    print("\n");
+
+    for (int to = 0; to < 32; to++)
+    {
+        if (to < 10) print(" %d: ", to);
+        if (to >  9) print("%d: ", to);
+
+        for (int from = 0; from < 32; from++)
+        {
+            b32 edge = graph->edges[to][from];
+            if (edge)
+            {
+                if (edge < 10) print(" %d ", edge);
+                if (edge >  9) print("%d ", edge);
+            }
+            else
+            {
+                print(" . ");
+            }
+        }
+        print("\n");
+    }
+}
+

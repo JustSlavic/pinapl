@@ -303,6 +303,9 @@ int main(int argc, char **argv, char **env)
 
             pinapl_make_register_assignment_map(&ass_map, &flatten_stage);
             print_register_assignment_map(&ass_map);
+
+            struct pinapl_dependency_graph graph = pinapl_make_dependency_graph(&ast_allocator, &flatten_stage);
+            print_dependency_graph(&graph);
         }
         else
         {
