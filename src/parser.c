@@ -1600,12 +1600,54 @@ struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *al
         }
     }
 
+    for (int var = 0; var < 32; var++)
+    {
+        b32 color_is_taken[32] = {0};
+
+        for (int to = 0; to < 32; to++)
+        {
+            for (int from = 0; from < 32; from++)
+            {
+                b32 edge = graph.edges[to][from];
+                if (edge)
+                {
+                    int neighbour_color = -1;
+                    if (to == var && from != var)
+                    {
+                        // var is destination operand
+                        neighbour_color = graph.colors[from];
+                    }
+                    if (to != var && from == var)
+                    {
+                        // var is the source operand
+                        neighbour_color = graph.colors[to];
+                    }
+
+                    color_is_taken[neighbour_color] = true;
+                }
+            }
+        }
+
+        int minimal_color = INT32_MAX;
+        for (int color_index = 0; color_index < ARRAY_COUNT(color_is_taken); color_index++)
+        {
+            if (!color_is_taken[color_index])
+            {
+                minimal_color = color_index;
+                break;
+            }
+        }
+
+        ASSERT(minimal_color < INT32_MAX);
+        graph.colors[var] = minimal_color;
+    }
+
     return graph;
 }
 
 void print_dependency_graph(struct pinapl_dependency_graph *graph)
 {
-    print("  : ");
+    print("              ");
     for (int k = 0; k < 32; k++)
     {
         if (k < 10) print(" %d ", k);
@@ -1615,6 +1657,10 @@ void print_dependency_graph(struct pinapl_dependency_graph *graph)
 
     for (int to = 0; to < 32; to++)
     {
+        int color = graph->colors[to];
+        if (color < 10) print("color= %d; ", color);
+        if (color >  9) print("color=%d; ", color);
+
         if (to < 10) print(" %d: ", to);
         if (to >  9) print("%d: ", to);
 
