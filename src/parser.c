@@ -1574,13 +1574,21 @@ void print_register_assignment_map(struct pinapl_register_assignment_map *map)
     }
 }
 
+void pinapl_push_edge(struct pinapl_dependency_graph *graph, int from, int to)
+{
+    struct pinapl_edge *edge = graph->edges + graph->edge_count++;
+    edge->from = from;
+    edge->to = to;
+}
+
 struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *allocator, struct pinapl_flatten_stage *stage)
 {
     struct pinapl_dependency_graph graph = {0};
     for (int i = 0; i < ARRAY_COUNT(graph.colors); i++)
     {
-        graph.colors[i] = -1;
+        graph.colors[i] = GRAPH_NODE_NO_COLOR;
     }
+    graph.colors[GRAPH_NODE_INT] = 99;
 
     for (int tac_index = 0; tac_index < stage->code_count; tac_index++)
     {
@@ -1590,12 +1598,20 @@ struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *al
         {
             if (code.type & TAC_LHS_REG)
             {
-                graph.edges[code.dst][code.lhs] = true;
+                pinapl_push_edge(&graph, code.lhs, code.dst);
+            }
+            else if (code.type & TAC_LHS_INT)
+            {
+                pinapl_push_edge(&graph, GRAPH_NODE_INT, code.dst);
             }
             
             if (code.type & TAC_RHS_REG)
             {
-                graph.edges[code.dst][code.rhs] = true;
+                pinapl_push_edge(&graph, code.rhs, code.dst);
+            }
+            else if (code.type & TAC_RHS_INT)
+            {
+                pinapl_push_edge(&graph, GRAPH_NODE_INT, code.dst);
             }
         }
     }
@@ -1604,25 +1620,25 @@ struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *al
     {
         b32 color_is_taken[32] = {0};
 
-        for (int to = 0; to < 32; to++)
+        for (int edge_index = 0; edge_index < graph.edge_count; edge_index++)
         {
-            for (int from = 0; from < 32; from++)
-            {
-                b32 edge = graph.edges[to][from];
-                if (edge)
-                {
-                    int neighbour_color = -1;
-                    if (to == var && from != var)
-                    {
-                        // var is destination operand
-                        neighbour_color = graph.colors[from];
-                    }
-                    if (to != var && from == var)
-                    {
-                        // var is the source operand
-                        neighbour_color = graph.colors[to];
-                    }
+            struct pinapl_edge edge = graph.edges[edge_index];
 
+            if (edge.to == var && edge.from != var)
+            {
+                // var is destination operand
+                int neighbour_color = graph.colors[edge.from];
+                if (0 <= neighbour_color && neighbour_color < ARRAY_COUNT(color_is_taken))
+                {
+                    color_is_taken[neighbour_color] = true;
+                }
+            }
+            else if (edge.to != var && edge.from == var)
+            {
+                // var is the source operand
+                int neighbour_color = graph.colors[edge.to];
+                if (0 <= neighbour_color && neighbour_color < ARRAY_COUNT(color_is_taken))
+                {
                     color_is_taken[neighbour_color] = true;
                 }
             }
@@ -1647,37 +1663,18 @@ struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *al
 
 void print_dependency_graph(struct pinapl_dependency_graph *graph)
 {
-    print("              ");
-    for (int k = 0; k < 32; k++)
+    print("variable => color;\n");
+    for (int node = 0; node < 32; node++)
     {
-        if (k < 10) print(" %d ", k);
-        if (k >  9) print("%d ", k);
+        print("       %d => %d;\n", node, graph->colors[node]);
     }
-    print("\n");
 
-    for (int to = 0; to < 32; to++)
+    print("\nGRAPH: (from, to)\n");
+
+    for (int edge_index = 0; edge_index < graph->edge_count; edge_index++)
     {
-        int color = graph->colors[to];
-        if (color < 10) print("color= %d; ", color);
-        if (color >  9) print("color=%d; ", color);
-
-        if (to < 10) print(" %d: ", to);
-        if (to >  9) print("%d: ", to);
-
-        for (int from = 0; from < 32; from++)
-        {
-            b32 edge = graph->edges[to][from];
-            if (edge)
-            {
-                if (edge < 10) print(" %d ", edge);
-                if (edge >  9) print("%d ", edge);
-            }
-            else
-            {
-                print(" . ");
-            }
-        }
-        print("\n");
+        struct pinapl_edge edge = graph->edges[edge_index];
+        print("(%d, %d)\n", edge.from, edge.to);
     }
 }
 

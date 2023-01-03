@@ -406,10 +406,23 @@ struct pinapl_instruction_stream
 void pinapl_make_register_assignment_map(struct pinapl_register_assignment_map *map, struct pinapl_flatten_stage *stage);
 void print_register_assignment_map(struct pinapl_register_assignment_map *map);
 
+struct pinapl_edge
+{
+    int from;
+    int to;
+};
+
+enum
+{
+    GRAPH_NODE_NO_COLOR = INT32_MAX,
+    GRAPH_NODE_INT = 31,
+};
+
 struct pinapl_dependency_graph
 {
      int colors[32];
-     int edges[32][32];
+     struct pinapl_edge edges[64];
+     int edge_count;
 };
 
 struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *allocator, struct pinapl_flatten_stage *stage);
