@@ -46,6 +46,9 @@ typedef   signed int s32;
 typedef unsigned int usize;
 typedef   signed int ssize;
 
+typedef usize uptr;
+typedef ssize iptr;
+
 #define INT8_MAX 0x7F
 #define INT8_MIN 0x80
 

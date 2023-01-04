@@ -344,45 +344,59 @@ struct flatten_result
 
 struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast_node *node);
 
-enum pinapl_register_assignment_map_usage
-{
-    REGISTER_NOT_USED = 0,
-    REGISTER_READ     = 1,
-    REGISTER_WRITE    = 2,
-};
-
-struct pinapl_register_assignment_map
+struct pinapl_liveness_table
 {
     struct allocator *allocator;
-    enum pinapl_register_assignment_map_usage *table;
-    usize var_count; // "rows"
-    usize use_count; // "columns"
-
-    int *segments;
+    int *table;
+    int table_width;
+    int table_length;
 };
 
-void pinapl_make_register_assignment_map(struct pinapl_register_assignment_map *map, struct pinapl_flatten_stage *stage);
-void print_register_assignment_map(struct pinapl_register_assignment_map *map);
+struct pinapl_liveness_table pinapl_make_liveness_table(struct allocator *allocator, struct pinapl_flatten_stage *flatten);
+void pinapl_print_liveness_table(struct pinapl_liveness_table *table);
+
+struct pinapl_graph_edge
+{
+    int from;
+    int to;
+};
+
+struct pinapl_connectivity_graph
+{
+    int colors[32];
+    struct pinapl_graph_edge edges[64];
+    int edge_count;
+};
+
+struct pinapl_connectivity_graph pinapl_make_connectivity_graph(struct pinapl_liveness_table *liveness);
+void pinapl_print_connectivity_graph(struct pinapl_connectivity_graph *graph);
 
 enum pinapl_arm_instruction
 {
-    ARM_NOP,
+    ARM_INVALID_INSTRUCTION,
 
+    ARM_NOP,
     ARM_MOV,
     ARM_ADD,
     ARM_SUB,
     ARM_MUL,
     ARM_DIV,
-
-    ARM_BX, // Function call
-    ARM_B,  // Unconditional jump
+    ARM_B,
+    ARM_BX,
 };
 
-enum pinapl_instruction_operand
+enum pinapl_arm_instruction_operand_type
 {
-    INSTRUCTION_OPERAND_REGISTER  = 0x1,
-    INSTRUCTION_OPERAND_IMMEDIATE = 0x2,
-    INSTRUCTION_OPERAND_LABEL     = 0x4,
+    ARM_OPERAND_NONE,
+    ARM_OPERAND_REGISTER,
+    ARM_OPERAND_IMMEDIATE_VALUE,
+    ARM_OPERAND_LABEL,
+};
+
+struct pinapl_arm_instruction_operand
+{
+    enum pinapl_arm_instruction_operand_type type;
+    u32 value;
 };
 
 struct pinapl_instruction
@@ -391,43 +405,25 @@ struct pinapl_instruction
     {
         enum pinapl_arm_instruction arm;
     };
-    u32 dst;
-    u32 lhs;
-    u32 rhs;
+    struct pinapl_arm_instruction_operand dst;
+    struct pinapl_arm_instruction_operand lhs;
+    struct pinapl_arm_instruction_operand rhs;
 };
 
 struct pinapl_instruction_stream
 {
-    struct pinapl_instruction *buffer;
-    usize count;
-    usize size;
+    struct allocator *allocator;
+    struct pinapl_instruction *instructions;
+    usize instruction_count;
 };
 
-void pinapl_make_register_assignment_map(struct pinapl_register_assignment_map *map, struct pinapl_flatten_stage *stage);
-void print_register_assignment_map(struct pinapl_register_assignment_map *map);
+struct pinapl_instruction_stream
+pinapl_arm_make_instruction_stream(struct allocator *allocator, struct pinapl_flatten_stage *flatten, struct pinapl_connectivity_graph *graph);
 
-struct pinapl_edge
-{
-    int from;
-    int to;
-};
-
-enum
-{
-    GRAPH_NODE_NO_COLOR = INT32_MAX,
-    GRAPH_NODE_INT = 31,
-};
-
-struct pinapl_dependency_graph
-{
-     int colors[32];
-     struct pinapl_edge edges[64];
-     int edge_count;
-};
-
-struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *allocator, struct pinapl_flatten_stage *stage);
-
-void print_dependency_graph(struct pinapl_dependency_graph *graph);
+void
+pinapl_arm_print_instruction_stream(struct pinapl_instruction_stream *stream);
+void
+pinapl_arm_print_entry_point(void);
 
 // @todo: ELF builder
 

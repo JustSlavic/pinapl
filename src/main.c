@@ -3,6 +3,7 @@
 #include <print.h>
 #include <string.h>
 #include <parser.h>
+#include <string_id.h>
 
 
 char const *spaces = "                                           ";
@@ -209,6 +210,10 @@ int main(int argc, char **argv, char **env)
     void *memory_for_print_buffer = ALLOCATE_BUFFER_(&arenas, memory_for_print_buffer_size);
     initialize_print_buffer(memory_for_print_buffer, memory_for_print_buffer_size);
 
+    usize memory_for_string_id_buffer_size = KILOBYTES(5);
+    void *memory_for_string_id_buffer = ALLOCATE_BUFFER_(&arenas, memory_for_string_id_buffer_size);
+    initialize_string_id_storage(memory_for_string_id_buffer, memory_for_string_id_buffer_size);
+
     if (argc < 2)
     {
         print("Usage: ./pinapl FILEPATH\n");
@@ -255,8 +260,8 @@ int main(int argc, char **argv, char **env)
     int  buffer_size = read(fd, buffer, ARRAY_COUNT(buffer) - 1);
     close(fd);
 
-    print_n(buffer, buffer_size);
-    print("EOF\n");
+    // print_n(buffer, buffer_size);
+    // print("EOF\n");
 
     struct pinapl_parser parser = pinapl_init_parser(&ast_allocator, &err_allocator, filename, buffer, buffer_size);
     ast_node *ast = pinapl_parse_global_declaration_list(&parser);
@@ -264,8 +269,6 @@ int main(int argc, char **argv, char **env)
     token t = pinapl_get_token(&parser);
     if (ast && t.type == TOKEN_EOF)
     {
-        print("Language recognized!\n");
-    
         struct pinapl_scope global_scope = {0};
 
         struct pinapl_rename_stage rename_stage =
@@ -278,8 +281,8 @@ int main(int argc, char **argv, char **env)
         b32 good = pinapl_check_and_rename_variables(&rename_stage, ast, &global_scope);
         if (good)
         {
-            print("Check is good\n");
-            print_ast(ast, 0);
+            // print("Check is good\n");
+            // print_ast(ast, 0);
 
             struct pinapl_flatten_stage flatten_stage =
             {
@@ -296,16 +299,17 @@ int main(int argc, char **argv, char **env)
 
             pinapl_flatten_ast(&flatten_stage, ast);
 
-            print_tacs(flatten_stage.codes, flatten_stage.code_count);
-            
-            struct pinapl_register_assignment_map ass_map;
-            ass_map.allocator = &ast_allocator;
+            // print_tacs(flatten_stage.codes, flatten_stage.code_count);
 
-            pinapl_make_register_assignment_map(&ass_map, &flatten_stage);
-            print_register_assignment_map(&ass_map);
+            struct pinapl_liveness_table liveness = pinapl_make_liveness_table(&ast_allocator, &flatten_stage);
+            // pinapl_print_liveness_table(&liveness);
 
-            struct pinapl_dependency_graph graph = pinapl_make_dependency_graph(&ast_allocator, &flatten_stage);
-            print_dependency_graph(&graph);
+            struct pinapl_connectivity_graph graph = pinapl_make_connectivity_graph(&liveness);
+            // pinapl_print_connectivity_graph(&graph);
+
+            struct pinapl_instruction_stream stream = pinapl_arm_make_instruction_stream(&ast_allocator, &flatten_stage, &graph);
+            pinapl_arm_print_entry_point();
+            pinapl_arm_print_instruction_stream(&stream);
         }
         else
         {
@@ -318,6 +322,18 @@ int main(int argc, char **argv, char **env)
         struct string err = pinapl_parser_get_error_string(&parser);
         print_n(err.data, err.size);
     }
+
+    struct string_id label_0 = get_string_id("main_", 5);
+    struct string_id label_1 = get_string_id("main:", 5);
+
+    struct string lbl1 = get_string_by_id(label_0);
+    struct string lbl2 = get_string_by_id(label_1);
+
+    print("label_0 = %d;\nlabel_1 = %d;\n", label_0.id, label_1.id);
+    print_string(lbl1);
+    print("\n");
+    print_string(lbl2);
+    print("\n");
 
     print_flush();
     return 0;

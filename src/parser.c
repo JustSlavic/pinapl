@@ -1437,181 +1437,107 @@ struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast
    return result;
 }
 
-
-void pinapl_make_register_assignment_map(struct pinapl_register_assignment_map *map, struct pinapl_flatten_stage *stage)
+struct pinapl_liveness_table pinapl_make_liveness_table(struct allocator *allocator, struct pinapl_flatten_stage *flatten)
 {
-    usize use_count = stage->code_count;
-    usize var_count = 0;
-    for (int tac_index = 0; tac_index < stage->code_count; tac_index++)
+    struct pinapl_liveness_table liveness;
+    liveness.allocator = allocator;
+    liveness.table = ALLOCATE_BUFFER(allocator, flatten->code_count * flatten->global_variable_counter * sizeof(int));
+    liveness.table_width = flatten->global_variable_counter;
+    liveness.table_length = flatten->code_count;
+    
+    int *row = liveness.table + liveness.table_width * (liveness.table_length - 1);
+    int code_index = flatten->code_count;
+    while (code_index-->1)
     {
-        struct pinapl_tac code = stage->codes[tac_index];
-        if (code.dst > var_count) var_count = code.dst;
-        if (code.lhs > var_count && (code.type & TAC_LHS_REG)) var_count = code.lhs;
-        if (code.rhs > var_count && (code.type & TAC_RHS_REG)) var_count = code.rhs;
-    }
+        int *next_row = row;
+        row -= liveness.table_width;
+        memcpy(row, next_row, sizeof(int) * liveness.table_width); 
 
-    map->use_count = use_count;
-    map->var_count = var_count + 1;
-    map->table = ALLOCATE_BUFFER(map->allocator, map->use_count * map->var_count * sizeof(enum pinapl_register_assignment_map_usage));
-    map->segments = ALLOCATE_BUFFER(map->allocator, (map->use_count + 1) * map->var_count * sizeof(int));
-
-    int segment_pitch = (map->use_count + 1) * map->var_count;
-
-    for (int tac_index = 0; tac_index < stage->code_count; tac_index++)
-    {
-        struct pinapl_tac code = stage->codes[tac_index];
+        struct pinapl_tac code = flatten->codes[code_index];
         
         // dst
         if ((code.type & TAC_LABEL) == 0) // NOT A LABEL
         {
-            enum pinapl_register_assignment_map_usage *cell = map->table + code.dst * use_count + tac_index;
-            *cell = REGISTER_WRITE;
-
-            int reg = code.dst;
-            int *row = map->segments + (reg * segment_pitch);
-            row[1 + row[0]] = tac_index;
-            row[1 + row[0] + 1] = tac_index;
-            row[0] += 2;
+            row[code.dst] = 0;
         }
         // lhs
         if (code.type & TAC_LHS_REG)
         {
-            enum pinapl_register_assignment_map_usage *cell = map->table + code.lhs * use_count + tac_index;
-            *cell = REGISTER_READ;
-
-            int reg = code.lhs;
-            int *row = map->segments + (reg * segment_pitch);
-            if (row[0] > 0)
-            {
-            }
-            else
-            {
-                // READING GARBAGE FROM THE REGISTER
-                row[0] += 2;
-            }
-            row[row[0]] = tac_index;
+            row[code.lhs] = 1; 
         }
         // rhs
         if (code.type & TAC_RHS_REG)
         {
-            enum pinapl_register_assignment_map_usage *cell = map->table + code.rhs * use_count + tac_index;
-            *cell = REGISTER_READ;
-
-            int reg = code.rhs;
-            int *row = map->segments + (reg * segment_pitch);
-            if (row[0] > 0)
-            {
-            }
-            else
-            {
-                // READING GARBAGE FROM THE REGISTER
-                row[0] += 1;
-            }
-            row[row[0]] = tac_index;
-        }
+           row[code.rhs] = 1; 
+        } 
     }
+
+    return liveness;
 }
 
-void print_register_assignment_map(struct pinapl_register_assignment_map *map)
+void pinapl_print_liveness_table(struct pinapl_liveness_table *table)
 {
-    for (int var_index = 0; var_index < map->var_count; var_index++)
+    for (int row = 0; row < table->table_length; row++)
     {
-        int segment_pitch = (map->use_count + 1) * map->var_count;
-        int *row = map->segments + var_index * segment_pitch;
-
-        int *seg_end_pointer = row + 2;
-
-        b32 in_segment = false;
-        for (int t_index = 0; t_index < map->use_count; t_index++)
+        for (int column = 0; column < table->table_width; column++)
         {
-            if (map->table[var_index * map->use_count + t_index] == REGISTER_READ)
-            {
-                b32 closing_bracket = (*seg_end_pointer == t_index);
-                if (closing_bracket)
-                {
-                    print("_R ");
-                    seg_end_pointer += 2;
-                    in_segment = false;
-                }
-                else
-                {
-                    print("_R_");
-                }
-            }
-            else if (map->table[var_index * map->use_count + t_index] == REGISTER_WRITE)
-            {
-                if (*seg_end_pointer == t_index)
-                {
-                    print(" W ");
-                    seg_end_pointer += 2;
-                }
-                else
-                {
-                    print(" W_");
-                    in_segment = true;
-                }
-            }
-            else
-            {
-                if (in_segment)
-                {
-                    print("___");
-                }
-                else
-                {
-                    print("   ");
-                }
-            }
+            int live = table->table[column + row * table->table_width];
+            print("%d ", live);
         }
-        
-        print("| %d: ", row[0]);
-        for (int i = 0; i < row[0]; i+=2)
-        {
-            print("[%d, %d] ", row[1 + i], row[1 + (i + 1)]);
-        }
-
         print("\n");
     }
 }
 
-void pinapl_push_edge(struct pinapl_dependency_graph *graph, int from, int to)
+void pinapl_push_edge(struct pinapl_connectivity_graph *graph, int from, int to)
 {
-    struct pinapl_edge *edge = graph->edges + graph->edge_count++;
-    edge->from = from;
-    edge->to = to;
+    if (graph->edge_count < ARRAY_COUNT(graph->edges))
+    {
+        struct pinapl_graph_edge *edge = graph->edges + graph->edge_count++;
+        edge->from = from;
+        edge->to = to;
+    }
 }
 
-struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *allocator, struct pinapl_flatten_stage *stage)
+struct pinapl_connectivity_graph pinapl_make_connectivity_graph(struct pinapl_liveness_table *liveness)
 {
-    struct pinapl_dependency_graph graph = {0};
+    struct pinapl_connectivity_graph graph = {0};
     for (int i = 0; i < ARRAY_COUNT(graph.colors); i++)
     {
-        graph.colors[i] = GRAPH_NODE_NO_COLOR;
+        graph.colors[i] = -1;
     }
-    graph.colors[GRAPH_NODE_INT] = 99;
 
-    for (int tac_index = 0; tac_index < stage->code_count; tac_index++)
+    for (int row = 0; row < liveness->table_length; row++)
     {
-        struct pinapl_tac code = stage->codes[tac_index];
-
-        if ((code.type & TAC_LABEL) == 0) // NOT A LABEL
+        for (int var1 = 0; var1 < liveness->table_width; var1++)
         {
-            if (code.type & TAC_LHS_REG)
-            {
-                pinapl_push_edge(&graph, code.lhs, code.dst);
-            }
-            else if (code.type & TAC_LHS_INT)
-            {
-                pinapl_push_edge(&graph, GRAPH_NODE_INT, code.dst);
-            }
+            int var1_live = liveness->table[var1 + row * liveness->table_width];
             
-            if (code.type & TAC_RHS_REG)
+            if (var1_live)
             {
-                pinapl_push_edge(&graph, code.rhs, code.dst);
-            }
-            else if (code.type & TAC_RHS_INT)
-            {
-                pinapl_push_edge(&graph, GRAPH_NODE_INT, code.dst);
+                for (int var2 = var1 + 1; var2 < liveness->table_width; var2++)
+                {
+                    int var2_live = liveness->table[var2 + row * liveness->table_width];
+
+                    if (var2_live)
+                    {
+                        b32 edge_found = false;
+                        for (int edge_index = 0; edge_index < graph.edge_count; edge_index++)
+                        {
+                            struct pinapl_graph_edge edge = graph.edges[edge_index];
+                            if ((var1 == edge.from && var2 == edge.to) ||
+                                (var2 == edge.from && var1 == edge.to))
+                            {
+                                edge_found = true;
+                                break;
+                            }
+                        }
+
+                        if (!edge_found)
+                        {
+                            pinapl_push_edge(&graph, var1, var2);
+                        }
+                    }
+                }
             }
         }
     }
@@ -1622,11 +1548,10 @@ struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *al
 
         for (int edge_index = 0; edge_index < graph.edge_count; edge_index++)
         {
-            struct pinapl_edge edge = graph.edges[edge_index];
+            struct pinapl_graph_edge edge = graph.edges[edge_index];
 
             if (edge.to == var && edge.from != var)
             {
-                // var is destination operand
                 int neighbour_color = graph.colors[edge.from];
                 if (0 <= neighbour_color && neighbour_color < ARRAY_COUNT(color_is_taken))
                 {
@@ -1635,7 +1560,6 @@ struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *al
             }
             else if (edge.to != var && edge.from == var)
             {
-                // var is the source operand
                 int neighbour_color = graph.colors[edge.to];
                 if (0 <= neighbour_color && neighbour_color < ARRAY_COUNT(color_is_taken))
                 {
@@ -1661,7 +1585,7 @@ struct pinapl_dependency_graph pinapl_make_dependency_graph(struct allocator *al
     return graph;
 }
 
-void print_dependency_graph(struct pinapl_dependency_graph *graph)
+void pinapl_print_connectivity_graph(struct pinapl_connectivity_graph *graph)
 {
     print("variable => color;\n");
     for (int node = 0; node < 32; node++)
@@ -1673,8 +1597,151 @@ void print_dependency_graph(struct pinapl_dependency_graph *graph)
 
     for (int edge_index = 0; edge_index < graph->edge_count; edge_index++)
     {
-        struct pinapl_edge edge = graph->edges[edge_index];
+        struct pinapl_graph_edge edge = graph->edges[edge_index];
         print("(%d, %d)\n", edge.from, edge.to);
     }
+}
+
+struct pinapl_instruction_stream
+pinapl_arm_make_instruction_stream(struct allocator *allocator, struct pinapl_flatten_stage *flatten, struct pinapl_connectivity_graph *graph)
+{
+    struct pinapl_instruction_stream stream;
+    stream.allocator = allocator;
+    stream.instructions = ALLOCATE(allocator, flatten->code_count * sizeof(struct pinapl_instruction));
+    stream.instruction_count = 0;
+
+    for (int code_index = 0; code_index < flatten->code_count; code_index++)
+    {
+        struct pinapl_tac code = flatten->codes[code_index];
+        struct pinapl_instruction *instruction = stream.instructions + stream.instruction_count++;
+
+        if (code.type & TAC_MOV)
+        {
+            instruction->arm = ARM_MOV;
+        }
+        else if (code.type & TAC_ADD)
+        {
+            instruction->arm = ARM_ADD;
+        }
+        else if (code.type & TAC_SUB)
+        {
+            instruction->arm = ARM_SUB;
+        }
+        else if (code.type & TAC_MUL)
+        {
+            instruction->arm = ARM_MUL;
+        }
+        else if (code.type & TAC_DIV)
+        {
+            instruction->arm = ARM_DIV;
+        }
+        else
+        {
+        }
+
+        if ((code.type & TAC_LABEL) == 0) // NOT A LABEL
+        {
+            instruction->dst.type = ARM_OPERAND_REGISTER;
+            instruction->dst.value = graph->colors[code.dst];
+        }
+        
+        if (code.type & TAC_LHS_REG)
+        {
+            instruction->lhs.type = ARM_OPERAND_REGISTER;
+            instruction->lhs.value = graph->colors[code.lhs];
+        }
+        else if (code.type & TAC_LHS_INT)
+        {
+            instruction->lhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
+            instruction->lhs.value = code.lhs;
+        }
+
+        if (code.type & TAC_RHS_REG)
+        {
+           instruction->rhs.type = ARM_OPERAND_REGISTER;
+           instruction->rhs.value = graph->colors[code.rhs]; 
+        }
+        else if (code.type & TAC_RHS_INT)
+        {
+            instruction->rhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
+            instruction->rhs.value = code.rhs;
+        }
+    }
+
+    return stream;
+}
+
+void
+pinapl_arm_print_instruction_operand(struct pinapl_arm_instruction_operand op)
+{
+    switch (op.type)
+    {
+        case ARM_OPERAND_REGISTER:
+            print(" r%d", op.value); 
+            break;
+
+        case ARM_OPERAND_IMMEDIATE_VALUE:
+            print(" #%d", op.value);
+            break;
+
+        case ARM_OPERAND_LABEL:
+        case ARM_OPERAND_NONE:
+        default:
+            print(" [UNKNOWN OPERAND TYPE]");
+    }
+};
+
+void
+pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
+{
+    switch (instruction->arm)
+    {
+        case ARM_MOV: print("    mov"); break;
+        case ARM_ADD: print("    add"); break;
+        case ARM_SUB: print("    sub"); break;
+        case ARM_MUL: print("    mul"); break;
+        case ARM_DIV: print("    div"); break;
+        case ARM_B:   print("    b"); break;
+        case ARM_BX:  print("    bx"); break;
+
+        default:
+            print("    [UNKNOWN INSTRUCTION]");
+    }
+
+    pinapl_arm_print_instruction_operand(instruction->dst);
+    print(", ");
+    pinapl_arm_print_instruction_operand(instruction->lhs);
+    if (instruction->rhs.type != ARM_OPERAND_NONE)
+    {
+        print(", ");
+        pinapl_arm_print_instruction_operand(instruction->rhs);
+    }
+    print("\n");
+}
+
+void
+pinapl_arm_print_instruction_stream(struct pinapl_instruction_stream *stream)
+{
+    for (int instruction_index = 0; instruction_index < stream->instruction_count; instruction_index++)
+    {
+        struct pinapl_instruction *instruction = stream->instructions + instruction_index;
+        pinapl_arm_print_instruction(instruction);
+    }
+}
+
+void
+pinapl_arm_print_entry_point(void)
+{
+    print(".text\n"
+          ".global _start\n"
+          "\n"
+          "_start:\n"
+          "    bl     main\n"
+          "\n"
+          "_exit:\n"
+          "    movs   r0, #0\n"
+          "    movs   r7, #1\n"
+          "    svc    #0\n"
+          "\n");
 }
 

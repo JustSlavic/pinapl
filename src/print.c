@@ -33,7 +33,7 @@ void print_n(char const *string, usize size)
 }
 
 
-void print_s(struct string string)
+void print_string(struct string string)
 {
     print_n(string.data, string.size);
 }
