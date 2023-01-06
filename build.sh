@@ -83,3 +83,5 @@ handle_errors
 
 chmod +w $BIN_DIR/$PROJECT
 
+compile_c "src/elf_loader.c src/elf.c" "elf_loader" "-Isrc/"
+

@@ -8,7 +8,9 @@
 #define static_assert(VAR, MSG) _Static_assert((VAR), MSG)
 #define alignof(TYPE) _Alignof(TYPE)
 
-// #define NULL (void *)0
+#ifndef NULL
+#define NULL (void *)0
+#endif
 #define ARRAY_COUNT(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
 
 #define ALWAYS_INLINE __attribute__((always_inline))

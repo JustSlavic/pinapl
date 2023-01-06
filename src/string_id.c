@@ -61,7 +61,7 @@ make_string_id(char *string, usize size)
         usize *size_in_buffer = buffer;
         char *string_in_buffer = buffer + sizeof(usize);
         
-        usize id = (iptr) string_in_buffer - (iptr) global_storage.arena.memory;
+        usize id = (intptr) string_in_buffer - (intptr) global_storage.arena.memory;
         
         entry->hash = hash;
         entry->offset_in_arena = id;
