@@ -8,7 +8,7 @@
 #define static_assert(VAR, MSG) _Static_assert((VAR), MSG)
 #define alignof(TYPE) _Alignof(TYPE)
 
-#define NULL (void *)0
+// #define NULL (void *)0
 #define ARRAY_COUNT(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
 
 #define ALWAYS_INLINE __attribute__((always_inline))
@@ -34,20 +34,29 @@ typedef unsigned int b32;
 #define true 1
 #define false 0
 
-typedef unsigned char u8;
-typedef   signed char s8;
+typedef unsigned char uint8;
+typedef   signed char  int8;
 
-typedef unsigned short u16;
-typedef   signed short s16;
+typedef uint8 u8;
+typedef  int8 i8;
 
-typedef unsigned int u32;
-typedef   signed int s32;
+typedef unsigned short uint16;
+typedef   signed short  int16;
+
+typedef uint16 u16;
+typedef  int16 i16;
+
+typedef unsigned int uint32;
+typedef   signed int  int32;
+
+typedef uint32 u32;
+typedef  int32 i32;
 
 typedef unsigned int usize;
-typedef   signed int ssize;
+typedef   signed int isize;
 
-typedef usize uptr;
-typedef ssize iptr;
+typedef usize uintptr;
+typedef isize  intptr;
 
 #define INT8_MAX 0x7F
 #define INT8_MIN 0x80

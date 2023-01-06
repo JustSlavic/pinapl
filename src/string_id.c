@@ -43,7 +43,7 @@ string_id_get_hash_slot(u32 hash)
 }
 
 struct string_id
-get_string_id(char *string, usize size)
+make_string_id(char *string, usize size)
 {
     u32 hash = 0;
     for (usize index = 0; index < size; index++)
@@ -84,7 +84,7 @@ get_string_by_id(struct string_id id)
 {
     struct string result;
     result.data = (char *) global_storage.arena.memory + id.id;
-    result.size = *(((char *) global_storage.arena.memory + id.id) - sizeof(usize));
+    result.size = *((usize *)(((char *) global_storage.arena.memory + id.id) - sizeof(usize)));
 
     return result;
 }

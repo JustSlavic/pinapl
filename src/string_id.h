@@ -11,12 +11,8 @@ struct string_id
 };
 
 void initialize_string_id_storage(void *memory, usize size);
-
-struct string_id
-get_string_id(char *string, usize size);
-
-struct string
-get_string_by_id(struct string_id id);
+struct string_id make_string_id(char *string, usize size);
+struct string get_string_by_id(struct string_id id);
 
 
 #endif // SRC_STRING_ID

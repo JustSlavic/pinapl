@@ -44,7 +44,7 @@ void print_ast(ast_node *node, int depth)
             ast_node_variable_declaration *var = &node->variable_declaration;
 
             print("VAR(%d) {", var->symbol_id);
-            print_n(var->var_name.span, var->var_name.span_size);
+            print_string(get_string_by_id(var->name));
             print(":");
             if (var->var_type.type != TOKEN_INVALID)
             {
@@ -145,7 +145,8 @@ void print_tacs(struct pinapl_tac *codes, usize code_count)
         }
         else if (code->type & TAC_LABEL)
         {
-            print(".L%d:", code->dst);
+            print_string(get_string_by_id(code->label));
+            print(":\n");
         }
         else if (code->type & TAC_MOV)
         {
@@ -260,8 +261,8 @@ int main(int argc, char **argv, char **env)
     int  buffer_size = read(fd, buffer, ARRAY_COUNT(buffer) - 1);
     close(fd);
 
-    // print_n(buffer, buffer_size);
-    // print("EOF\n");
+    print_n(buffer, buffer_size);
+    print("EOF\n\n");
 
     struct pinapl_parser parser = pinapl_init_parser(&ast_allocator, &err_allocator, filename, buffer, buffer_size);
     ast_node *ast = pinapl_parse_global_declaration_list(&parser);
@@ -308,7 +309,6 @@ int main(int argc, char **argv, char **env)
             // pinapl_print_connectivity_graph(&graph);
 
             struct pinapl_instruction_stream stream = pinapl_arm_make_instruction_stream(&ast_allocator, &flatten_stage, &graph);
-            pinapl_arm_print_entry_point();
             pinapl_arm_print_instruction_stream(&stream);
         }
         else
@@ -322,18 +322,6 @@ int main(int argc, char **argv, char **env)
         struct string err = pinapl_parser_get_error_string(&parser);
         print_n(err.data, err.size);
     }
-
-    struct string_id label_0 = get_string_id("main_", 5);
-    struct string_id label_1 = get_string_id("main:", 5);
-
-    struct string lbl1 = get_string_by_id(label_0);
-    struct string lbl2 = get_string_by_id(label_1);
-
-    print("label_0 = %d;\nlabel_1 = %d;\n", label_0.id, label_1.id);
-    print_string(lbl1);
-    print("\n");
-    print_string(lbl2);
-    print("\n");
 
     print_flush();
     return 0;

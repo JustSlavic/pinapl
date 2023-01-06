@@ -3,6 +3,7 @@
 
 #include <base.h>
 #include <allocator.h>
+#include <string_id.h>
 
 
 typedef b32 predicate(char);
@@ -162,7 +163,7 @@ typedef struct ast_node_function_call
 
 typedef struct ast_node_variable_declaration
 {
-    token var_name;
+    struct string_id name;
     token var_type;
     usize symbol_id;
     // for compound types:
@@ -302,8 +303,15 @@ struct pinapl_tac
 {
     u32 type;
     u32 dst; // 'register' index OR instruction index of label
-    u32 lhs; // 'register' index OR integer number
-    u32 rhs; // 'register' index OR integer number
+    union
+    {
+        struct
+        {
+            u32 lhs; // 'register' index OR integer number
+            u32 rhs; // 'register' index OR integer number
+        };
+        struct string_id label;
+    };
 };
 
 
@@ -325,6 +333,7 @@ enum flatten_result_type
 {
     FLATTEN_RESULT_INVALID = 0,
     FLATTEN_RESULT_INSTRUCTION,
+    FLATTEN_RESULT_LABEL,
     FLATTEN_RESULT_VARIABLE,
     FLATTEN_RESULT_INTEGER,
 };
@@ -374,6 +383,8 @@ void pinapl_print_connectivity_graph(struct pinapl_connectivity_graph *graph);
 enum pinapl_arm_instruction
 {
     ARM_INVALID_INSTRUCTION,
+    
+    ARM_LBL,
 
     ARM_NOP,
     ARM_MOV,
@@ -393,10 +404,38 @@ enum pinapl_arm_instruction_operand_type
     ARM_OPERAND_LABEL,
 };
 
+enum pinapl_arm_register
+{
+    ARM_R0    = 0,
+    ARM_R1    = 1,
+    ARM_R2    = 2,
+    ARM_R3    = 3,
+    ARM_R4    = 4,
+    ARM_R5    = 5,
+    ARM_R6    = 6,
+    ARM_R7    = 7,
+    ARM_R8    = 8,
+    ARM_R9    = 9,
+    ARM_R10   = 10,
+    ARM_R11   = 11,
+    ARM_R12   = 12,
+    ARM_SP    = 13,
+    ARM_LR    = 14,
+    ARM_PC    = 15,
+    ARM_CPSR  = 16,
+    ARM_FPSCR = 17,
+
+    ARM_REGISTER_COUNT = 18,
+};
+
 struct pinapl_arm_instruction_operand
 {
-    enum pinapl_arm_instruction_operand_type type;
-    u32 value;
+    u32 type;
+    union
+    {
+        u32 value;
+        struct string_id label;
+    };
 };
 
 struct pinapl_instruction
@@ -415,15 +454,14 @@ struct pinapl_instruction_stream
     struct allocator *allocator;
     struct pinapl_instruction *instructions;
     usize instruction_count;
+    usize instruction_capacity;
 };
 
-struct pinapl_instruction_stream
-pinapl_arm_make_instruction_stream(struct allocator *allocator, struct pinapl_flatten_stage *flatten, struct pinapl_connectivity_graph *graph);
+void pinapl_arm_push_instruction(struct pinapl_instruction_stream *stream, struct pinapl_instruction instruction);
+struct pinapl_instruction_stream pinapl_arm_make_instruction_stream(struct allocator *allocator, struct pinapl_flatten_stage *flatten, struct pinapl_connectivity_graph *graph);
 
-void
-pinapl_arm_print_instruction_stream(struct pinapl_instruction_stream *stream);
-void
-pinapl_arm_print_entry_point(void);
+void pinapl_arm_print_instruction_stream(struct pinapl_instruction_stream *stream);
+void pinapl_arm_print_entry_point(void);
 
 // @todo: ELF builder
 
