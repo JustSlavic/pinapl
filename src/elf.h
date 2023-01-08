@@ -80,7 +80,7 @@ enum elf_version
     EV_CURRENT = 1, // Current version (will change to reflect the current version number?)
 };
 
-struct elf_section_header_entry
+struct elf_section_header
 {
     uint32 sh_name;      // Name of the section (index into the section header string table section)
     uint32 sh_type;      // Section type

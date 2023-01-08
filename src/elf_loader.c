@@ -47,9 +47,13 @@ int load_entire_file(char const *filename, void **out_memory, size_t *out_size)
 }
 
 
-int main()
+int main(int argc, char **argv)
 {
     char const *filename = "bin/pinapl";
+    if (argc > 1)
+    {
+        filename = argv[1];
+    }
 
     void *memory = NULL;
     size_t size = 0;
