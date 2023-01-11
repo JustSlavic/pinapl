@@ -261,8 +261,8 @@ int main(int argc, char **argv, char **env)
     int  buffer_size = read(fd, buffer, ARRAY_COUNT(buffer) - 1);
     close(fd);
 
-    print_n(buffer, buffer_size);
-    print("EOF\n\n");
+    // print_n(buffer, buffer_size);
+    // print("EOF\n\n");
 
     struct pinapl_parser parser = pinapl_init_parser(&ast_allocator, &err_allocator, filename, buffer, buffer_size);
     ast_node *ast = pinapl_parse_global_declaration_list(&parser);
@@ -309,10 +309,22 @@ int main(int argc, char **argv, char **env)
             // pinapl_print_connectivity_graph(&graph);
 
             struct pinapl_instruction_stream stream = pinapl_make_instruction_stream(&ast_allocator);
-            
+ 
+            pinapl_arm_push_section(&stream, STRID(".text"));
+            pinapl_arm_push_global(&stream, STRID("_start"));
+           
             pinapl_arm_push_instructions_from_flatten_stage(&stream, &flatten_stage, &graph);
 
-            pinapl_arm_push_instruction(&stream, pinapl_arm_make_label(make_string_id_from_cstring("_start")));
+            pinapl_arm_push_label(&stream, STRID("_start"));
+            pinapl_arm_push_rd(&stream, ARM_LDR, ARM_R0, ARM_SP);
+            pinapl_arm_push_rri(&stream, ARM_ADD, ARM_R3, ARM_SP, 4);
+            pinapl_arm_push_rrrr(&stream, ARM_MLA, ARM_R2, ARM_R0, ARM_R3, ARM_R1);
+            pinapl_arm_push_ri(&stream, ARM_ADD, ARM_R2, 4);
+            pinapl_arm_push_l(&stream, ARM_BL, STRID("main"));
+            pinapl_arm_push_label(&stream, STRID("_exit"));
+            // pinapl_arm_push_ri(&stream, ARM_MOVS, ARM_R0, 0);
+            pinapl_arm_push_ri(&stream, ARM_MOVS, ARM_R7, 1);
+            pinapl_arm_push_i(&stream, ARM_SVC, 0);
 
             pinapl_arm_print_instruction_stream(&stream);
         }

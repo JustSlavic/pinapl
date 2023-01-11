@@ -1604,28 +1604,40 @@ void pinapl_print_connectivity_graph(struct pinapl_connectivity_graph *graph)
     }
 }
 
+void pinapl_arm_print_register(int reg)
+{
+    if (reg == ARM_LR)
+        print("lr");
+    else if (reg == ARM_SP)
+        print("sp");
+    else if (reg == ARM_PC)
+        print("pc");
+    else
+        print("r%d", reg); 
+}
+
 void
 pinapl_arm_print_instruction_operand(struct pinapl_arm_instruction_operand op)
 {
     switch (op.type)
     {
         case ARM_OPERAND_REGISTER:
-            if (op.value == ARM_LR)
-                print("lr");
-            else if (op.value == ARM_SP)
-                print("sp");
-            else if (op.value == ARM_PC)
-                print("pc");
-            else
-                print("r%d", op.value); 
+            pinapl_arm_print_register(op.value);
             break;
 
         case ARM_OPERAND_IMMEDIATE_VALUE:
             print("#%d", op.value);
             break;
 
+        case ARM_OPERAND_DEREFERENCE:
+            print("[");
+            pinapl_arm_print_register(op.value);
+            print("]");
+            break;
+
         case ARM_OPERAND_LABEL:
-            print("[LABEL OPERAND TYPE]");
+        case ARM_OPERAND_DECLARATION:
+            print_string(get_string_by_id(op.strid));
             break;
 
         case ARM_OPERAND_NONE:
@@ -1641,34 +1653,60 @@ pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
 {
     switch (instruction->arm)
     {
-        case ARM_LABEL: print_string(get_string_by_id(instruction->dst.label)); print(":"); break;
+        case ARM_LABEL:
+        case ARM_SECTION:
+        case ARM_GLOBAL: 
+            break;
 
-        case ARM_MOV: print("    mov    "); break;
-        case ARM_ADD: print("    add    "); break;
-        case ARM_SUB: print("    sub    "); break;
-        case ARM_MUL: print("    mul    "); break;
-        case ARM_DIV: print("    div    "); break;
-        case ARM_B:   print("    b      "); break;
-        case ARM_BX:  print("    bx     "); break;
+        case ARM_MOV:  print("    mov    "); break;
+        case ARM_MOVS: print("    movs   "); break;
+        case ARM_ADD:  print("    add    "); break;
+        case ARM_SUB:  print("    sub    "); break;
+        case ARM_MUL:  print("    mul    "); break;
+        case ARM_DIV:  print("    div    "); break;
+        case ARM_B:    print("    b      "); break;
+        case ARM_BX:   print("    bx     "); break;
+        case ARM_BL:   print("    bl     "); break;
+        case ARM_LDR:  print("    ldr    "); break;
+        case ARM_STR:  print("    str    "); break;
+        case ARM_MLA:  print("    mla    "); break;
+        case ARM_SVC:  print("    svc    "); break;
 
         default:
             print("    [UNKNOWN INSTRUCTION]");
     }
 
-    if (instruction->dst.type != ARM_OPERAND_NONE && instruction->dst.type != ARM_OPERAND_LABEL)
+    if (instruction->dst.type != ARM_OPERAND_NONE)
     {
+        if (instruction->arm == ARM_GLOBAL)
+        {
+            print(".global ");
+        }
+
         pinapl_arm_print_instruction_operand(instruction->dst);
-        if (instruction->lhs.type != ARM_OPERAND_NONE)
+
+        if (instruction->arm == ARM_LABEL)
+        {
+            print(":");
+        }
+
+        if (instruction->src1.type != ARM_OPERAND_NONE)
         {
             print(", ");
-            pinapl_arm_print_instruction_operand(instruction->lhs);
-            if (instruction->rhs.type != ARM_OPERAND_NONE)
+            pinapl_arm_print_instruction_operand(instruction->src1);
+            if (instruction->src2.type != ARM_OPERAND_NONE)
             {
                 print(", ");
-                pinapl_arm_print_instruction_operand(instruction->rhs);
+                pinapl_arm_print_instruction_operand(instruction->src2);
+                if (instruction->src3.type != ARM_OPERAND_NONE)
+                {
+                    print(", ");
+                    pinapl_arm_print_instruction_operand(instruction->src3);
+                }
             }
         }
     }
+    
     print("\n");
 }
 
@@ -1705,86 +1743,6 @@ void pinapl_arm_push_instruction(struct pinapl_instruction_stream *stream, struc
     }
 }
 
-struct pinapl_instruction pinapl_arm_make_label(struct string_id label)
-{
-    struct pinapl_instruction result;
-    result.arm = ARM_LABEL;
-    result.dst.type = ARM_OPERAND_LABEL;
-    result.dst.label = label;
-
-    return result;
-}
-
-struct pinapl_instruction pinapl_arm_make_instruction(enum pinapl_arm_instruction instruction)
-{
-    struct pinapl_instruction result;
-    result.arm = instruction;
-
-    return result;
-}
-
-struct pinapl_instruction pinapl_arm_make_instruction_r(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst)
-{
-    struct pinapl_instruction result;
-    result.arm = instruction;
-    result.dst.type = ARM_OPERAND_REGISTER;
-    result.dst.value = dst;
-
-    return result;
-}
-
-struct pinapl_instruction pinapl_arm_make_instruction_rr(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, enum pinapl_arm_register lhs)
-{
-    struct pinapl_instruction result;
-    result.arm = instruction;
-    result.dst.type = ARM_OPERAND_REGISTER;
-    result.dst.value = dst;
-    result.lhs.type = ARM_OPERAND_REGISTER;
-    result.lhs.value = lhs;
-
-    return result;
-}
-
-struct pinapl_instruction pinapl_arm_make_instruction_ri(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, int lhs)
-{
-    struct pinapl_instruction result;
-    result.arm = instruction;
-    result.dst.type = ARM_OPERAND_REGISTER;
-    result.dst.value = dst;
-    result.lhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
-    result.lhs.value = lhs;
-
-    return result;
-}
-
-struct pinapl_instruction pinapl_arm_make_instruction_rrr(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, enum pinapl_arm_register lhs, enum pinapl_arm_register rhs)
-{
-    struct pinapl_instruction result;
-    result.arm = instruction;
-    result.dst.type = ARM_OPERAND_REGISTER;
-    result.dst.value = dst;
-    result.lhs.type = ARM_OPERAND_REGISTER;
-    result.lhs.value = lhs;
-    result.rhs.type = ARM_OPERAND_REGISTER;
-    result.rhs.value = rhs;
-
-    return result;
-}
-
-struct pinapl_instruction pinapl_arm_make_instruction_rri(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, enum pinapl_arm_register lhs, int rhs)
-{
-    struct pinapl_instruction result;
-    result.arm = instruction;
-    result.dst.type = ARM_OPERAND_REGISTER;
-    result.dst.value = dst;
-    result.lhs.type = ARM_OPERAND_REGISTER;
-    result.lhs.value = lhs;
-    result.rhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
-    result.rhs.value = rhs;
-
-    return result;
-}
-
 void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_stream *stream, struct pinapl_flatten_stage *flatten, struct pinapl_connectivity_graph *graph)
 {
     for (int code_index = 0; code_index < flatten->code_count; code_index++)
@@ -1814,7 +1772,7 @@ void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_s
         }
         else if (code.type & TAC_RET)
         {
-            instruction.arm = ARM_B;
+            instruction.arm = ARM_BX;
             instruction.dst.type = ARM_OPERAND_REGISTER;
             instruction.dst.value = ARM_LR;
 
@@ -1836,30 +1794,167 @@ void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_s
             instruction.dst.type = ARM_OPERAND_LABEL;
             instruction.dst.label = code.label;
         }
-        
+
         if (code.type & TAC_LHS_REG)
         {
-            instruction.lhs.type = ARM_OPERAND_REGISTER;
-            instruction.lhs.value = graph->colors[code.lhs];
+            instruction.src1.type = ARM_OPERAND_REGISTER;
+            instruction.src1.value = graph->colors[code.lhs];
         }
         else if (code.type & TAC_LHS_INT)
         {
-            instruction.lhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
-            instruction.lhs.value = code.lhs;
+            instruction.src1.type = ARM_OPERAND_IMMEDIATE_VALUE;
+            instruction.src1.value = code.lhs;
         }
 
         if (code.type & TAC_RHS_REG)
         {
-           instruction.rhs.type = ARM_OPERAND_REGISTER;
-           instruction.rhs.value = graph->colors[code.rhs]; 
+           instruction.src2.type = ARM_OPERAND_REGISTER;
+           instruction.src2.value = graph->colors[code.rhs]; 
         }
         else if (code.type & TAC_RHS_INT)
         {
-            instruction.rhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
-            instruction.rhs.value = code.rhs;
+            instruction.src2.type = ARM_OPERAND_IMMEDIATE_VALUE;
+            instruction.src2.value = code.rhs;
+        }
+
+        // Patch instruction if dst operand is equal to lhs operand
+        if ((instruction.dst.type == instruction.src1.type) &&
+            (instruction.dst.value == instruction.src1.value))
+        {
+            instruction.src1 = instruction.src2;
+            instruction.src2 = instruction.src3;
+            instruction.src3.type = 0;
         }
 
         pinapl_arm_push_instruction(stream, instruction);
     }
+}
+
+void pinapl_arm_push_label(struct pinapl_instruction_stream *stream, 
+                           struct string_id label)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = ARM_LABEL;
+    instruction.dst.type = ARM_OPERAND_LABEL;
+    instruction.dst.label = label;
+
+    pinapl_arm_push_instruction(stream, instruction);
+}
+
+void pinapl_arm_push_l(struct pinapl_instruction_stream *stream,
+                       enum pinapl_arm_instruction arm_instruction,
+                       struct string_id label)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = arm_instruction;
+    instruction.dst.type = ARM_OPERAND_LABEL;
+    instruction.dst.label = label;
+
+    pinapl_arm_push_instruction(stream, instruction);
+}
+
+void pinapl_arm_push_i(struct pinapl_instruction_stream *stream,
+                       enum pinapl_arm_instruction arm_instruction,
+                       int immediate_value)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = arm_instruction;
+    instruction.dst.type = ARM_OPERAND_IMMEDIATE_VALUE;
+    instruction.dst.value = immediate_value;
+
+    pinapl_arm_push_instruction(stream, instruction);
+}
+
+void pinapl_arm_push_ri(struct pinapl_instruction_stream *stream, 
+                        enum pinapl_arm_instruction arm_instruction,
+                        enum pinapl_arm_register dst,
+                        int immediate_value)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = arm_instruction;
+    instruction.dst.type = ARM_OPERAND_REGISTER;
+    instruction.dst.value = dst;
+    instruction.src1.type = ARM_OPERAND_IMMEDIATE_VALUE;
+    instruction.src1.value = immediate_value;
+
+    pinapl_arm_push_instruction(stream, instruction);
+}
+
+void pinapl_arm_push_rd(struct pinapl_instruction_stream *stream,
+                        enum pinapl_arm_instruction arm_instruction,
+                        enum pinapl_arm_register dst,
+                        enum pinapl_arm_register src1)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = arm_instruction;
+    instruction.dst.type = ARM_OPERAND_REGISTER;
+    instruction.dst.value = dst;
+    instruction.src1.type = ARM_OPERAND_DEREFERENCE;
+    instruction.src1.value = src1;
+
+    pinapl_arm_push_instruction(stream, instruction);
+}
+
+void pinapl_arm_push_rri(struct pinapl_instruction_stream *stream,
+                         enum pinapl_arm_instruction arm_instruction,
+                         enum pinapl_arm_register dst,
+                         enum pinapl_arm_register src1,
+                         int immediate_value)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = arm_instruction;
+    instruction.dst.type = ARM_OPERAND_REGISTER;
+    instruction.dst.value = dst;
+    instruction.src1.type = ARM_OPERAND_REGISTER;
+    instruction.src1.value = src1;
+    instruction.src2.type = ARM_OPERAND_IMMEDIATE_VALUE;
+    instruction.src2.value = immediate_value;
+
+    pinapl_arm_push_instruction(stream, instruction);
+}
+
+void pinapl_arm_push_rrrr (struct pinapl_instruction_stream *stream,
+                           enum pinapl_arm_instruction arm_instruction,
+                           enum pinapl_arm_register dst,
+                           enum pinapl_arm_register s1,
+                           enum pinapl_arm_register s2,
+                           enum pinapl_arm_register s3)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = arm_instruction;
+    instruction.dst.type = ARM_OPERAND_REGISTER;
+    instruction.dst.value = dst;
+    instruction.src1.type = ARM_OPERAND_REGISTER;
+    instruction.src1.value = s1;
+    instruction.src2.type = ARM_OPERAND_REGISTER;
+    instruction.src2.value = s2;
+    instruction.src3.type = ARM_OPERAND_REGISTER;
+    instruction.src3.value = s3;
+
+    pinapl_arm_push_instruction(stream, instruction);
+}
+
+void pinapl_arm_push_section(struct pinapl_instruction_stream *stream,
+                             struct string_id section)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = ARM_SECTION;
+    instruction.dst.type = ARM_OPERAND_DECLARATION;
+    instruction.dst.strid = section;
+
+    pinapl_arm_push_instruction(stream, instruction);
+
+}
+
+void pinapl_arm_push_global(struct pinapl_instruction_stream *stream,
+                            struct string_id decl)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = ARM_GLOBAL;
+    instruction.dst.type = ARM_OPERAND_DECLARATION;
+    instruction.dst.strid = decl;
+
+    pinapl_arm_push_instruction(stream, instruction);
+
 }
 

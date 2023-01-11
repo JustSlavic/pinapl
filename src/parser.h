@@ -385,15 +385,23 @@ enum pinapl_arm_instruction
     ARM_INVALID_INSTRUCTION,
     
     ARM_LABEL,
+    ARM_SECTION,
+    ARM_GLOBAL,
 
     ARM_NOP,
     ARM_MOV,
+    ARM_MOVS,
     ARM_ADD,
     ARM_SUB,
     ARM_MUL,
     ARM_DIV,
     ARM_B,
     ARM_BX,
+    ARM_BL,
+    ARM_LDR,
+    ARM_STR,
+    ARM_MLA,
+    ARM_SVC,
 };
 
 enum pinapl_arm_instruction_operand_type
@@ -401,7 +409,9 @@ enum pinapl_arm_instruction_operand_type
     ARM_OPERAND_NONE,
     ARM_OPERAND_REGISTER,
     ARM_OPERAND_IMMEDIATE_VALUE,
+    ARM_OPERAND_DEREFERENCE,
     ARM_OPERAND_LABEL,
+    ARM_OPERAND_DECLARATION,
 };
 
 enum pinapl_arm_register
@@ -435,9 +445,11 @@ struct pinapl_arm_instruction_operand
     {
         u32 value;
         struct string_id label;
+        struct string_id strid;
     };
 };
 
+// @todo: reduce the size of the intruction by implementing the variable size entry contiguous array/allocator
 struct pinapl_instruction
 {
     union
@@ -445,8 +457,9 @@ struct pinapl_instruction
         enum pinapl_arm_instruction arm;
     };
     struct pinapl_arm_instruction_operand dst;
-    struct pinapl_arm_instruction_operand lhs;
-    struct pinapl_arm_instruction_operand rhs;
+    struct pinapl_arm_instruction_operand src1;
+    struct pinapl_arm_instruction_operand src2;
+    struct pinapl_arm_instruction_operand src3;
 };
 
 struct pinapl_instruction_stream
@@ -457,19 +470,42 @@ struct pinapl_instruction_stream
     usize instruction_capacity;
 };
 
-
-struct pinapl_instruction pinapl_arm_make_label(struct string_id label);
-struct pinapl_instruction pinapl_arm_make_instruction(enum pinapl_arm_instruction instruction);
-struct pinapl_instruction pinapl_arm_make_instruction_r(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst);
-struct pinapl_instruction pinapl_arm_make_instruction_rr(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, enum pinapl_arm_register lhs);
-struct pinapl_instruction pinapl_arm_make_instruction_ri(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, int lhs);
-struct pinapl_instruction pinapl_arm_make_instruction_rrr(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, enum pinapl_arm_register lhs, enum pinapl_arm_register rhs);
-struct pinapl_instruction pinapl_arm_make_instruction_rri(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, enum pinapl_arm_register lhs, int rhs);
-
 struct pinapl_instruction_stream pinapl_make_instruction_stream(struct allocator *allocator);
 
 void pinapl_arm_push_instruction(struct pinapl_instruction_stream *stream, struct pinapl_instruction instruction);
 void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_stream *stream, struct pinapl_flatten_stage *flatten, struct pinapl_connectivity_graph *graph);
+
+void pinapl_arm_push_section(struct pinapl_instruction_stream *stream,
+                             struct string_id section);
+void pinapl_arm_push_global(struct pinapl_instruction_stream *stream,
+                            struct string_id decl);
+void pinapl_arm_push_label(struct pinapl_instruction_stream *stream, 
+                           struct string_id label);
+void pinapl_arm_push_l    (struct pinapl_instruction_stream *stream,
+                           enum pinapl_arm_instruction instruction,
+                           struct string_id label);
+void pinapl_arm_push_i    (struct pinapl_instruction_stream *stream,
+                           enum pinapl_arm_instruction instruction,
+                           int immediate_value);
+void pinapl_arm_push_ri   (struct pinapl_instruction_stream *stream, 
+                           enum pinapl_arm_instruction instruction,
+                           enum pinapl_arm_register dst,
+                           int immediate_value);
+void pinapl_arm_push_rd   (struct pinapl_instruction_stream *stream,
+                           enum pinapl_arm_instruction instruction,
+                           enum pinapl_arm_register dst,
+                           enum pinapl_arm_register lhs);
+void pinapl_arm_push_rri  (struct pinapl_instruction_stream *stream,
+                           enum pinapl_arm_instruction instruction,
+                           enum pinapl_arm_register dst,
+                           enum pinapl_arm_register lhs,
+                           int immediate_value);
+void pinapl_arm_push_rrrr (struct pinapl_instruction_stream *stream,
+                           enum pinapl_arm_instruction instruction,
+                           enum pinapl_arm_register dst,
+                           enum pinapl_arm_register s1,
+                           enum pinapl_arm_register s2,
+                           enum pinapl_arm_register s3);
 
 void pinapl_arm_print_instruction_stream(struct pinapl_instruction_stream *stream);
 void pinapl_arm_print_entry_point(void);

@@ -15,6 +15,7 @@ struct string_id make_string_id(char *string, usize size);
 struct string_id make_string_id_from_cstring(char *string);
 struct string get_string_by_id(struct string_id id);
 
+#define STRID(CSTRING) make_string_id_from_cstring(CSTRING)
 
 #endif // SRC_STRING_ID
 
