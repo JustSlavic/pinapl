@@ -1605,102 +1605,6 @@ void pinapl_print_connectivity_graph(struct pinapl_connectivity_graph *graph)
 }
 
 void
-pinapl_arm_push_instruction(struct pinapl_instruction_stream *stream, struct pinapl_instruction instruction)
-{
-    if (stream->instruction_count < stream->instruction_capacity)
-    {
-        stream->instructions[stream->instruction_count++] = instruction;
-    }
-}
-
-struct pinapl_instruction_stream
-pinapl_arm_make_instruction_stream(struct allocator *allocator, struct pinapl_flatten_stage *flatten, struct pinapl_connectivity_graph *graph)
-{
-    struct pinapl_instruction_stream stream;
-    stream.allocator = allocator;
-    stream.instruction_count = 0;
-    stream.instruction_capacity = flatten->code_count + 100;
-    stream.instructions = ALLOCATE(allocator, stream.instruction_capacity * sizeof(struct pinapl_instruction));
-
-    for (int code_index = 0; code_index < flatten->code_count; code_index++)
-    {
-        struct pinapl_tac code = flatten->codes[code_index];
-        struct pinapl_instruction instruction = {0};
-
-        if (code.type & TAC_MOV)
-        {
-            instruction.arm = ARM_MOV;
-        }
-        else if (code.type & TAC_ADD)
-        {
-            instruction.arm = ARM_ADD;
-        }
-        else if (code.type & TAC_SUB)
-        {
-            instruction.arm = ARM_SUB;
-        }
-        else if (code.type & TAC_MUL)
-        {
-            instruction.arm = ARM_MUL;
-        }
-        else if (code.type & TAC_DIV)
-        {
-            instruction.arm = ARM_DIV;
-        }
-        else if (code.type & TAC_RET)
-        {
-            instruction.arm = ARM_B;
-            instruction.dst.type = ARM_OPERAND_REGISTER;
-            instruction.dst.value = ARM_LR;
-
-            pinapl_arm_push_instruction(&stream, instruction);
-            continue;
-        }
-        else
-        {
-        }
-
-        if ((code.type & TAC_LABEL) == 0) // NOT A LABEL
-        {
-            instruction.dst.type = ARM_OPERAND_REGISTER;
-            instruction.dst.value = graph->colors[code.dst];
-        }
-        else
-        {
-            instruction.arm = ARM_LBL;
-            instruction.dst.type = ARM_OPERAND_LABEL;
-            instruction.dst.label = code.label;
-        }
-        
-        if (code.type & TAC_LHS_REG)
-        {
-            instruction.lhs.type = ARM_OPERAND_REGISTER;
-            instruction.lhs.value = graph->colors[code.lhs];
-        }
-        else if (code.type & TAC_LHS_INT)
-        {
-            instruction.lhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
-            instruction.lhs.value = code.lhs;
-        }
-
-        if (code.type & TAC_RHS_REG)
-        {
-           instruction.rhs.type = ARM_OPERAND_REGISTER;
-           instruction.rhs.value = graph->colors[code.rhs]; 
-        }
-        else if (code.type & TAC_RHS_INT)
-        {
-            instruction.rhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
-            instruction.rhs.value = code.rhs;
-        }
-
-        pinapl_arm_push_instruction(&stream, instruction);
-    }
-
-    return stream;
-}
-
-void
 pinapl_arm_print_instruction_operand(struct pinapl_arm_instruction_operand op)
 {
     switch (op.type)
@@ -1737,7 +1641,7 @@ pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
 {
     switch (instruction->arm)
     {
-        case ARM_LBL: print_string(get_string_by_id(instruction->dst.label)); print(":"); break;
+        case ARM_LABEL: print_string(get_string_by_id(instruction->dst.label)); print(":"); break;
 
         case ARM_MOV: print("    mov    "); break;
         case ARM_ADD: print("    add    "); break;
@@ -1775,6 +1679,187 @@ pinapl_arm_print_instruction_stream(struct pinapl_instruction_stream *stream)
     {
         struct pinapl_instruction *instruction = stream->instructions + instruction_index;
         pinapl_arm_print_instruction(instruction);
+    }
+}
+
+struct pinapl_instruction_stream pinapl_make_instruction_stream(struct allocator *allocator)
+{
+    struct pinapl_instruction_stream stream;
+    stream.allocator = allocator;
+    stream.instruction_count = 0;
+    stream.instruction_capacity = 100;
+    stream.instructions = ALLOCATE(allocator, stream.instruction_capacity * sizeof(struct pinapl_instruction));
+
+    return stream;
+}
+
+void pinapl_arm_push_instruction(struct pinapl_instruction_stream *stream, struct pinapl_instruction instruction)
+{
+    if (stream->instruction_count < stream->instruction_capacity)
+    {
+        stream->instructions[stream->instruction_count++] = instruction;
+    }
+    else
+    {
+        ASSERT(false);
+    }
+}
+
+struct pinapl_instruction pinapl_arm_make_label(struct string_id label)
+{
+    struct pinapl_instruction result;
+    result.arm = ARM_LABEL;
+    result.dst.type = ARM_OPERAND_LABEL;
+    result.dst.label = label;
+
+    return result;
+}
+
+struct pinapl_instruction pinapl_arm_make_instruction(enum pinapl_arm_instruction instruction)
+{
+    struct pinapl_instruction result;
+    result.arm = instruction;
+
+    return result;
+}
+
+struct pinapl_instruction pinapl_arm_make_instruction_r(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst)
+{
+    struct pinapl_instruction result;
+    result.arm = instruction;
+    result.dst.type = ARM_OPERAND_REGISTER;
+    result.dst.value = dst;
+
+    return result;
+}
+
+struct pinapl_instruction pinapl_arm_make_instruction_rr(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, enum pinapl_arm_register lhs)
+{
+    struct pinapl_instruction result;
+    result.arm = instruction;
+    result.dst.type = ARM_OPERAND_REGISTER;
+    result.dst.value = dst;
+    result.lhs.type = ARM_OPERAND_REGISTER;
+    result.lhs.value = lhs;
+
+    return result;
+}
+
+struct pinapl_instruction pinapl_arm_make_instruction_ri(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, int lhs)
+{
+    struct pinapl_instruction result;
+    result.arm = instruction;
+    result.dst.type = ARM_OPERAND_REGISTER;
+    result.dst.value = dst;
+    result.lhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
+    result.lhs.value = lhs;
+
+    return result;
+}
+
+struct pinapl_instruction pinapl_arm_make_instruction_rrr(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, enum pinapl_arm_register lhs, enum pinapl_arm_register rhs)
+{
+    struct pinapl_instruction result;
+    result.arm = instruction;
+    result.dst.type = ARM_OPERAND_REGISTER;
+    result.dst.value = dst;
+    result.lhs.type = ARM_OPERAND_REGISTER;
+    result.lhs.value = lhs;
+    result.rhs.type = ARM_OPERAND_REGISTER;
+    result.rhs.value = rhs;
+
+    return result;
+}
+
+struct pinapl_instruction pinapl_arm_make_instruction_rri(enum pinapl_arm_instruction instruction, enum pinapl_arm_register dst, enum pinapl_arm_register lhs, int rhs)
+{
+    struct pinapl_instruction result;
+    result.arm = instruction;
+    result.dst.type = ARM_OPERAND_REGISTER;
+    result.dst.value = dst;
+    result.lhs.type = ARM_OPERAND_REGISTER;
+    result.lhs.value = lhs;
+    result.rhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
+    result.rhs.value = rhs;
+
+    return result;
+}
+
+void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_stream *stream, struct pinapl_flatten_stage *flatten, struct pinapl_connectivity_graph *graph)
+{
+    for (int code_index = 0; code_index < flatten->code_count; code_index++)
+    {
+        struct pinapl_tac code = flatten->codes[code_index];
+        struct pinapl_instruction instruction = {0};
+
+        if (code.type & TAC_MOV)
+        {
+            instruction.arm = ARM_MOV;
+        }
+        else if (code.type & TAC_ADD)
+        {
+            instruction.arm = ARM_ADD;
+        }
+        else if (code.type & TAC_SUB)
+        {
+            instruction.arm = ARM_SUB;
+        }
+        else if (code.type & TAC_MUL)
+        {
+            instruction.arm = ARM_MUL;
+        }
+        else if (code.type & TAC_DIV)
+        {
+            instruction.arm = ARM_DIV;
+        }
+        else if (code.type & TAC_RET)
+        {
+            instruction.arm = ARM_B;
+            instruction.dst.type = ARM_OPERAND_REGISTER;
+            instruction.dst.value = ARM_LR;
+
+            pinapl_arm_push_instruction(stream, instruction);
+            continue;
+        }
+        else
+        {
+        }
+
+        if ((code.type & TAC_LABEL) == 0) // NOT A LABEL
+        {
+            instruction.dst.type = ARM_OPERAND_REGISTER;
+            instruction.dst.value = graph->colors[code.dst];
+        }
+        else
+        {
+            instruction.arm = ARM_LABEL;
+            instruction.dst.type = ARM_OPERAND_LABEL;
+            instruction.dst.label = code.label;
+        }
+        
+        if (code.type & TAC_LHS_REG)
+        {
+            instruction.lhs.type = ARM_OPERAND_REGISTER;
+            instruction.lhs.value = graph->colors[code.lhs];
+        }
+        else if (code.type & TAC_LHS_INT)
+        {
+            instruction.lhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
+            instruction.lhs.value = code.lhs;
+        }
+
+        if (code.type & TAC_RHS_REG)
+        {
+           instruction.rhs.type = ARM_OPERAND_REGISTER;
+           instruction.rhs.value = graph->colors[code.rhs]; 
+        }
+        else if (code.type & TAC_RHS_INT)
+        {
+            instruction.rhs.type = ARM_OPERAND_IMMEDIATE_VALUE;
+            instruction.rhs.value = code.rhs;
+        }
+
+        pinapl_arm_push_instruction(stream, instruction);
     }
 }
 

@@ -78,6 +78,13 @@ make_string_id(char *string, usize size)
     return result;
 }
 
+struct string_id make_string_id_from_cstring(char *string)
+{
+    usize size = cstring_size_no0(string);
+    struct string_id result = make_string_id(string, size);
+
+    return result;
+}
 
 struct string
 get_string_by_id(struct string_id id)

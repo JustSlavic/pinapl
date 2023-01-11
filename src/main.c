@@ -308,7 +308,12 @@ int main(int argc, char **argv, char **env)
             struct pinapl_connectivity_graph graph = pinapl_make_connectivity_graph(&liveness);
             // pinapl_print_connectivity_graph(&graph);
 
-            struct pinapl_instruction_stream stream = pinapl_arm_make_instruction_stream(&ast_allocator, &flatten_stage, &graph);
+            struct pinapl_instruction_stream stream = pinapl_make_instruction_stream(&ast_allocator);
+            
+            pinapl_arm_push_instructions_from_flatten_stage(&stream, &flatten_stage, &graph);
+
+            pinapl_arm_push_instruction(&stream, pinapl_arm_make_label(make_string_id_from_cstring("_start")));
+
             pinapl_arm_print_instruction_stream(&stream);
         }
         else
