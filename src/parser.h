@@ -484,6 +484,9 @@ void pinapl_arm_push_label(struct pinapl_instruction_stream *stream,
 void pinapl_arm_push_l    (struct pinapl_instruction_stream *stream,
                            enum pinapl_arm_instruction instruction,
                            struct string_id label);
+void pinapl_arm_push_r    (struct pinapl_instruction_stream *stream,
+                           enum pinapl_arm_instruction instruction,
+                           enum pinapl_arm_register arg);
 void pinapl_arm_push_i    (struct pinapl_instruction_stream *stream,
                            enum pinapl_arm_instruction instruction,
                            int immediate_value);

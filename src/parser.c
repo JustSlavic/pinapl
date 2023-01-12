@@ -1853,6 +1853,18 @@ void pinapl_arm_push_l(struct pinapl_instruction_stream *stream,
     pinapl_arm_push_instruction(stream, instruction);
 }
 
+void pinapl_arm_push_r(struct pinapl_instruction_stream *stream,
+                       enum pinapl_arm_instruction arm_instruction,
+                       enum pinapl_arm_register arg)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = arm_instruction;
+    instruction.dst.type = ARM_OPERAND_REGISTER;
+    instruction.dst.value = arg;
+
+    pinapl_arm_push_instruction(stream, instruction);
+}
+
 void pinapl_arm_push_i(struct pinapl_instruction_stream *stream,
                        enum pinapl_arm_instruction arm_instruction,
                        int immediate_value)

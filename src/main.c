@@ -324,7 +324,7 @@ int main(int argc, char **argv, char **env)
             pinapl_arm_push_label(&stream, STRID("_exit"));
             // pinapl_arm_push_ri(&stream, ARM_MOVS, ARM_R0, 0);
             pinapl_arm_push_ri(&stream, ARM_MOVS, ARM_R7, 1);
-            pinapl_arm_push_i(&stream, ARM_SVC, 0);
+            pinapl_arm_push_i(&stream, ARM_SVC, 0x0);
 
             pinapl_arm_print_instruction_stream(&stream);
         }

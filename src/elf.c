@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 
-char const *spaces = "                                                ";
+char const *spaces = "                                                                                                                                                           ";
 
 void elf_load(void *memory, usize size)
 {
@@ -106,6 +106,9 @@ void elf_load(void *memory, usize size)
 
             struct elf_section_header *string_table_header = section_header_table + header->e_shstrndx;
             char const *section_name = (char const *) memory + string_table_header->sh_offset + sh.sh_name;
+
+            b32 is_text_section = false;
+            if (section_name[0] == '.' && section_name[1] == 't' && section_name[2] == 'e' && section_name[3] == 'x' && section_name[4] == 't') is_text_section = true;
 
             printf("  sh_name = %d (%s)\n", sh.sh_name, section_name);
             printf("  sh_type = %d ", sh.sh_type);
@@ -213,30 +216,168 @@ void elf_load(void *memory, usize size)
             }
 
             uint8 *bytes = (uint8 *) memory + sh.sh_offset;
-            int offset = 0;
-            int table_width = 8;
 
-            while (offset < sh.sh_size)
+            if (is_text_section)
             {
-                uint8 *row_start = bytes + offset;
-                int width = sh.sh_size - offset;
-                if (width > 8) { width = 8; }
+                if (sh.sh_size % 4 == 0) printf("Ok!\n"); else printf("Size of section is not divisible by 4! (for 32 bit instructions)\n");
+                int offset = 0;
+                printf("cond \n");
+                while (offset < sh.sh_size)
+                {
+                    uint32 word = *(uint32 *) (bytes + offset);
+                    uint32 mask = 0x80000000;
+                    while (mask)
+                    {
+                        if (mask == 0x08000000) printf(" ");
+                        printf("%d", (word & mask) > 0);
+                        mask >>= 1;
+                    }
 
-                int count = 0;
-                for (int column = 0; column < width; column++)
-                {
-                    count += printf("0x%x ", row_start[column]);
+                    if ((word & 0x0ffffff0) == 0x012fff10)
+                    {
+                        uint32 rn = (word & 0x0000000f);
+                        printf("  BX r%d", rn);
+                    }
+                    else if (((word & 0x0f000000) == 0x0a000000) || ((word & 0x0f000000) == 0x0b000000))
+                    {
+                        b32 with_link = (word & 0x01000000) > 0;
+                        uint32 offset = (word & 0x00ffffff);
+                        if (with_link) printf("  BL "); else printf("  B ");
+                        printf(" #%d", offset);
+                    }
+                    else if ((word & 0x0c000000) == 0x04000000)
+                    {
+                        b32 immediate_offset  = (word & 0x02000000) > 0;
+                        b32 pre_post_indexing = (word & 0x01000000) > 0;
+                        b32 up_down_bit       = (word & 0x00800000) > 0;
+                        b32 byte_word_bit     = (word & 0x00400000) > 0;
+                        b32 write_back_bit    = (word & 0x00200000) > 0;
+                        b32 load_store_bit    = (word & 0x00100000) > 0;
+                        uint32 rn     = (word & 0x000f0000) >> 16;
+                        uint32 rd     = (word & 0x0000f000) >> 12;
+                        uint32 offset = (word & 0x00000fff);
+
+                        if (load_store_bit == 0) printf("  STR "); else printf("  LDR ");
+                        printf("r%d at [r%d + #%d]; ", rd, rn, offset);
+                        if (immediate_offset == 0) printf("offset is an immediate value; ");
+                        if (up_down_bit == 0) printf("sub offset ");
+                            else              printf("add offset ");
+                        if (pre_post_indexing == 0) printf("after; ");
+                            else                    printf("before; ");
+
+                        if (byte_word_bit == 0) printf("transfer word; ");
+                            else                printf("transfer byte; ");
+
+
+                    }
+                    else if ((word & 0x0f000000) == 0x0f000000)
+                    {
+                        printf("  SWI ");
+                    }
+                    else if ((word & 0x0fc000f0) == 0x00000090)
+                    {
+                        // Multiply and Multiply-Accumulate Instructions
+                        bool32 accumulate = (word & 0x00200000) > 0;
+                        bool32 set_cond = (word & 0x00100000) > 0;
+                        uint32 rd = (word & 0x000f0000) >> 16;
+                        uint32 rn = (word & 0x0000f000) >> 12;
+                        uint32 rs = (word & 0x00000f00) >> 8;
+                        uint32 rm = (word & 0x0000000f);
+
+                        if (accumulate)
+                            printf("  MLA%s r%d := r%d * r%d + r%d; ", set_cond ? "S" : "", rd, rm, rs, rn);
+                        else
+                            printf("  MUL%s r%d := r%d * r%d; ", set_cond ? "S" : "", rd, rm, rs);
+                    }
+                    else if ((word & 0x0c000000) == 0)
+                    {
+                        // Data Processing Instruction
+                        bool32 is_immediate = (word & 0x02000000) > 0;
+                        uint32 opcode = (word & 0x01e00000) >> 21;
+                        uint32 set_cond = (word & 0x00100000) > 0;
+                        uint32 rn = (word & 0x000f0000) >> 16;
+                        uint32 rd = (word & 0x0000f000) >> 12;
+                        uint32 op2 = (word & 0x00000fff);
+
+                        switch (opcode)
+                        {
+                            case 0x0: printf("  AND%s ", set_cond ? "S" : ""); break;
+                            case 0x1: printf("  EOR "); break;
+                            case 0x2: printf("  SUB%s r%d := r%d - ", set_cond ? "S" : "", rd, rn); break;
+                            case 0x3: printf("  RSB "); break;
+                            case 0x4: printf("  ADD%s r%d := r%d + ", set_cond ? "S" : "", rd, rn); break;
+                            case 0x5: printf("  ADC "); break;
+                            case 0x6: printf("  SBC "); break;
+                            case 0x7: printf("  RSC "); break;
+                            case 0x8: printf("  TST "); break;
+                            case 0x9: printf("  TEQ "); break;
+                            case 0xa: printf("  CMP "); break;
+                            case 0xb: printf("  CMN "); break;
+                            case 0xc: printf("  ORR "); break;
+                            case 0xd: printf("  MOV%s r%d := ", set_cond ? "S" : "", rd); break;
+                            case 0xe: printf("  BIC "); break;
+                            case 0xf: printf("  MVN "); break;
+                        }
+
+                        if (is_immediate)
+                        {
+                            uint32 rot = (word & 0x00000f00) >> 8;
+                            uint32 imm = (word & 0x000000ff);
+                            if (rot > 0)
+                            {
+                                printf("(#%d >> %d)", imm, rot);
+                            }
+                            else
+                            {
+                                printf("#%d", imm);
+                            }
+                        }
+                        else
+                        {
+                            uint32 shift = (word & 0x00000ff0) >> 4;
+                            uint32 rm = (word & 0x0000000f);
+                            if (shift > 0)
+                            {
+                                printf("(r%d >> %d)", rm, shift);
+                            }
+                            else
+                            {
+                                printf("r%d", rm);
+                            }
+                        }
+                    }
+
+                    printf("\n");
+
+                    offset += sizeof(uint32);
                 }
-                printf("%.*s", 60-count, spaces);
-                for (int column = 0; column < width; column++)
+            }
+            else
+            {
+               int offset = 0;
+               int table_width = 8;
+               while (offset < sh.sh_size)
                 {
-                    if (row_start[column] == 0) 
-                        printf(".");
-                    else
-                        printf("%c", row_start[column]);
+                    uint8 *row_start = bytes + offset;
+                    int width = sh.sh_size - offset;
+                    if (width > table_width) { width = table_width; }
+
+                    int count = 0;
+                    for (int column = 0; column < width; column++)
+                    {
+                        count += printf("0x%x ", row_start[column]);
+                    }
+                    printf("%.*s", 60-count, spaces);
+                    for (int column = 0; column < width; column++)
+                    {
+                        if (row_start[column] == 0) 
+                            printf(".");
+                        else
+                            printf("%c", row_start[column]);
+                    }
+                    printf("\n");
+                    offset += width;
                 }
-                printf("\n");
-                offset += width;
             }
             printf("\n");
         }

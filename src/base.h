@@ -32,6 +32,7 @@ typedef __builtin_va_list va_list;
 #define NOT_IMPLEMENTED() ASSERT(false)
 
 typedef unsigned int b32;
+typedef unsigned int bool32;
 
 #define true 1
 #define false 0

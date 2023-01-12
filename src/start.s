@@ -27,5 +27,5 @@ _start:
 _exit:
     movs    r0, #0
     movs    r7, #1
-    svc     #0
+    svc     #0x90
 
