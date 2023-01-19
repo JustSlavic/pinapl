@@ -2,6 +2,8 @@
 #include <string.h>
 #include <primes.h>
 #include <print.h>
+#include <elf.h>
+#include <syscall.h>
 
 
 GLOBAL char const *spaces = "                                             ";
@@ -1676,32 +1678,37 @@ pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
             print("    [UNKNOWN INSTRUCTION]");
     }
 
-    if (instruction->dst.type != ARM_OPERAND_NONE)
+    if (instruction->op1.type != ARM_OPERAND_NONE)
     {
         if (instruction->arm == ARM_GLOBAL)
         {
             print(".global ");
         }
-
-        pinapl_arm_print_instruction_operand(instruction->dst);
+        
+        // Do not print dst operand is equal to lhs operand
+        if ((instruction->op1.type  != instruction->op2.type) ||
+            (instruction->op1.value != instruction->op2.value))
+        {
+            pinapl_arm_print_instruction_operand(instruction->op1);
+        }
 
         if (instruction->arm == ARM_LABEL)
         {
             print(":");
         }
 
-        if (instruction->src1.type != ARM_OPERAND_NONE)
+        if (instruction->op2.type != ARM_OPERAND_NONE)
         {
             print(", ");
-            pinapl_arm_print_instruction_operand(instruction->src1);
-            if (instruction->src2.type != ARM_OPERAND_NONE)
+            pinapl_arm_print_instruction_operand(instruction->op2);
+            if (instruction->op3.type != ARM_OPERAND_NONE)
             {
                 print(", ");
-                pinapl_arm_print_instruction_operand(instruction->src2);
-                if (instruction->src3.type != ARM_OPERAND_NONE)
+                pinapl_arm_print_instruction_operand(instruction->op3);
+                if (instruction->op4.type != ARM_OPERAND_NONE)
                 {
                     print(", ");
-                    pinapl_arm_print_instruction_operand(instruction->src3);
+                    pinapl_arm_print_instruction_operand(instruction->op4);
                 }
             }
         }
@@ -1773,8 +1780,8 @@ void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_s
         else if (code.type & TAC_RET)
         {
             instruction.arm = ARM_BX;
-            instruction.dst.type = ARM_OPERAND_REGISTER;
-            instruction.dst.value = ARM_LR;
+            instruction.op1.type = ARM_OPERAND_REGISTER;
+            instruction.op2.value = ARM_LR;
 
             pinapl_arm_push_instruction(stream, instruction);
             continue;
@@ -1785,45 +1792,36 @@ void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_s
 
         if ((code.type & TAC_LABEL) == 0) // NOT A LABEL
         {
-            instruction.dst.type = ARM_OPERAND_REGISTER;
-            instruction.dst.value = graph->colors[code.dst];
+            instruction.op1.type = ARM_OPERAND_REGISTER;
+            instruction.op1.value = graph->colors[code.dst];
         }
         else
         {
             instruction.arm = ARM_LABEL;
-            instruction.dst.type = ARM_OPERAND_LABEL;
-            instruction.dst.label = code.label;
+            instruction.op1.type = ARM_OPERAND_LABEL;
+            instruction.op1.label = code.label;
         }
 
         if (code.type & TAC_LHS_REG)
         {
-            instruction.src1.type = ARM_OPERAND_REGISTER;
-            instruction.src1.value = graph->colors[code.lhs];
+            instruction.op2.type = ARM_OPERAND_REGISTER;
+            instruction.op2.value = graph->colors[code.lhs];
         }
         else if (code.type & TAC_LHS_INT)
         {
-            instruction.src1.type = ARM_OPERAND_IMMEDIATE_VALUE;
-            instruction.src1.value = code.lhs;
+            instruction.op2.type = ARM_OPERAND_IMMEDIATE_VALUE;
+            instruction.op2.value = code.lhs;
         }
 
         if (code.type & TAC_RHS_REG)
         {
-           instruction.src2.type = ARM_OPERAND_REGISTER;
-           instruction.src2.value = graph->colors[code.rhs]; 
+           instruction.op3.type = ARM_OPERAND_REGISTER;
+           instruction.op3.value = graph->colors[code.rhs]; 
         }
         else if (code.type & TAC_RHS_INT)
         {
-            instruction.src2.type = ARM_OPERAND_IMMEDIATE_VALUE;
-            instruction.src2.value = code.rhs;
-        }
-
-        // Patch instruction if dst operand is equal to lhs operand
-        if ((instruction.dst.type == instruction.src1.type) &&
-            (instruction.dst.value == instruction.src1.value))
-        {
-            instruction.src1 = instruction.src2;
-            instruction.src2 = instruction.src3;
-            instruction.src3.type = 0;
+            instruction.op3.type = ARM_OPERAND_IMMEDIATE_VALUE;
+            instruction.op3.value = code.rhs;
         }
 
         pinapl_arm_push_instruction(stream, instruction);
@@ -1835,8 +1833,8 @@ void pinapl_arm_push_label(struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = ARM_LABEL;
-    instruction.dst.type = ARM_OPERAND_LABEL;
-    instruction.dst.label = label;
+    instruction.op1.type = ARM_OPERAND_LABEL;
+    instruction.op1.label = label;
 
     pinapl_arm_push_instruction(stream, instruction);
 }
@@ -1847,8 +1845,8 @@ void pinapl_arm_push_l(struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = arm_instruction;
-    instruction.dst.type = ARM_OPERAND_LABEL;
-    instruction.dst.label = label;
+    instruction.op1.type = ARM_OPERAND_LABEL;
+    instruction.op1.label = label;
 
     pinapl_arm_push_instruction(stream, instruction);
 }
@@ -1859,8 +1857,8 @@ void pinapl_arm_push_r(struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = arm_instruction;
-    instruction.dst.type = ARM_OPERAND_REGISTER;
-    instruction.dst.value = arg;
+    instruction.op1.type = ARM_OPERAND_REGISTER;
+    instruction.op1.value = arg;
 
     pinapl_arm_push_instruction(stream, instruction);
 }
@@ -1871,8 +1869,8 @@ void pinapl_arm_push_i(struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = arm_instruction;
-    instruction.dst.type = ARM_OPERAND_IMMEDIATE_VALUE;
-    instruction.dst.value = immediate_value;
+    instruction.op1.type = ARM_OPERAND_IMMEDIATE_VALUE;
+    instruction.op1.value = immediate_value;
 
     pinapl_arm_push_instruction(stream, instruction);
 }
@@ -1884,10 +1882,10 @@ void pinapl_arm_push_ri(struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = arm_instruction;
-    instruction.dst.type = ARM_OPERAND_REGISTER;
-    instruction.dst.value = dst;
-    instruction.src1.type = ARM_OPERAND_IMMEDIATE_VALUE;
-    instruction.src1.value = immediate_value;
+    instruction.op1.type = ARM_OPERAND_REGISTER;
+    instruction.op1.value = dst;
+    instruction.op2.type = ARM_OPERAND_IMMEDIATE_VALUE;
+    instruction.op2.value = immediate_value;
 
     pinapl_arm_push_instruction(stream, instruction);
 }
@@ -1899,10 +1897,10 @@ void pinapl_arm_push_rd(struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = arm_instruction;
-    instruction.dst.type = ARM_OPERAND_REGISTER;
-    instruction.dst.value = dst;
-    instruction.src1.type = ARM_OPERAND_DEREFERENCE;
-    instruction.src1.value = src1;
+    instruction.op1.type = ARM_OPERAND_REGISTER;
+    instruction.op1.value = dst;
+    instruction.op2.type = ARM_OPERAND_DEREFERENCE;
+    instruction.op2.value = src1;
 
     pinapl_arm_push_instruction(stream, instruction);
 }
@@ -1915,12 +1913,12 @@ void pinapl_arm_push_rri(struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = arm_instruction;
-    instruction.dst.type = ARM_OPERAND_REGISTER;
-    instruction.dst.value = dst;
-    instruction.src1.type = ARM_OPERAND_REGISTER;
-    instruction.src1.value = src1;
-    instruction.src2.type = ARM_OPERAND_IMMEDIATE_VALUE;
-    instruction.src2.value = immediate_value;
+    instruction.op1.type = ARM_OPERAND_REGISTER;
+    instruction.op1.value = dst;
+    instruction.op2.type = ARM_OPERAND_REGISTER;
+    instruction.op2.value = src1;
+    instruction.op3.type = ARM_OPERAND_IMMEDIATE_VALUE;
+    instruction.op3.value = immediate_value;
 
     pinapl_arm_push_instruction(stream, instruction);
 }
@@ -1934,14 +1932,14 @@ void pinapl_arm_push_rrrr (struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = arm_instruction;
-    instruction.dst.type = ARM_OPERAND_REGISTER;
-    instruction.dst.value = dst;
-    instruction.src1.type = ARM_OPERAND_REGISTER;
-    instruction.src1.value = s1;
-    instruction.src2.type = ARM_OPERAND_REGISTER;
-    instruction.src2.value = s2;
-    instruction.src3.type = ARM_OPERAND_REGISTER;
-    instruction.src3.value = s3;
+    instruction.op1.type = ARM_OPERAND_REGISTER;
+    instruction.op1.value = dst;
+    instruction.op2.type = ARM_OPERAND_REGISTER;
+    instruction.op2.value = s1;
+    instruction.op3.type = ARM_OPERAND_REGISTER;
+    instruction.op3.value = s2;
+    instruction.op4.type = ARM_OPERAND_REGISTER;
+    instruction.op4.value = s3;
 
     pinapl_arm_push_instruction(stream, instruction);
 }
@@ -1951,8 +1949,8 @@ void pinapl_arm_push_section(struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = ARM_SECTION;
-    instruction.dst.type = ARM_OPERAND_DECLARATION;
-    instruction.dst.strid = section;
+    instruction.op1.type = ARM_OPERAND_DECLARATION;
+    instruction.op1.strid = section;
 
     pinapl_arm_push_instruction(stream, instruction);
 
@@ -1963,10 +1961,214 @@ void pinapl_arm_push_global(struct pinapl_instruction_stream *stream,
 {
     struct pinapl_instruction instruction = {0};
     instruction.arm = ARM_GLOBAL;
-    instruction.dst.type = ARM_OPERAND_DECLARATION;
-    instruction.dst.strid = decl;
+    instruction.op1.type = ARM_OPERAND_DECLARATION;
+    instruction.op1.strid = decl;
 
     pinapl_arm_push_instruction(stream, instruction);
 
 }
+
+uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction *instruction)
+{
+    uint32 binary = 0;
+    uint32 condition = 0;
+
+    switch (instruction->arm)
+    {
+        case ARM_INVALID_INSTRUCTION:
+            break;
+
+        case ARM_LABEL:
+        case ARM_SECTION:
+        case ARM_GLOBAL:
+        case ARM_NOP:
+        case ARM_MOV:
+        case ARM_MOVS:
+            break;
+
+        case ARM_ADD:
+        {
+            u32 opcode = 0x4;
+            b32 immediate_operand = (instruction->op3.type == ARM_OPERAND_IMMEDIATE_VALUE);
+            b32 set_condition_codes = false;
+
+            binary = condition;
+            binary |= (immediate_operand << 25); 
+            binary |= (opcode << 21);
+            binary |= (set_condition_codes << 20);
+            binary |= (instruction->op2.value << 16);
+            binary |= (instruction->op1.value << 12);
+
+            if (immediate_operand)
+            {
+                uint32 rot = 0;
+                uint32 imm = instruction->op3.value;
+                binary |= ((rot & 0xf) << 8);
+                binary |= (imm & 0xff);
+            }
+            else
+            {
+                uint32 shift = 0;
+                uint32 rm = instruction->op3.value;
+                binary |= ((shift & 0xff) << 4);
+                binary |= (rm & 0xf);
+            }
+
+            int x = 0;
+            UNUSED(x);
+        }
+        break;
+
+        case ARM_SUB:
+        case ARM_MUL:
+        case ARM_DIV:
+        case ARM_B:
+        case ARM_BX:
+        case ARM_BL:
+        case ARM_LDR:
+        case ARM_STR:
+        case ARM_MLA:
+            break;
+
+        case ARM_SVC:
+        {
+            if (instruction->op1.type == ARM_OPERAND_IMMEDIATE_VALUE)
+            {
+                binary = condition | 0x0f000000 | (instruction->op1.value & 0x00ffffff);
+            }
+        }
+        break;
+    }
+
+    return binary;
+}
+
+void pinapl_arm_dump_elf(char const *filename, struct pinapl_instruction_stream *stream, struct allocator *allocator)
+{
+    struct elf_header *header = ALLOCATE(allocator, struct elf_header);
+    
+    header->e_ident[ELF_IDENT_MAGIC0]  = 0x7f;
+    header->e_ident[ELF_IDENT_MAGIC1]  = 'E';
+    header->e_ident[ELF_IDENT_MAGIC2]  = 'L';
+    header->e_ident[ELF_IDENT_MAGIC3]  = 'F';
+    header->e_ident[ELF_IDENT_CLASS]   = ELF_CLASS_32;
+    header->e_ident[ELF_IDENT_DATA]    = ELF_DATA_2LSB;
+    header->e_ident[ELF_IDENT_VERSION] = 1;
+    header->e_ident[ELF_IDENT_PAD]     = 0;
+
+    header->e_type = ET_EXEC;
+    header->e_machine = EM_ARM;
+    header->e_version = EV_CURRENT;
+    header->e_entry = 1234567890;
+    header->e_phoff = sizeof(struct elf_header);
+    header->e_shoff = 0;
+    header->e_flags = EF_ARM_ABI_CURRENT_VERSION | EF_ARM_ABI_FLOAT_SOFT;
+    header->e_ehsize = sizeof(struct elf_header);
+    header->e_phentsize = sizeof(struct elf_program_header);
+    header->e_phnum = 1;
+    header->e_shentsize = sizeof(struct elf_section_header);
+    header->e_shnum = 3;
+    header->e_shstrndx = 2;
+
+    struct elf_program_header *program_header = ALLOCATE(allocator, struct elf_program_header);
+    program_header->p_type = ELF_PT_LOAD;
+    program_header->p_offset = 0;
+    program_header->p_vaddr = 0x10000;
+    program_header->p_paddr = 0x10000;
+    program_header->p_filesz = 0;
+    program_header->p_memsz = 0;
+    program_header->p_flags = ELF_PF_X | ELF_PF_R;
+    program_header->p_align = 0x10000;
+
+    usize code_offset = allocator->used;
+
+    for (int instruction_index = 0; instruction_index < stream->instruction_count; instruction_index++)
+    {
+        uint32 binary = pinapl_arm_instruction_to_binary(stream->instructions + instruction_index);
+        uint32 *code = ALLOCATE(allocator, uint32);
+        *code = binary;
+    }
+
+    usize code_size = allocator->used - code_offset;
+
+    usize strbuf_offset = allocator->used;
+    usize strbuf_size = 7;
+
+    char buffer[] = "\0.text\0.shstrtab\0";
+    char *string_buffer = ALLOCATE_BUFFER(allocator, sizeof(buffer));
+    memcpy(string_buffer, buffer, sizeof(buffer));
+
+    program_header->p_filesz = allocator->used;
+    program_header->p_memsz  = allocator->used;
+
+    struct elf_section_header *section_header_zero = ALLOCATE(allocator, struct elf_section_header);
+    UNUSED(section_header_zero);
+    
+    usize sh_offset = (usize) allocator->used - sizeof(struct elf_section_header);
+    header->e_shoff = sh_offset;
+    
+    struct elf_section_header *section_header_text = ALLOCATE(allocator, struct elf_section_header);
+    section_header_text->sh_name = 1;
+    section_header_text->sh_type = ELF_SHT_PROGBITS;
+    section_header_text->sh_flags = ELF_SHF_ALLOC | ELF_SHF_EXECINSTR;
+    section_header_text->sh_addr = 0x10000 + code_offset;
+    section_header_text->sh_offset = code_offset;
+    section_header_text->sh_size = code_size;
+    section_header_text->sh_link = 0;
+    section_header_text->sh_info = 0;
+    section_header_text->sh_addralign = 4;
+    section_header_text->sh_entsize = 0;
+
+    struct elf_section_header *section_header_shstr = ALLOCATE(allocator, struct elf_section_header);
+    section_header_shstr->sh_name = 7;
+    section_header_shstr->sh_type = ELF_SHT_STRTAB;
+    section_header_shstr->sh_flags = 0;
+    section_header_shstr->sh_addr = 0;
+    section_header_shstr->sh_offset = strbuf_offset;
+    section_header_shstr->sh_size = strbuf_size;
+    section_header_shstr->sh_link = 0;
+    section_header_shstr->sh_info = 0;
+    section_header_shstr->sh_addralign = 0;
+    section_header_shstr->sh_entsize = 0;
+
+    int fd = open(filename, O_CREAT | O_WRONLY, 0644);
+    write(fd, allocator->memory, allocator->used);
+    close(fd);
+}
+
+/*
+enum elf_section_header_flags
+{
+    ELF_SHF_WRITE     = 0x1, // The section contains the data that should be writable during process execution
+    ELF_SHF_ALLOC     = 0x2, // The section occupies memory during process execution
+    ELF_SHF_EXECINSTR = 0x4, // The section contains executable machine instructions
+    ELF_SHF_MASKPROC  = 0xf0000000, // All bits included in this mask are reserved for processor-specific semantics
+};
+*/
+//
+// The two members of the section header, 'sh_link' and 'sh_info' hold special information
+// depending on section type:
+//
+// if sh_type == ELF_SHT_DYNAMIC
+//    sh_link = The section header index of the string table used by entries in the section.
+//    sh_info = 0;
+//
+// if sh_type == ELF_SHT_HASH
+//    sh_link = The section header index of the symbol table to which the hash table applies.
+//    sh_info = 0;
+//
+// if sh_type == ELF_SHT_REL || sh_type == ELF_SHT_RELA
+//    sh_link = The section header index of the associated symbol table.
+//    sh_info = The section header index of the section to which the relocation applies.
+// 
+// if sh_type == ELF_SHT_SYMTAB || sh_type == ELF_SHT_DYNSYM
+//    sh_link = The section header index of the associated string table.
+//    sh_info = One greater than the symbol table index of the last local symbol (binding STB_LOCAL)
+//
+// else
+//    sh_link = ELF_SHN_UNDEF
+//    sh_info = 0
+//
+    // struct elf_section_header section_header_text;
+    
 

@@ -456,10 +456,10 @@ struct pinapl_instruction
     {
         enum pinapl_arm_instruction arm;
     };
-    struct pinapl_arm_instruction_operand dst;
-    struct pinapl_arm_instruction_operand src1;
-    struct pinapl_arm_instruction_operand src2;
-    struct pinapl_arm_instruction_operand src3;
+    struct pinapl_arm_instruction_operand op1;
+    struct pinapl_arm_instruction_operand op2;
+    struct pinapl_arm_instruction_operand op3;
+    struct pinapl_arm_instruction_operand op4;
 };
 
 struct pinapl_instruction_stream
@@ -514,6 +514,7 @@ void pinapl_arm_print_instruction_stream(struct pinapl_instruction_stream *strea
 void pinapl_arm_print_entry_point(void);
 
 // @todo: ELF builder
+void pinapl_arm_dump_elf(char const *filename, struct pinapl_instruction_stream *stream, struct allocator *allocator);
 
 #endif // PARSER_H
 

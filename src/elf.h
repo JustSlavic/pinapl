@@ -4,6 +4,11 @@
 #include <base.h>
 
 
+#define ELFMAG0 0x7f
+#define ELFMAG1 'E'
+#define ELFMAG2 'L'
+#define ELFMAG3 'F'
+
 enum elf_ident_index
 {
     ELF_IDENT_MAGIC0  = 0,
@@ -13,8 +18,40 @@ enum elf_ident_index
     ELF_IDENT_CLASS   = 4,
     ELF_IDENT_DATA    = 5,
     ELF_IDENT_VERSION = 6,
-    ELF_IDENT_PAD     = 7,
+    ELF_IDENT_OSABI   = 7,
+    ELF_IDENT_ABIVERSION = 8,
+    ELF_IDENT_PAD     = 9,
     ELF_IDENT_SIZE    = 16,
+};
+
+enum elf_class
+{
+    ELF_CLASS_NONE = 0,
+    ELF_CLASS_32   = 1, // 32-bit objects
+    ELF_CLASS_64   = 2, // 64-bit objects
+};
+
+enum elf_data_encoding
+{
+    ELF_DATA_NONE = 0,
+    ELF_DATA_2LSB = 1, // Little-endian encoding
+    ELF_DATA_2MSB = 2, // Big-endian encoding
+};
+
+enum elf_os_abi
+{
+    ELF_OS_ABI_NONE    = 0,  // Invalid ELF data format
+    ELF_OS_ABI_SYSV    = 0,  // Unix System V
+    ELF_OS_ABI_HPUX    = 1,  // HP-UX
+    ELF_OS_ABI_NETBSD  = 2,  // NetBSD
+    ELF_OS_ABI_LINUX   = 3,  // Linux with GNU extensions
+    ELF_OS_ABI_SOLARIS = 6,  // Solaris
+    ELF_OS_ABI_AIX     = 7,  // AIX
+    ELF_OS_ABI_IRIX    = 8,  // SGI Irix
+    ELF_OS_ABI_FREEBSD = 9,  // FreeBSD
+    ELF_OS_ABI_TRU64   = 10, // Compaq TRU64 UNIX
+    ELF_OS_ABI_MODESTO = 11, // Novel Modesto
+    ELF_OS_ABI_OPENBSD = 12, // OpenBSD
 };
 
 struct elf_header
@@ -35,20 +72,6 @@ struct elf_header
     uint16 e_shstrndx;   // Section name string table entry index in the section header table
 };
 
-enum elf_class
-{
-    ELF_CLASS_NONE = 0,
-    ELF_CLASS_32   = 1, // 32-bit objects
-    ELF_CLASS_64   = 2, // 64-bit objects
-};
-
-enum elf_data_encoding
-{
-    ELF_DATA_NONE = 0,
-    ELF_DATA_2LSB = 1, // Little-endian encoding
-    ELF_DATA_2MSB = 2, // Big-endian encoding
-};
-
 enum elf_type
 {
     ET_NONE = 0, // No file type
@@ -64,20 +87,107 @@ enum elf_type
 
 enum elf_machine
 {
-    EM_NONE  = 0, // No machine
-    EM_M32   = 1, // AT&T WE 32100
-    EM_SPARC = 2, // SPARC
-    EM_386   = 3, // Intel 80386
-    EM_68K   = 4, // Motorola 68000
-    EM_88K   = 5, // Motorola 88000
-    EM_860   = 7, // Intel 80860
-    EM_MIPS  = 8, // MIPS RS3000
+    EM_NONE         = 0, // No machine
+    EM_M32          = 1, // AT&T WE 32100
+    EM_SPARC        = 2, // SPARC
+    EM_386          = 3, // Intel 80386
+    EM_68K          = 4, // Motorola 68000
+    EM_88K          = 5, // Motorola 88000
+
+    EM_860          = 7, // Intel 80860
+    EM_MIPS         = 8, // MIPS RS3000 (big-endian only)
+    EM_S370         = 9,
+    EM_MIPS_RS3_LE  = 10,
+
+    EM_PARISC       = 15, // HP/PA
+
+    EM_VPP500       = 17,
+    EM_SPARC32PLUS  = 18, // SPARC with enhanced instruction set
+    EM_960          = 19, 
+    EM_PPC          = 20, // PowerPC
+    EM_PPC64        = 21, // PowerPC 64-bit
+    EM_S390         = 22, // IBM S/390
+
+    EM_V800         = 36,
+    EM_FR20         = 37,
+    EM_RH32         = 38,
+    EM_RCE          = 39,
+    EM_ARM          = 40, // Advanced RISC Machine
+    EM_FAKE_ALPHA   = 41,
+    EM_SH           = 42, // Renesas SuperH
+    EM_SPARCV9      = 43, // SPARC v9 64-bit
+    EM_TRICORE      = 44,
+    EM_ARC          = 45,
+    EM_H8_300       = 46,
+    EM_H8_300H      = 47,
+    EM_H8S          = 48,
+    EM_H8_500       = 49,
+    EM_IA_64        = 50, // Intel Itanium
+    EM_MIPS_X       = 51,
+    EM_COLDFIRE     = 52,
+    EM_68HC12       = 53,
+    EM_MMA          = 54,
+    EM_PCP          = 55,
+    EM_NCPU         = 56,
+    EM_NDR1         = 57,
+    EM_STARCORE     = 58,
+    EM_ME16         = 59,
+    EM_ST100        = 60,
+    EM_TINYJ        = 61,
+    EM_X86_64       = 62, // AMD x86-64
+    EM_PDSP         = 63,
+    EM_FX66         = 66,
+    EM_ST9PLUS      = 67,
+    EM_ST7          = 68,
+    EM_68HC16       = 69,
+    EM_68HC11       = 70,
+    EM_68HC08       = 71,
+    EM_68HC05       = 72,
+    EM_SVX          = 73,
+    EM_ST19         = 74,
+    EM_VAX          = 75, // DEC Vax
+    EM_CRIS         = 76,
+    EM_JAVELIN      = 77,
+    EM_FREEPATH     = 78,
+    EM_ZSP          = 79,
+    EM_MMIX         = 80,
+    EM_HUANY        = 81,
+    EM_PRISM        = 82,
+    EM_AVR          = 83,
+    EM_FR30         = 84,
+    EM_D10V         = 85,
+    EM_D30V         = 86,
+    EM_V850         = 87,
+    EM_M32R         = 88,
+    EM_MN10300      = 89,
+    EM_MN10200      = 90,
+    EM_PJ           = 91,
+    EM_OPENRISC     = 92,
+    EM_ARC_A5       = 93,
+    EM_XTENSA       = 94,
+
+    EM_AARCH64      = 183,
+
+    EM_TILEPRO      = 188,
+    EM_MICROBLAZE   = 189,
+
+    EM_TILEGX = 191,
 };
 
 enum elf_version
 {
     EV_NONE    = 0, // Invalid version
     EV_CURRENT = 1, // Current version (will change to reflect the current version number?)
+};
+
+enum elf_arm_flags
+{
+    EF_ARM_ABI_VERSION_MASK = 0xff000000,
+    EF_ARM_ABI_CURRENT_VERSION = 0x05000000,
+    EF_ARM_BE8 = 0x00800000, // The ELF file contains BE-8 code, suitable for execution on an Arm Architecture v6 processor. This flag must only be set on an executable file.
+    EF_ARM_GCCMASK = 0x00400FFF, // Legacy code (ABI version 4 and earlier) generated by gcc-arm-xxx might use these bits.
+    EF_ARM_ABI_FLOAT_HARD = 0x00000400, // Set in executable file headers (e_type = ET_EXEC or ET_DYN) to note that the executable file was built to conform to the hardware floating-point procedure-call standard.
+    EF_ARM_ABI_FLOAT_SOFT = 0x00000200, // Set in the file headers (e_type = ET_EXEC or ET_DYN) to note explicitly that the executable file was built to conform to the software floating-point porcedure-call standard (the base standard). If both EF_ARM_ABI_FLOAT_XXXX bits are clear, conformance to the base procedure-call standard is implied.
 };
 
 struct elf_section_header
@@ -271,6 +381,18 @@ enum elf_program_type
     // Reserved for processor-specific semantics.
     ELF_PT_LOPROC = 0x70000000,
     ELF_PT_HIPROC = 0x7fffffff,
+};
+
+enum elf_program_header_flags
+{
+    ELF_PF_X = 0x1,
+    ELF_PF_W = 0x2,
+    ELF_PF_R = 0x4,
+    
+    // Reserved for operating system-specific semantics.
+    ELF_PF_MASKOS = 0x0ff00000,
+    // Reserved for processor-specific semantics.
+    ELF_PF_MASKPROC = 0xf0000000,
 };
 
 void elf_load(void *memory, usize size);

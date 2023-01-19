@@ -248,9 +248,16 @@ int main(int argc, char **argv, char **env)
         initialize_memory_arena(&err_allocator, memory_for_err, memory_for_err_size);
     }
 
+    struct allocator elf_allocator;
+    {
+        usize memory_for_elf_allocator_size = MEGABYTES(1);
+        void *memory_for_elf_allocator = ALLOCATE_BUFFER_(&arenas, memory_for_elf_allocator_size);
+        initialize_memory_arena(&elf_allocator, memory_for_elf_allocator, memory_for_elf_allocator_size);
+    }
+
     char const *filename = argv[1];
 
-    int fd = open(filename, 0, O_RDONLY);
+    int fd = open(filename, O_RDONLY, 0);
     if (fd <= 0)
     {
         print("Error < 0\n");
@@ -327,6 +334,8 @@ int main(int argc, char **argv, char **env)
             pinapl_arm_push_i(&stream, ARM_SVC, 0x0);
 
             pinapl_arm_print_instruction_stream(&stream);
+
+            pinapl_arm_dump_elf("a.out", &stream, &elf_allocator);
         }
         else
         {

@@ -92,7 +92,26 @@ void elf_load(void *memory, usize size)
             printf("  p_paddr = 0x%x\n", ph.p_paddr);
             printf("  p_filesz = %d\n", ph.p_filesz);
             printf("  p_memsz = %d\n", ph.p_memsz);
-            printf("  p_flags = 0x%x\n", ph.p_flags);
+            printf("  p_flags = %d: ", ph.p_flags);
+            if (ph.p_flags == 0) printf("0;\n");
+            b32 printed = false;
+            if (ph.p_flags & ELF_PF_X)
+            {
+                printf("PH_X");
+                printed = true;
+            }
+            if (ph.p_flags & ELF_PF_W)
+            {
+                if (printed) printf(" | ");
+                printf("PH_W");
+                printed = true;
+            }
+            if (ph.p_flags & ELF_PF_R)
+            {
+                if (printed) printf(" | ");
+                printf("PH_R");
+            }
+            printf("\n");
             printf("  p_align = %d\n", ph.p_align);
             printf("\n");
         }
@@ -173,13 +192,13 @@ void elf_load(void *memory, usize size)
             }
             else if ((sh.sh_type == ELF_SHT_REL) || (sh.sh_type == ELF_SHT_RELA))
             {
-                printf("  sh_link = %d - The section header index of the associated symbol table.\n");
-                printf("  sh_info = %d - The header index of the section to which the relocation applies.\n");
+                printf("  sh_link = %d - The section header index of the associated symbol table.\n", sh.sh_link);
+                printf("  sh_info = %d - The header index of the section to which the relocation applies.\n", sh.sh_info);
             }
             else if ((sh.sh_type == ELF_SHT_SYMTAB) || (sh.sh_type == ELF_SHT_DYNSYM))
             {
-                printf("  sh_link = %d - The section header index of the associated string table.\n");
-                printf("  sh_info = %d - One greater than the symbol table index of the last local sumbol (binding STB_LOCAL).\n");
+                printf("  sh_link = %d - The section header index of the associated string table.\n", sh.sh_link);
+                printf("  sh_info = %d - One greater than the symbol table index of the last local sumbol (binding STB_LOCAL).\n", sh.sh_info);
             }
             else
             {
@@ -214,7 +233,8 @@ void elf_load(void *memory, usize size)
                     return;
                 }
             }
-
+            printf("%s\n", is_text_section ? ".text" : "");
+#if 1
             uint8 *bytes = (uint8 *) memory + sh.sh_offset;
 
             if (is_text_section)
@@ -267,7 +287,8 @@ void elf_load(void *memory, usize size)
 
                         if (byte_word_bit == 0) printf("transfer word; ");
                             else                printf("transfer byte; ");
-
+                        if (write_back_bit == 0) printf("no write back; ");
+                            else                 printf("write address into base; ");
 
                     }
                     else if ((word & 0x0f000000) == 0x0f000000)
@@ -297,7 +318,7 @@ void elf_load(void *memory, usize size)
                         uint32 set_cond = (word & 0x00100000) > 0;
                         uint32 rn = (word & 0x000f0000) >> 16;
                         uint32 rd = (word & 0x0000f000) >> 12;
-                        uint32 op2 = (word & 0x00000fff);
+                        // uint32 op2 = (word & 0x00000fff);
 
                         switch (opcode)
                         {
@@ -380,6 +401,7 @@ void elf_load(void *memory, usize size)
                 }
             }
             printf("\n");
+#endif
         }
     }
 }
