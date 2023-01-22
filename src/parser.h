@@ -494,6 +494,10 @@ void pinapl_arm_push_ri   (struct pinapl_instruction_stream *stream,
                            enum pinapl_arm_instruction instruction,
                            enum pinapl_arm_register dst,
                            int immediate_value);
+void pinapl_arm_push_rr   (struct pinapl_instruction_stream *stream,
+                           enum pinapl_arm_instruction instruction,
+                           enum pinapl_arm_register dst,
+                           enum pinapl_arm_register src);
 void pinapl_arm_push_rd   (struct pinapl_instruction_stream *stream,
                            enum pinapl_arm_instruction instruction,
                            enum pinapl_arm_register dst,

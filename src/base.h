@@ -13,6 +13,8 @@
 #endif
 #define ARRAY_COUNT(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
 
+#define SET_ZERO(x) memset(&x, 0, sizeof(x))
+
 #define ALWAYS_INLINE __attribute__((always_inline))
 #define INLINE __inline__
 

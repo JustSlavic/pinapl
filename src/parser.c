@@ -1216,7 +1216,7 @@ struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast
             struct flatten_result ret_expr = pinapl_flatten_ast(stage, node->return_statement.expression);
 
             struct pinapl_tac code;
-            code.type = TAC_RET;
+            code.type = TAC_MOV;
             code.dst  = 0;
             UNUSED(code.rhs);
 
@@ -1239,9 +1239,15 @@ struct flatten_result pinapl_flatten_ast(struct pinapl_flatten_stage *stage, ast
             {
                 ASSERT_FAIL();
             }
+                
+            pinapl_push_tac(stage, code);
+
+            struct pinapl_tac ret_code;
+            ret_code.type = TAC_RET;
+            ret_code.dst = 0;
 
             result.type = FLATTEN_RESULT_INSTRUCTION;
-            result.instruction = pinapl_push_tac(stage, code);
+            result.instruction = pinapl_push_tac(stage, ret_code);
         }
         break;
 
@@ -1451,18 +1457,21 @@ struct pinapl_liveness_table pinapl_make_liveness_table(struct allocator *alloca
     
     int *row = liveness.table + liveness.table_width * (liveness.table_length - 1);
     int code_index = flatten->code_count;
+    int index_to_set_0 = 0;
     while (code_index-->1)
     {
         int *next_row = row;
         row -= liveness.table_width;
         memcpy(row, next_row, sizeof(int) * liveness.table_width); 
+        row[index_to_set_0] = 0;
 
         struct pinapl_tac code = flatten->codes[code_index];
         
         // dst
         if ((code.type & TAC_LABEL) == 0) // NOT A LABEL
         {
-            row[code.dst] = 0;
+            row[code.dst] = 1;
+            index_to_set_0 = code.dst;
         }
         // lhs
         if (code.type & TAC_LHS_REG)
@@ -1473,7 +1482,7 @@ struct pinapl_liveness_table pinapl_make_liveness_table(struct allocator *alloca
         if (code.type & TAC_RHS_REG)
         {
            row[code.rhs] = 1; 
-        } 
+        }
     }
 
     return liveness;
@@ -1481,9 +1490,10 @@ struct pinapl_liveness_table pinapl_make_liveness_table(struct allocator *alloca
 
 void pinapl_print_liveness_table(struct pinapl_liveness_table *table)
 {
-    for (int row = 0; row < table->table_length; row++)
+    for (int row = 0; row < table->table_length; row++) // code count
     {
-        for (int column = 0; column < table->table_width; column++)
+        print("code %d: \n", row);
+        for (int column = 0; column < table->table_width; column++) // var count
         {
             int live = table->table[column + row * table->table_width];
             print("%d ", live);
@@ -1643,6 +1653,7 @@ pinapl_arm_print_instruction_operand(struct pinapl_arm_instruction_operand op)
             break;
 
         case ARM_OPERAND_NONE:
+            print("_");
             break;
 
         default:
@@ -1678,6 +1689,7 @@ pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
             print("    [UNKNOWN INSTRUCTION]");
     }
 
+    b32 printed = false;
     if (instruction->op1.type != ARM_OPERAND_NONE)
     {
         if (instruction->arm == ARM_GLOBAL)
@@ -1690,28 +1702,34 @@ pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
             (instruction->op1.value != instruction->op2.value))
         {
             pinapl_arm_print_instruction_operand(instruction->op1);
+            printed = true;
         }
 
         if (instruction->arm == ARM_LABEL)
         {
             print(":");
         }
+    }
 
-        if (instruction->op2.type != ARM_OPERAND_NONE)
-        {
-            print(", ");
-            pinapl_arm_print_instruction_operand(instruction->op2);
-            if (instruction->op3.type != ARM_OPERAND_NONE)
-            {
-                print(", ");
-                pinapl_arm_print_instruction_operand(instruction->op3);
-                if (instruction->op4.type != ARM_OPERAND_NONE)
-                {
-                    print(", ");
-                    pinapl_arm_print_instruction_operand(instruction->op4);
-                }
-            }
-        }
+    if (instruction->op2.type != ARM_OPERAND_NONE)
+    {
+        if (printed) print(", ");
+        pinapl_arm_print_instruction_operand(instruction->op2);
+        printed = true;
+    }
+
+    if (instruction->op3.type != ARM_OPERAND_NONE)
+    {
+        if (printed) print(", ");
+        pinapl_arm_print_instruction_operand(instruction->op3);
+        printed = true;
+    }
+
+    if (instruction->op4.type != ARM_OPERAND_NONE)
+    {
+        if (printed) print(", ");
+        pinapl_arm_print_instruction_operand(instruction->op4);
+        printed = true;
     }
     
     print("\n");
@@ -1779,11 +1797,9 @@ void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_s
         }
         else if (code.type & TAC_RET)
         {
-            instruction.arm = ARM_BX;
-            instruction.op1.type = ARM_OPERAND_REGISTER;
-            instruction.op2.value = ARM_LR;
-
-            pinapl_arm_push_instruction(stream, instruction);
+            if (graph->colors[code.lhs] != ARM_R0)
+                pinapl_arm_push_rr(stream, ARM_MOV, ARM_R0, graph->colors[code.lhs]);
+            pinapl_arm_push_r(stream, ARM_BX, ARM_LR);
             continue;
         }
         else
@@ -1822,6 +1838,13 @@ void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_s
         {
             instruction.op3.type = ARM_OPERAND_IMMEDIATE_VALUE;
             instruction.op3.value = code.rhs;
+        }
+
+        // Patch mov instruction
+        if (instruction.arm == ARM_MOV) 
+        {
+            instruction.op3 = instruction.op2;
+            SET_ZERO(instruction.op2);
         }
 
         pinapl_arm_push_instruction(stream, instruction);
@@ -1886,6 +1909,21 @@ void pinapl_arm_push_ri(struct pinapl_instruction_stream *stream,
     instruction.op1.value = dst;
     instruction.op2.type = ARM_OPERAND_IMMEDIATE_VALUE;
     instruction.op2.value = immediate_value;
+
+    pinapl_arm_push_instruction(stream, instruction);
+}
+
+void pinapl_arm_push_rr   (struct pinapl_instruction_stream *stream,
+                           enum pinapl_arm_instruction arm_instruction,
+                           enum pinapl_arm_register dst,
+                           enum pinapl_arm_register src)
+{
+    struct pinapl_instruction instruction = {0};
+    instruction.arm = arm_instruction;
+    instruction.op1.type = ARM_OPERAND_REGISTER;
+    instruction.op1.value = dst;
+    instruction.op2.type = ARM_OPERAND_REGISTER;
+    instruction.op2.value = src;
 
     pinapl_arm_push_instruction(stream, instruction);
 }
@@ -1968,6 +2006,37 @@ void pinapl_arm_push_global(struct pinapl_instruction_stream *stream,
 
 }
 
+uint32 pinapl_arm_data_processing_instruction_to_binary(struct pinapl_instruction *instruction, uint32 opcode)
+{
+    uint32 binary = 0;
+
+    b32 immediate_operand = (instruction->op3.type == ARM_OPERAND_IMMEDIATE_VALUE);
+    b32 set_condition_codes = false;
+
+    binary |= (immediate_operand << 25); 
+    binary |= (opcode << 21);
+    binary |= (set_condition_codes << 20);
+    binary |= (instruction->op2.value << 16);
+    binary |= (instruction->op1.value << 12);
+
+    if (immediate_operand)
+    {
+        uint32 rot = 0;
+        uint32 imm = instruction->op3.value;
+        binary |= ((rot & 0xf) << 8);
+        binary |= (imm & 0xff);
+    }
+    else
+    {
+        uint32 shift = 0;
+        uint32 rm = instruction->op3.value;
+        binary |= ((shift & 0xff) << 4);
+        binary |= (rm & 0xf);
+    }
+
+    return binary;
+}
+
 uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction *instruction)
 {
     uint32 binary = 0;
@@ -1981,54 +2050,102 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction *instruction)
         case ARM_LABEL:
         case ARM_SECTION:
         case ARM_GLOBAL:
+        break;
+
         case ARM_NOP:
+        break;
+
         case ARM_MOV:
         case ARM_MOVS:
-            break;
+        {
+            u32 opcode = 0xd;
+            binary = condition | pinapl_arm_data_processing_instruction_to_binary(instruction, opcode);
+        }
+        break;
 
         case ARM_ADD:
         {
             u32 opcode = 0x4;
-            b32 immediate_operand = (instruction->op3.type == ARM_OPERAND_IMMEDIATE_VALUE);
-            b32 set_condition_codes = false;
-
-            binary = condition;
-            binary |= (immediate_operand << 25); 
-            binary |= (opcode << 21);
-            binary |= (set_condition_codes << 20);
-            binary |= (instruction->op2.value << 16);
-            binary |= (instruction->op1.value << 12);
-
-            if (immediate_operand)
-            {
-                uint32 rot = 0;
-                uint32 imm = instruction->op3.value;
-                binary |= ((rot & 0xf) << 8);
-                binary |= (imm & 0xff);
-            }
-            else
-            {
-                uint32 shift = 0;
-                uint32 rm = instruction->op3.value;
-                binary |= ((shift & 0xff) << 4);
-                binary |= (rm & 0xf);
-            }
-
-            int x = 0;
-            UNUSED(x);
+            binary = condition | pinapl_arm_data_processing_instruction_to_binary(instruction, opcode);
         }
         break;
 
         case ARM_SUB:
+        {
+            u32 opcode = 0x2;
+            binary = condition | pinapl_arm_data_processing_instruction_to_binary(instruction, opcode);
+        }
+        break;
+
         case ARM_MUL:
+        case ARM_MLA:
+        {
+            //
+            // Rd := Rm * Rs + Rn
+            //
+
+            b32 accumulate = (instruction->arm == ARM_MLA);
+            b32 set_condition_code = 0;
+            
+            binary |= condition;
+            binary |= (accumulate << 21);
+            binary |= (set_condition_code << 20);
+            binary |= (instruction->op1.value << 16); // Rd - destination register
+            binary |= (instruction->op4.value << 12); // Rn - Operand register
+            binary |= (instruction->op3.value << 8);  // Rs - Operand register
+            binary |= (0x9 << 4);
+            binary |= (instruction->op2.value);       // Rm - Operand register
+        }
+        break;
+        
         case ARM_DIV:
+        {
+        }
+        break;
+
         case ARM_B:
-        case ARM_BX:
         case ARM_BL:
+        {
+            b32 link_bit = (instruction->arm == ARM_BL);
+            uint32 offset = instruction->op1.value;
+
+            binary |= condition;
+            binary |= (0x5 << 25);
+            binary |= (link_bit << 24);
+            binary |= offset;
+        }
+        break;
+
+        case ARM_BX:
+        {
+            binary = condition;
+            binary |= (0x12fff1 << 4);
+            binary |= (instruction->op1.value);
+        }
+        break;
+        
         case ARM_LDR:
         case ARM_STR:
-        case ARM_MLA:
-            break;
+        {
+            b32 is_load = (instruction->arm == ARM_LDR);
+            b32 immediate_offset = true;
+            b32 pre_indexing_bit = 0;
+            b32 up_bit = 0;
+            b32 byte_bit = 0;
+            b32 write_back_bit = 0;
+            
+            binary = condition;
+            binary |= (0x1 << 26);
+            binary |= (immediate_offset << 25);
+            binary |= (pre_indexing_bit << 24);
+            binary |= (up_bit << 23);
+            binary |= (byte_bit << 22);
+            binary |= (write_back_bit << 21);
+            binary |= (is_load << 20);
+            binary |= (instruction->op2.value << 16);
+            binary |= (instruction->op1.value << 12);
+        }
+        break;
 
         case ARM_SVC:
         {
@@ -2084,7 +2201,11 @@ void pinapl_arm_dump_elf(char const *filename, struct pinapl_instruction_stream 
 
     for (int instruction_index = 0; instruction_index < stream->instruction_count; instruction_index++)
     {
-        uint32 binary = pinapl_arm_instruction_to_binary(stream->instructions + instruction_index);
+        struct pinapl_instruction *instruction = stream->instructions + instruction_index;
+        if (instruction->arm == ARM_LABEL || instruction->arm == ARM_SECTION || instruction->arm == ARM_GLOBAL)
+            continue;
+
+        uint32 binary = pinapl_arm_instruction_to_binary(instruction);
         uint32 *code = ALLOCATE(allocator, uint32);
         *code = binary;
     }

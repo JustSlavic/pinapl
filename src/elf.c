@@ -261,7 +261,9 @@ void elf_load(void *memory, usize size)
                     else if (((word & 0x0f000000) == 0x0a000000) || ((word & 0x0f000000) == 0x0b000000))
                     {
                         b32 with_link = (word & 0x01000000) > 0;
-                        uint32 offset = (word & 0x00ffffff);
+                        int32 offset_base = (word & 0x007fffff);
+                        int32 offset_sign = (word & 0x00800000) << 8;
+                        int32 offset = (offset_sign >> 8) | offset_base;
                         if (with_link) printf("  BL "); else printf("  B ");
                         printf(" #%d", offset);
                     }
