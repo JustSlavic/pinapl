@@ -1753,6 +1753,10 @@ struct pinapl_instruction_stream pinapl_make_instruction_stream(struct allocator
     stream.instruction_capacity = 100;
     stream.instructions = ALLOCATE(allocator, stream.instruction_capacity * sizeof(struct pinapl_instruction));
 
+    memset(stream.labels, 0, sizeof(stream.labels));
+    memset(stream.label_instruction_index, 0, sizeof(stream.label_instruction_index));
+    stream.label_count = 0;
+
     return stream;
 }
 
@@ -2037,10 +2041,10 @@ uint32 pinapl_arm_data_processing_instruction_to_binary(struct pinapl_instructio
     return binary;
 }
 
-uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction *instruction)
+uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream, int instruction_index_, struct pinapl_instruction *instruction)
 {
     uint32 binary = 0;
-    uint32 condition = 0;
+    uint32 condition = 0xe0000000;
 
     switch (instruction->arm)
     {
@@ -2107,12 +2111,23 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction *instruction)
         case ARM_BL:
         {
             b32 link_bit = (instruction->arm == ARM_BL);
-            uint32 offset = instruction->op1.value;
+
+            int32 instruction_index = 0;
+            for (int idx = 0; idx < stream->label_count; idx++)
+            {
+                if (stream->labels[idx].id == instruction->op1.label.id)
+                {
+                    instruction_index = idx;
+                    break;
+                }
+            }
+#define ARM_PC_PREFETCH_COUNT 2
+            int32 offset = instruction_index - instruction_index_ - ARM_PC_PREFETCH_COUNT;
 
             binary |= condition;
             binary |= (0x5 << 25);
             binary |= (link_bit << 24);
-            binary |= offset;
+            binary |= (0x00ffffff & offset);
         }
         break;
 
@@ -2160,7 +2175,9 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction *instruction)
     return binary;
 }
 
-void pinapl_arm_dump_elf(char const *filename, struct pinapl_instruction_stream *stream, struct allocator *allocator)
+void pinapl_arm_dump_elf(char const *filename,
+                         struct pinapl_instruction_stream *stream,
+                         struct allocator *allocator)
 {
     struct elf_header *header = ALLOCATE(allocator, struct elf_header);
     
@@ -2176,7 +2193,7 @@ void pinapl_arm_dump_elf(char const *filename, struct pinapl_instruction_stream 
     header->e_type = ET_EXEC;
     header->e_machine = EM_ARM;
     header->e_version = EV_CURRENT;
-    header->e_entry = 1234567890;
+    header->e_entry = 0;
     header->e_phoff = sizeof(struct elf_header);
     header->e_shoff = 0;
     header->e_flags = EF_ARM_ABI_CURRENT_VERSION | EF_ARM_ABI_FLOAT_SOFT;
@@ -2199,23 +2216,42 @@ void pinapl_arm_dump_elf(char const *filename, struct pinapl_instruction_stream 
 
     usize code_offset = allocator->used;
 
+    uint32 instructions_pushed = 0;
     for (int instruction_index = 0; instruction_index < stream->instruction_count; instruction_index++)
     {
         struct pinapl_instruction *instruction = stream->instructions + instruction_index;
-        if (instruction->arm == ARM_LABEL || instruction->arm == ARM_SECTION || instruction->arm == ARM_GLOBAL)
-            continue;
 
-        uint32 binary = pinapl_arm_instruction_to_binary(instruction);
+        if (instruction->arm == ARM_LABEL)
+        {
+            if (instruction->op1.label.id == STRID("_start").id)
+            {
+                header->e_entry = program_header->p_vaddr + allocator->used;
+            }
+
+            stream->labels[stream->label_count] = instruction->op1.label;
+            stream->label_instruction_index[stream->label_count] = instructions_pushed;
+            stream->label_count += 1;
+
+            continue;
+        }
+
+        if (instruction->arm == ARM_SECTION || instruction->arm == ARM_GLOBAL)
+        {
+            continue;
+        }
+
+        uint32 binary = pinapl_arm_instruction_to_binary(stream, instructions_pushed, instruction);
         uint32 *code = ALLOCATE(allocator, uint32);
         *code = binary;
+        instructions_pushed += 1;
     }
 
     usize code_size = allocator->used - code_offset;
 
-    usize strbuf_offset = allocator->used;
-    usize strbuf_size = 7;
-
     char buffer[] = "\0.text\0.shstrtab\0";
+    usize strbuf_size = sizeof(buffer);
+    usize strbuf_offset = allocator->used;
+
     char *string_buffer = ALLOCATE_BUFFER(allocator, sizeof(buffer));
     memcpy(string_buffer, buffer, sizeof(buffer));
 
@@ -2252,7 +2288,7 @@ void pinapl_arm_dump_elf(char const *filename, struct pinapl_instruction_stream 
     section_header_shstr->sh_addralign = 0;
     section_header_shstr->sh_entsize = 0;
 
-    int fd = open(filename, O_CREAT | O_WRONLY, 0644);
+    int fd = open(filename, O_CREAT | O_WRONLY, 0755);
     write(fd, allocator->memory, allocator->used);
     close(fd);
 }

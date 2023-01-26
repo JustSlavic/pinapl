@@ -468,6 +468,13 @@ struct pinapl_instruction_stream
     struct pinapl_instruction *instructions;
     usize instruction_count;
     usize instruction_capacity;
+
+    // @todo: hash table with string_id as an index/hash value, and
+    // values correspond to the index of the instruction which the
+    // label is pointing to
+    struct string_id labels[32];
+    uint32 label_instruction_index[32];
+    uint32 label_count;
 };
 
 struct pinapl_instruction_stream pinapl_make_instruction_stream(struct allocator *allocator);
