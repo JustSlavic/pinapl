@@ -59,7 +59,7 @@ function compile_c
 # S_FILES=$(add_prefix_and_suffix "$S_SRC" "src/" ".s")
 O_FILES=$(add_prefix_and_suffix "$S_SRC $C_SRC" $BIN_DIR .o)
 
-rm compile_log.txt
+rm -f compile_log.txt
 exec 1> >(tee -a compile_log.txt) 2> >(tee -a compile_log.txt >&2)
 
 mkdir -p $BIN_DIR
