@@ -383,14 +383,17 @@ void pinapl_print_connectivity_graph(struct pinapl_connectivity_graph *graph);
 enum pinapl_arm_instruction
 {
     ARM_INVALID_INSTRUCTION,
-    
-    ARM_LABEL,
-    ARM_SECTION,
-    ARM_GLOBAL,
 
-    ARM_NOP,
+    ARM_INSTRUCTION_MASK = 0x00ffffff,
+    ARM_SUFFIX_MASK      = 0x7f000000,
+    ARM_S  = 0x80000000,  // Set condition codes
+    
+    ARM_LABEL    = 0x1,
+    ARM_SECTION  = 0x2,
+    ARM_GLOBAL   = 0x3,
+
+    ARM_NOP      = 0x4,
     ARM_MOV,
-    ARM_MOVS,
     ARM_ADD,
     ARM_SUB,
     ARM_MUL,
@@ -402,6 +405,26 @@ enum pinapl_arm_instruction
     ARM_STR,
     ARM_MLA,
     ARM_SVC,
+
+    ARM_EQ = 0x01000000,  // Equal
+    ARM_NE = 0x02000000,  // Not equal
+    ARM_CS = 0x03000000,  // Carry set (identical to HS)
+    ARM_HS = 0x04000000,  // Unsigned higher or same (identical to CS)
+    ARM_CC = 0x05000000,  // Carry clear (identical to LO)
+    ARM_LO = 0x06000000,  // Unsigned lower (identical to CC)
+    ARM_MI = 0x07000000,  // Minus or negative result
+    ARM_PL = 0x08000000,  // Positive or zero result
+    ARM_VS = 0x09000000, // Overflow
+    ARM_VC = 0x0a000000, // No overflow
+    ARM_HI = 0x0b000000, // Unsigned higher
+    ARM_LS = 0x0c000000, // Unsigned lower or same
+    ARM_GE = 0x0d000000, // Signed greater than or equal
+    ARM_LT = 0x0e000000, // Signed less than
+    ARM_GT = 0x0f000000, // Signed greater than
+    ARM_LE = 0x10000000, // Signed less than or equal
+    ARM_AL = 0x11000000, // Always (this is the default)
+
+    ARM_MOVS = ARM_MOV | ARM_S,
 };
 
 enum pinapl_arm_instruction_operand_type
@@ -449,13 +472,14 @@ struct pinapl_arm_instruction_operand
     };
 };
 
+
 // @todo: reduce the size of the intruction by implementing the variable size entry contiguous array/allocator
 struct pinapl_instruction
 {
-    union
-    {
-        enum pinapl_arm_instruction arm;
-    };
+    // 1  bit  condition code
+    // 7  bits suffix
+    // 24 bits     
+    uint32 arm;
     struct pinapl_arm_instruction_operand op1;
     struct pinapl_arm_instruction_operand op2;
     struct pinapl_arm_instruction_operand op3;
@@ -492,7 +516,7 @@ void pinapl_arm_push_l    (struct pinapl_instruction_stream *stream,
                            enum pinapl_arm_instruction instruction,
                            struct string_id label);
 void pinapl_arm_push_r    (struct pinapl_instruction_stream *stream,
-                           enum pinapl_arm_instruction instruction,
+                           uint32 instruction,
                            enum pinapl_arm_register arg);
 void pinapl_arm_push_i    (struct pinapl_instruction_stream *stream,
                            enum pinapl_arm_instruction instruction,
@@ -502,20 +526,20 @@ void pinapl_arm_push_ri   (struct pinapl_instruction_stream *stream,
                            enum pinapl_arm_register dst,
                            int immediate_value);
 void pinapl_arm_push_rr   (struct pinapl_instruction_stream *stream,
-                           enum pinapl_arm_instruction instruction,
+                           uint32 instruction,
                            enum pinapl_arm_register dst,
                            enum pinapl_arm_register src);
 void pinapl_arm_push_rd   (struct pinapl_instruction_stream *stream,
-                           enum pinapl_arm_instruction instruction,
+                           uint32 instruction,
                            enum pinapl_arm_register dst,
                            enum pinapl_arm_register lhs);
 void pinapl_arm_push_rri  (struct pinapl_instruction_stream *stream,
-                           enum pinapl_arm_instruction instruction,
+                           uint32 instruction,
                            enum pinapl_arm_register dst,
                            enum pinapl_arm_register lhs,
                            int immediate_value);
 void pinapl_arm_push_rrrr (struct pinapl_instruction_stream *stream,
-                           enum pinapl_arm_instruction instruction,
+                           uint32 instruction,
                            enum pinapl_arm_register dst,
                            enum pinapl_arm_register s1,
                            enum pinapl_arm_register s2,
@@ -524,7 +548,6 @@ void pinapl_arm_push_rrrr (struct pinapl_instruction_stream *stream,
 void pinapl_arm_print_instruction_stream(struct pinapl_instruction_stream *stream);
 void pinapl_arm_print_entry_point(void);
 
-// @todo: ELF builder
 void pinapl_arm_dump_elf(char const *filename, struct pinapl_instruction_stream *stream, struct allocator *allocator);
 
 #endif // PARSER_H

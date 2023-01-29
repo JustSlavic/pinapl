@@ -1664,7 +1664,8 @@ pinapl_arm_print_instruction_operand(struct pinapl_arm_instruction_operand op)
 void
 pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
 {
-    switch (instruction->arm)
+    enum pinapl_arm_instruction instr = instruction->arm & ARM_INSTRUCTION_MASK;
+    switch (instr)
     {
         case ARM_LABEL:
         case ARM_SECTION:
@@ -1692,7 +1693,7 @@ pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
     b32 printed = false;
     if (instruction->op1.type != ARM_OPERAND_NONE)
     {
-        if (instruction->arm == ARM_GLOBAL)
+        if (instr == ARM_GLOBAL)
         {
             print(".global ");
         }
@@ -1705,7 +1706,7 @@ pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
             printed = true;
         }
 
-        if (instruction->arm == ARM_LABEL)
+        if (instr == ARM_LABEL)
         {
             print(":");
         }
@@ -1843,14 +1844,6 @@ void pinapl_arm_push_instructions_from_flatten_stage(struct pinapl_instruction_s
             instruction.op3.type = ARM_OPERAND_IMMEDIATE_VALUE;
             instruction.op3.value = code.rhs;
         }
-
-        // Patch mov instruction
-        if (instruction.arm == ARM_MOV) 
-        {
-            instruction.op3 = instruction.op2;
-            SET_ZERO(instruction.op2);
-        }
-
         pinapl_arm_push_instruction(stream, instruction);
     }
 }
@@ -2015,7 +2008,7 @@ uint32 pinapl_arm_data_processing_instruction_to_binary(struct pinapl_instructio
     uint32 binary = 0;
 
     b32 immediate_operand = (instruction->op3.type == ARM_OPERAND_IMMEDIATE_VALUE);
-    b32 set_condition_codes = false;
+    b32 set_condition_codes = instruction->arm & ARM_S;
 
     binary |= (immediate_operand << 25); 
     binary |= (opcode << 21);
@@ -2046,7 +2039,8 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
     uint32 binary = 0;
     uint32 condition = 0xe0000000;
 
-    switch (instruction->arm)
+    enum pinapl_arm_instruction instr = instruction->arm & ARM_INSTRUCTION_MASK;
+    switch (instr)
     {
         case ARM_INVALID_INSTRUCTION:
             break;
@@ -2060,8 +2054,11 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
         break;
 
         case ARM_MOV:
-        case ARM_MOVS:
         {
+            // Patch mov instruction
+            instruction->op3 = instruction->op2;
+            SET_ZERO(instruction->op2);
+
             u32 opcode = 0xd;
             binary = condition | pinapl_arm_data_processing_instruction_to_binary(instruction, opcode);
         }
@@ -2088,7 +2085,7 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
             // Rd := Rm * Rs + Rn
             //
 
-            b32 accumulate = (instruction->arm == ARM_MLA);
+            b32 accumulate = (instr == ARM_MLA);
             b32 set_condition_code = 0;
             
             binary |= condition;
@@ -2110,7 +2107,7 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
         case ARM_B:
         case ARM_BL:
         {
-            b32 link_bit = (instruction->arm == ARM_BL);
+            b32 link_bit = (instr == ARM_BL);
 
             int32 instruction_index = 0;
             for (int idx = 0; idx < stream->label_count; idx++)
@@ -2142,16 +2139,16 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
         case ARM_LDR:
         case ARM_STR:
         {
-            b32 is_load = (instruction->arm == ARM_LDR);
-            b32 immediate_offset = true;
-            b32 pre_indexing_bit = 0;
-            b32 up_bit = 0;
+            b32 is_load = (instr == ARM_LDR);
+            b32 offset_is_a_register = 0;
+            b32 pre_indexing_bit = 1;
+            b32 up_bit = 1;
             b32 byte_bit = 0;
             b32 write_back_bit = 0;
             
             binary = condition;
-            binary |= (0x1 << 26);
-            binary |= (immediate_offset << 25);
+            binary |= (1 << 26);
+            binary |= (offset_is_a_register << 25);
             binary |= (pre_indexing_bit << 24);
             binary |= (up_bit << 23);
             binary |= (byte_bit << 22);
@@ -2169,6 +2166,9 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
                 binary = condition | 0x0f000000 | (instruction->op1.value & 0x00ffffff);
             }
         }
+        break;
+
+        default:
         break;
     }
 
@@ -2235,7 +2235,8 @@ void pinapl_arm_dump_elf(char const *filename,
             continue;
         }
 
-        if (instruction->arm == ARM_SECTION || instruction->arm == ARM_GLOBAL)
+        if (instruction->arm == ARM_SECTION ||
+            instruction->arm == ARM_GLOBAL)
         {
             continue;
         }

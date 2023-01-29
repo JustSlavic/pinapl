@@ -318,8 +318,8 @@ int main(int argc, char **argv, char **env)
 
             struct pinapl_instruction_stream stream = pinapl_make_instruction_stream(&ast_allocator);
  
-            // pinapl_arm_push_section(&stream, STRID(".text"));
-            // pinapl_arm_push_global(&stream, STRID("_start"));
+            pinapl_arm_push_section(&stream, STRID(".text"));
+            pinapl_arm_push_global(&stream, STRID("_start"));
            
             #if 1
             pinapl_arm_push_instructions_from_flatten_stage(&stream, &flatten_stage, &graph);
