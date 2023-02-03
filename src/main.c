@@ -1,4 +1,9 @@
+#if CRT
+#include <fcntl.h>
+#include <unistd.h>
+#else
 #include <syscall.h>
+#endif
 #include <allocator.h>
 #include <print.h>
 #include <string.h>

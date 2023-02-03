@@ -1,5 +1,15 @@
 #include "memory.h"
+
+#if CRT 
+#include <sys/mman.h>
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS 0x20
+#define MAP_ANON MAP_ANONYMOUS
+#endif
+#define mmap2 mmap
+#else
 #include <syscall.h>
+#endif
 
 
 void *memset(void *destination, int value, usize count)
@@ -42,7 +52,7 @@ void *align_pointer(void *pointer, usize alignment)
 struct memory_block allocate_pages(usize size)
 {
     struct memory_block result;
-    result.memory = mmap2(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    result.memory = mmap2(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     result.size = size;
 
     return result; 
@@ -51,7 +61,7 @@ struct memory_block allocate_pages(usize size)
 struct memory_block allocate_pages_at(void *address, usize size)
 {
     struct memory_block result;
-    result.memory = mmap2(address, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    result.memory = mmap2(address, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     result.size = size;
 
     return result;
