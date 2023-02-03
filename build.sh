@@ -84,6 +84,7 @@ function compile_c
     OUTPUT_FILE=$2
     OPTIONS=$3
 
+    echo "$CC $SOURCE_FILE $OPTIONS -o $OUTPUT_FILE"
     $CC $SOURCE_FILE $OPTIONS -o $OUTPUT_FILE
     handle_errors
 }
@@ -113,7 +114,6 @@ if [ $build = true ]; then
             source_path=$(add_prefix_and_suffix $file src/ .s)
             object_path=$(add_prefix_and_suffix $file $BIN_DIR .o)
             if [ $rebuild = true ] || [ $source_path -nt $object_path ] || [ "build.sh" -nt $object_path ]; then
-                echo "Compiling $source_path..."
                 compile_assembly $source_path $object_path $DEBUG
             fi
         done
@@ -125,12 +125,12 @@ if [ $build = true ]; then
         object_path=$(add_prefix_and_suffix $file $BIN_DIR .o)
         if [ $rebuild = true ] || [ $source_path -nt $object_path ] || [ "build.sh" -nt $object_path ]
         then
-            echo "Compiling $source_path..."
             compile_c $source_path $object_path "-c $OPTIMIZATION $DEBUG $CRT $WARNINGS -std=$C_STD -Isrc/"
         fi
     done
 
-    echo "Linking $O_FILES"
+
+    echo "$LINKER $O_FILES -o $BIN_DIR$PROJECT"
     $LINKER $O_FILES -o $BIN_DIR$PROJECT
     handle_errors
     echo "Output file: $BIN_DIR$PROJECT"
