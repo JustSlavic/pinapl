@@ -2,7 +2,7 @@
 #define SRC_STRING_ID
 
 #include <base.h>
-#include <string.h>
+#include <string>
 
 
 struct string_id

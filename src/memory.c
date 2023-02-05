@@ -1,15 +1,19 @@
 #include "memory.h"
 
 #if CRT 
+
 #include <sys/mman.h>
+
 #ifndef MAP_ANONYMOUS
 #define MAP_ANONYMOUS 0x20
 #define MAP_ANON MAP_ANONYMOUS
 #endif
+
 #define mmap2 mmap
+
 #else
+
 #include <syscall.h>
-#endif
 
 
 void *memset(void *destination, int value, usize count)
@@ -33,6 +37,8 @@ void *memcpy(void *destination, void const *source, usize count)
     }
     return destination;
 }
+
+#endif // CRT
 
 
 usize get_padding(void *pointer, usize alignment)

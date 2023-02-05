@@ -3,9 +3,12 @@
 
 #include "base.h"
 
-
+#ifdef CRT
+#include <string.h>
+#else
 void *memset(void *destination, int value, usize count);
 void *memcpy(void *destination, void const *source, usize count);
+#endif
 
 usize get_padding(void *pointer, usize alignment);
 void *align_pointer(void *pointer, usize alignment);

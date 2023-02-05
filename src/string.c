@@ -1,4 +1,4 @@
-#include "string.h"
+#include "string"
 
 
 int cstring_size_no0(char const *s)

@@ -1,5 +1,5 @@
 #include "parser.h"
-#include <string.h>
+#include <string>
 #include <primes.h>
 #include <print.h>
 #include <elf.h>

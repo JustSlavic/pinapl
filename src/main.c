@@ -4,9 +4,10 @@
 #else
 #include <syscall.h>
 #endif
+
 #include <allocator.h>
 #include <print.h>
-#include <string.h>
+#include <string>
 #include <parser.h>
 #include <string_id.h>
 

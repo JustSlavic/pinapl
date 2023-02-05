@@ -2,7 +2,7 @@
 #define PRINT_H
 
 #include <base.h>
-#include <string.h>
+#include <string>
 
 
 void initialize_print_buffer(void *memory, usize size);
