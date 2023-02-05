@@ -23,8 +23,12 @@ typedef __builtin_va_list va_list;
 #define va_arg   __builtin_va_arg
 #define va_end   __builtin_va_end
 
-#if defined(__arm__)
+#if defined(__arm__) && !defined(__thumb__) // ARM
 #define DEBUG_BREAK() { __asm__ volatile(".inst 0xe7f001f0"); } (void)0
+#elif defined(__aarch64__) && defined(__APPLE__) // Apple
+#define DEBUG_BREAK() { __builtin_debugtrap(); } (void)0
+#elif defined(__aarch64__)
+#define DEBUG_BREAK() { __asm__ volatile(".inst 0xd4200000"); } (void)0
 #endif
 
 #define UNUSED(VAR) (void)(VAR)
