@@ -5,6 +5,13 @@
 #define PERSIST static
 #define INTERNAL static
 
+// Detect the 32-bit or 64-bit architecture
+#if defined(__arm__) && !defined(__aarch64__)
+#define ARCH_32BIT 1
+#elif !defined(__arm__) && defined(__aarch64__)
+#define ARCH_64BIT 1
+#endif
+
 #define static_assert(VAR, MSG) _Static_assert((VAR), MSG)
 #define alignof(TYPE) _Alignof(TYPE)
 
@@ -61,8 +68,13 @@ typedef   signed int  int32;
 typedef uint32 u32;
 typedef  int32 i32;
 
-typedef unsigned int usize;
-typedef   signed int isize;
+#if ARCH_32BIT
+typedef uint32 usize;
+typedef  int32 isize;
+#elif ARCH_64BIT
+typedef uint64 usize;
+typedef  int64 isize;
+#endif
 
 typedef usize uintptr;
 typedef isize  intptr;
@@ -85,11 +97,29 @@ typedef isize  intptr;
 #define UINT32_MAX 0xFFFFFFFF
 #define UINT32_MIN 0x0
 
+#if ARCH_32BIT
+
 #define SIZE_MAX INT32_MAX
 #define SIZE_MIN INT32_MiN
 
 #define USIZE_MAX UINT32_MAX
 #define USIZE_MIN UINT32_MIN
+
+#elif ARCH_64BIT
+
+#define INT64_MAX 0x7FFFFFFFFFFFFFFF
+#define INT64_MIN 0x8000000000000000
+
+#define UINT64_MAX 0xFFFFFFFFFFFFFFFF
+#define UINT64_MIN 0x0
+
+#define SIZE_MAX INT64_MAX
+#define SIZE_MIN INT64_MIN
+
+#define USIZE_MAX UINT64_MAX
+#define USIZE_MIN UINT64_MIN
+
+#endif
 
 #define KILOBYTES(N) (1024 * N)
 #define MEGABYTES(N) (1024 * KILOBYTES(N))
