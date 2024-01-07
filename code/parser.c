@@ -38,6 +38,75 @@ struct ast_node *make_new_ast_node(struct parser *parser)
     return result;
 }
 
+struct ast_node *parse_tuple(struct parser *parser)
+{
+    struct ast_node *result = NULL;
+
+    struct token open_paren = get_token(parser);
+    if (open_paren.type == '(')
+    {
+        eat_token(parser);
+
+        struct ast_node *value1 = parse_expression(parser, 0);
+
+        struct token comma = get_token(parser);
+        if (comma.type == ')')
+        {
+            eat_token(parser);
+            result = value1;
+        }
+        else if (comma.type == ',')
+        {
+            struct ast_node *tuple1 = make_new_ast_node(parser);
+            tuple1->kind = AST__TUPLE;
+            tuple1->tuple.value = value1;
+            tuple1->tuple.next = NULL;
+
+            struct ast_node *tuple_last = tuple1;
+            while (true)
+            {
+                comma = get_token(parser);
+                if (comma.type == ',')
+                {
+                    eat_token(parser);
+
+                    struct ast_node *value2 = parse_expression(parser, 0);
+
+                    struct token possible_close_paren = get_token(parser);
+                    if (possible_close_paren.type == ')')
+                    {
+                        // Last expression in the tuple, I can skip 1 node
+                        tuple_last->tuple.next = value2;
+                    }
+                    else
+                    {
+                        struct ast_node *tuple2 = make_new_ast_node(parser);
+                        tuple2->kind = AST__TUPLE;
+                        tuple2->tuple.value = value2;
+                        tuple2->tuple.next = NULL;
+
+                        tuple_last->tuple.next = tuple2;
+                        tuple_last = tuple2;
+                    }
+                }
+                else if (comma.type == ')')
+                {
+                    eat_token(parser);
+                    break;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            result = tuple1;
+        }
+    }
+
+    return result;
+}
+
 struct ast_node *parse_expression_operand(struct parser *parser)
 {
     struct ast_node *result = NULL;
@@ -125,13 +194,24 @@ struct ast_node *parse_expression(struct parser *parser, int precedence)
     struct token open_paren = get_token(parser);
     if (open_paren.type == '(')
     {
-        eat_token(parser);
-        left_operand = parse_expression(parser, 0);
-        if (left_operand == NULL) { return NULL; }
+        // Try to parse tuple
+        usize saved = parser->cursor;
+        struct ast_node *tuple = parse_tuple(parser);
+        if (tuple == NULL)
+        {
+            parser->cursor = saved;
+            eat_token(parser);
+            left_operand = parse_expression(parser, 0);
+            if (left_operand == NULL) { return NULL; }
 
-        struct token close_paren = get_token(parser);
-        if (close_paren.type == ')') { eat_token(parser); }
-        else { return NULL; }
+            struct token close_paren = get_token(parser);
+            if (close_paren.type == ')') { eat_token(parser); }
+            else { return NULL; }
+        }
+        else
+        {
+            left_operand = tuple;
+        }
     }
     else
     {
@@ -185,48 +265,68 @@ struct ast_node *parse_type(struct parser *parser)
     {
         eat_token(parser);
 
-        struct ast_node *type1 = parse_type(parser);
         struct token close_paren = get_token(parser);
         if (close_paren.type == ')')
         {
             eat_token(parser);
-            result = type1;
+            result = make_new_ast_node(parser);
+            result->kind = AST__TYPE_TUPLE;
+            result->type_tuple.type = NULL;
+            result->type_tuple.next = NULL;
         }
-        else if (close_paren.type == ',')
+        else
         {
-            struct ast_node *tuple1 = make_new_ast_node(parser);
-            tuple1->kind = AST__TYPE_TUPLE;
-            tuple1->type_tuple.type = type1;
-            tuple1->type_tuple.next = NULL;
-
-            struct ast_node *tuple_last = tuple1;
-            while (true)
+            struct ast_node *type1 = parse_type(parser);
+            if (type1 != NULL)
             {
                 struct token comma = get_token(parser);
-                if (comma.type == ',')
+                if (comma.type == ')')
                 {
                     eat_token(parser);
-                    struct ast_node *type2 = parse_type(parser);
-                    if (type2 != NULL)
-                    {
-                        struct ast_node *tuple2 = make_new_ast_node(parser);
-                        tuple2->kind = AST__TYPE_TUPLE;
-                        tuple2->type_tuple.type = type2;
-                        tuple2->type_tuple.next = NULL;
-
-                        tuple_last->type_tuple.next = tuple2;
-                        tuple_last = tuple2;
-                    }
+                    result = type1;
                 }
-                else if (comma.type == ')')
+                else if (comma.type == ',')
                 {
-                    eat_token(parser);
-                    break;
+                    struct ast_node *tuple1 = make_new_ast_node(parser);
+                    tuple1->kind = AST__TYPE_TUPLE;
+                    tuple1->type_tuple.type = type1;
+                    tuple1->type_tuple.next = NULL;
+
+                    struct ast_node *tuple_last = tuple1;
+                    while (true)
+                    {
+                        struct token comma = get_token(parser);
+                        if (comma.type == ',')
+                        {
+                            eat_token(parser);
+                            struct ast_node *type2 = parse_type(parser);
+                            if (type2 != NULL)
+                            {
+                                struct ast_node *tuple2 = make_new_ast_node(parser);
+                                tuple2->kind = AST__TYPE_TUPLE;
+                                tuple2->type_tuple.type = type2;
+                                tuple2->type_tuple.next = NULL;
+
+                                tuple_last->type_tuple.next = tuple2;
+                                tuple_last = tuple2;
+                            }
+                        }
+                        else if (comma.type == ')')
+                        {
+                            eat_token(parser);
+                            break;
+                        }
+                    }
+
+                    result = tuple1;
+                }
+                else
+                {
+                    // @todo: report error
                 }
             }
-
-            result = tuple1;
         }
+
     }
 
     return result;
@@ -449,7 +549,7 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
             if (ast->declaration.type != NULL)
                 debug_print_ast(ast->declaration.type, depth + 1);
             else
-                printf("null");
+                printf("infr");
             if (!newlined)
             {
                 printf("\n");
@@ -514,16 +614,35 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
         {
             printf("(");
             struct ast_node *tuple = ast;
-            debug_print_ast(tuple->type_tuple.type, depth);
-            tuple = tuple->type_tuple.next;
-            while (tuple)
+            if (tuple->type_tuple.type != NULL)
             {
-                printf(", ");
-                debug_print_ast(ast->type_tuple.type, depth);
-
+                debug_print_ast(tuple->type_tuple.type, depth);
                 tuple = tuple->type_tuple.next;
+                while (tuple)
+                {
+                    printf(", ");
+                    debug_print_ast(ast->type_tuple.type, depth);
+
+                    tuple = tuple->type_tuple.next;
+                }
             }
-            printf(")");
+            printf(")\n");
+            newlined = true;
+        }
+        break;
+
+        case AST__TUPLE:
+        {
+            printf("tupl");
+            if (ast->tuple.next)
+            {
+                printf("---");
+                newlined = debug_print_ast(ast->tuple.next, depth + 1);
+            }
+            if (!newlined) printf("\n");
+            printf("%.*s \\---", 4*depth + 3*(depth + 1), spaces);
+            newlined = debug_print_ast(ast->tuple.value, depth);
+            if (!newlined) printf("\n");
         }
         break;
 

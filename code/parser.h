@@ -21,6 +21,7 @@ enum ast_node_kind
     AST__LITERAL_INT,
     AST__VARIABLE,
     AST__FUNCTION_CALL,
+    AST__TUPLE,
     AST__TYPE,
     AST__TYPE_TUPLE,
 };
@@ -30,6 +31,12 @@ struct ast_node;
 struct ast_type_tuple
 {
     struct ast_node *type;
+    struct ast_node *next;
+};
+
+struct ast_tuple
+{
+    struct ast_node *value;
     struct ast_node *next;
 };
 
@@ -94,6 +101,7 @@ struct ast_node
         struct ast_block           block;
         struct ast_type            type;
         struct ast_type_tuple      type_tuple;
+        struct ast_tuple           tuple;
     };
 };
 

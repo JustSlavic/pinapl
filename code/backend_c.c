@@ -85,16 +85,22 @@ void translate_to_c(struct ast_node *ast, string_builder *output, int depth)
 
         case AST__TYPE_TUPLE:
         {
-            string_builder__append_format(output, "struct tuple_");
-
             struct ast_node *tuple = ast;
-            translate_to_c(tuple->type_tuple.type, output, depth);
-            tuple = tuple->type_tuple.next;
-            while (tuple)
+            if (tuple->type_tuple.type != NULL)
             {
-                string_builder__append_format(output, "_");
+                string_builder__append_format(output, "struct tuple_");
                 translate_to_c(tuple->type_tuple.type, output, depth);
                 tuple = tuple->type_tuple.next;
+                while (tuple)
+                {
+                    string_builder__append_format(output, "_");
+                    translate_to_c(tuple->type_tuple.type, output, depth);
+                    tuple = tuple->type_tuple.next;
+                }
+            }
+            else
+            {
+                string_builder__append_format(output, "void");
             }
         }
         break;
