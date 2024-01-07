@@ -6,7 +6,7 @@
 #include <string_id.h>
 
 
-typedef b32 predicate(char);
+typedef bool32 predicate(char);
 
 
 struct pinapl_lexer;
@@ -81,7 +81,7 @@ struct pinapl_lexer
     usize column;
 
     token next_token;
-    b32 next_token_valid;
+    bool32 next_token_valid;
 
     // @todo: figure out better solution
     struct pinapl_line_info lines[4096]; // Did you ever see a programm more than 4096 lines? Me neither. 
@@ -89,12 +89,12 @@ struct pinapl_lexer
 };
 
 
-b32 is_ascii_space(char c);
-b32 is_ascii_whitespace(char c);
-b32 is_ascii_alpha(char c);
-b32 is_ascii_digit(char c);
-b32 is_valid_identifier_head(char c);
-b32 is_valid_identifier_body(char c);
+bool32 is_ascii_space(char c);
+bool32 is_ascii_whitespace(char c);
+bool32 is_ascii_alpha(char c);
+bool32 is_ascii_digit(char c);
+bool32 is_valid_identifier_head(char c);
+bool32 is_valid_identifier_body(char c);
 
 struct pinapl_parser pinapl_init_parser(struct allocator *ast_allocator, struct allocator *err_allocator, char const *filename, char *buffer, usize size);
 char pinapl_get_char_at(struct pinapl_lexer *, usize);
@@ -243,7 +243,7 @@ struct pinapl_scope_entry
     char *entry_name;
     usize entry_name_size;
     ast_node *declaration_node;
-    u32   hash;
+    uint32   hash;
 };
 
 
@@ -265,7 +265,7 @@ struct pinapl_rename_stage
 };
 
 
-b32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_node *ast, struct pinapl_scope *scope);
+bool32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_node *ast, struct pinapl_scope *scope);
 
 
 enum pinapl_tac_type
@@ -301,14 +301,14 @@ enum pinapl_tac_type
 
 struct pinapl_tac
 {
-    u32 type;
-    u32 dst; // 'register' index OR instruction index of label
+    uint32 type;
+    uint32 dst; // 'register' index OR instruction index of label
     union
     {
         struct
         {
-            u32 lhs; // 'register' index OR integer number
-            u32 rhs; // 'register' index OR integer number
+            uint32 lhs; // 'register' index OR integer number
+            uint32 rhs; // 'register' index OR integer number
         };
         struct string_id label;
     };
@@ -463,10 +463,10 @@ enum pinapl_arm_register
 
 struct pinapl_arm_instruction_operand
 {
-    u32 type;
+    uint32 type;
     union
     {
-        u32 value;
+        uint32 value;
         struct string_id label;
         struct string_id strid;
     };

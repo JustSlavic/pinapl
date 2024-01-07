@@ -1,0 +1,31 @@
+{
+    "folders":
+    [
+        {
+            "path": "."
+        }
+    ],
+    "build_systems":
+    [
+        {
+            "name": "Build Debug",
+
+            "windows": {
+                "shell_cmd": "call $folder\\build.bat",
+                "working_dir": "$folder\\build",
+                "file_regex": "^((?:\\w\\:|\\.{1,2})[\\d\\w\\\\\\.\\/]+)\\((\\d+)\\)\\:()(.*)$",
+                "syntax": "Packages/User/sublime-setup/polar_build_output_msvc.sublime-syntax",
+            },
+            "linux": {
+                "shell_cmd": "$folder/build.sh",
+                "working_dir": "$folder/build",
+                "file_regex": "^([\\w\\/\\.]+)\\:(\\d+)\\:(\\d+)\\:(.*)$",
+                "syntax": "Packages/User/sublime-setup/polar_build_output_gcc.sublime-syntaxx"
+            },
+            "osx": {
+                "shell_cmd": "$folder/build.sh debug",
+                "working_dir": "$folder",
+            }
+        }
+    ]
+}

@@ -70,7 +70,7 @@ void print(char const *fmt, ...)
                 int n = ARRAY_COUNT(buffer);
                 int counter = 0;
 
-                b32 is_negative = (number < 0);
+                bool32 is_negative = (number < 0);
                 if (is_negative) number *= -1;
                 
                 if (number == 0)

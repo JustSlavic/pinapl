@@ -11,7 +11,7 @@
 struct allocator
 {
     ALLOCATOR_BASE_STRUCT;
-    u8 data[8];
+    byte data[8];
 };
 
 

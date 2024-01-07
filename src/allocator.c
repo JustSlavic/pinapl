@@ -22,7 +22,7 @@ static_assert(sizeof(struct arena_allocator) <= sizeof(struct allocator), "size 
 
 enum allocator_type allocator_get_type(struct allocator *allocator)
 {
-    enum allocator_type result = *(enum allocator_type *) ((u8 *) allocator + sizeof(ALLOCATOR_BASE_STRUCT));
+    enum allocator_type result = *(enum allocator_type *) ((byte *) allocator + sizeof(ALLOCATOR_BASE_STRUCT));
     return result;
 }
 

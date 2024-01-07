@@ -6,7 +6,7 @@
 
 struct string_id_storage_hash_entry
 {
-    u32 hash;
+    uint32 hash;
     usize offset_in_arena;
 };
 
@@ -26,7 +26,7 @@ initialize_string_id_storage(void *memory, usize size)
 }
 
 struct string_id_storage_hash_entry *
-string_id_get_hash_slot(u32 hash)
+string_id_get_hash_slot(uint32 hash)
 {
     struct string_id_storage_hash_entry *result = NULL;
     for (int offset = 0; offset < ARRAY_COUNT(global_storage.hash_table); offset++)
@@ -45,7 +45,7 @@ string_id_get_hash_slot(u32 hash)
 struct string_id
 make_string_id(char *string, usize size)
 {
-    u32 hash = 0;
+    uint32 hash = 0;
     for (usize index = 0; index < size; index++)
     {
         hash += string[index] * primes[index % ARRAY_COUNT(primes)];

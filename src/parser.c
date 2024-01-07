@@ -46,32 +46,32 @@ char *token_type_to_cstring(enum pinapl_token_type t)
     return 0;
 }
 
-b32 is_ascii_space(char c)
+bool32 is_ascii_space(char c)
 {
     return (c == ' ');
 }
 
-b32 is_ascii_whitespace(char c)
+bool32 is_ascii_whitespace(char c)
 {
     return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n');
 }
 
-b32 is_ascii_alpha(char c)
+bool32 is_ascii_alpha(char c)
 {
     return ((c >= 'A') && (c <= 'Z')) || ((c >= 'a') && (c <= 'z'));
 }
 
-b32 is_ascii_digit(char c)
+bool32 is_ascii_digit(char c)
 {
     return (c >= '0') && (c <= '9');
 }
 
-b32 is_valid_identifier_head(char c)
+bool32 is_valid_identifier_head(char c)
 {
     return (c == '_') || is_ascii_alpha(c);
 }
 
-b32 is_valid_identifier_body(char c)
+bool32 is_valid_identifier_body(char c)
 {
     return (c == '_') || is_ascii_alpha(c) || is_ascii_digit(c);
 }
@@ -536,13 +536,11 @@ ast_node *pinapl_parse_expression(struct pinapl_parser *parser, int precedence)
 
 ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *parser)
 {
-    //
     // x :: <expr>;
     // x := <expr>;
     // x : int;
     // x : int : <expr>;
     // x : int = <expr>;
-    //
 
     ast_node *result = NULL;
 
@@ -553,8 +551,8 @@ ast_node *pinapl_parse_variable_declaration(struct pinapl_parser *parser)
         if (colon.type == ':')
         {
             token type = {0};
-            b32 is_constant = false;
-            b32 should_init = true;
+            bool32 is_constant = false;
+            bool32 should_init = true;
 
             token t = pinapl_get_token(parser);
             if (t.type == '=')
@@ -783,7 +781,7 @@ ast_node *pinapl_parse_statement(struct pinapl_parser *parser)
 {
     ast_node *result = NULL;
     struct pinapl_lexer checkpoint = parser->lexer;
-    b32 have_to_end_with_semicolon = true;
+    bool32 have_to_end_with_semicolon = true;
 
     ast_node *variable_declaration = pinapl_parse_variable_declaration(parser);
     if (variable_declaration)
@@ -946,10 +944,10 @@ ast_node *pinapl_parse_global_declaration_list(struct pinapl_parser *parser)
 }
 
 
-u32 pinapl_hash_string(char *string, usize string_size)
+uint32 pinapl_hash_string(char *string, usize string_size)
 {
     // @todo: better hash function!
-    u32 hash = 0;
+    uint32 hash = 0;
     for (int index = 0; (index < string_size) && string[index] != 0; index++)
     {
         hash += string[index] * primes[index % ARRAY_COUNT(primes)];
@@ -968,7 +966,7 @@ void pinapl_push_nested_scope(struct pinapl_scope *parent, struct pinapl_scope *
 }
 
 
-struct pinapl_scope_entry *pinapl_get_scope_entry_slot(struct pinapl_scope *scope, u32 hash)
+struct pinapl_scope_entry *pinapl_get_scope_entry_slot(struct pinapl_scope *scope, uint32 hash)
 {     
     struct pinapl_scope_entry *result = NULL;
     for (int offset = 0; offset < ARRAY_COUNT(scope->hash_table); offset++)
@@ -992,7 +990,7 @@ struct pinapl_scope_entry *pinapl_get_scope_entry_slot(struct pinapl_scope *scop
 
 struct pinapl_scope_entry *pinapl_is_variable_declared_in_scope(struct pinapl_scope *scope, char *string, usize string_size)
 {
-    u32 hash = pinapl_hash_string(string, string_size);
+    uint32 hash = pinapl_hash_string(string, string_size);
     struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
     struct pinapl_scope_entry *result = NULL;
     if (slot && slot->hash)
@@ -1005,7 +1003,7 @@ struct pinapl_scope_entry *pinapl_is_variable_declared_in_scope(struct pinapl_sc
 
 struct pinapl_scope_entry *pinapl_is_variable_declared(struct pinapl_scope *scope, char *string, usize string_size)
 {
-    u32 hash = pinapl_hash_string(string, string_size);
+    uint32 hash = pinapl_hash_string(string, string_size);
 
     struct pinapl_scope_entry *result = NULL;
     while (scope)
@@ -1027,7 +1025,7 @@ struct pinapl_scope_entry *pinapl_declare_variable_in_scope(struct pinapl_scope 
 {
     struct string string = get_string_by_id(node->variable_declaration.name);
 
-    u32 hash = pinapl_hash_string(string.data, string.size);
+    uint32 hash = pinapl_hash_string(string.data, string.size);
     struct pinapl_scope_entry *slot = pinapl_get_scope_entry_slot(scope, hash);
     if (slot && slot->hash == 0)
     {
@@ -1040,9 +1038,9 @@ struct pinapl_scope_entry *pinapl_declare_variable_in_scope(struct pinapl_scope 
 }
 
 
-b32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_node *node, struct pinapl_scope *scope)
+bool32 pinapl_check_and_rename_variables(struct pinapl_rename_stage *stage, ast_node *node, struct pinapl_scope *scope)
 {
-    b32 is_ok = true;
+    bool32 is_ok = true;
 
     switch (node->type)
     {
@@ -1534,7 +1532,7 @@ struct pinapl_connectivity_graph pinapl_make_connectivity_graph(struct pinapl_li
 
                     if (var2_live)
                     {
-                        b32 edge_found = false;
+                        bool32 edge_found = false;
                         for (int edge_index = 0; edge_index < graph.edge_count; edge_index++)
                         {
                             struct pinapl_graph_edge edge = graph.edges[edge_index];
@@ -1558,7 +1556,7 @@ struct pinapl_connectivity_graph pinapl_make_connectivity_graph(struct pinapl_li
 
     for (int var = 0; var < 32; var++)
     {
-        b32 color_is_taken[32] = {0};
+        bool32 color_is_taken[32] = {0};
 
         for (int edge_index = 0; edge_index < graph.edge_count; edge_index++)
         {
@@ -1690,7 +1688,7 @@ pinapl_arm_print_instruction(struct pinapl_instruction *instruction)
             print("    [UNKNOWN INSTRUCTION]");
     }
 
-    b32 printed = false;
+    bool32 printed = false;
     if (instruction->op1.type != ARM_OPERAND_NONE)
     {
         if (instr == ARM_GLOBAL)
@@ -1752,7 +1750,7 @@ struct pinapl_instruction_stream pinapl_make_instruction_stream(struct allocator
     stream.allocator = allocator;
     stream.instruction_count = 0;
     stream.instruction_capacity = 100;
-    stream.instructions = ALLOCATE(allocator, stream.instruction_capacity * sizeof(struct pinapl_instruction));
+    stream.instructions = ALLOCATE_BUFFER(allocator, stream.instruction_capacity * sizeof(struct pinapl_instruction));
 
     memset(stream.labels, 0, sizeof(stream.labels));
     memset(stream.label_instruction_index, 0, sizeof(stream.label_instruction_index));
@@ -2007,8 +2005,8 @@ uint32 pinapl_arm_data_processing_instruction_to_binary(struct pinapl_instructio
 {
     uint32 binary = 0;
 
-    b32 immediate_operand = (instruction->op3.type == ARM_OPERAND_IMMEDIATE_VALUE);
-    b32 set_condition_codes = instruction->arm & ARM_S;
+    bool32 immediate_operand = (instruction->op3.type == ARM_OPERAND_IMMEDIATE_VALUE);
+    bool32 set_condition_codes = instruction->arm & ARM_S;
 
     binary |= (immediate_operand << 25); 
     binary |= (opcode << 21);
@@ -2057,23 +2055,23 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
         {
             // Patch mov instruction
             instruction->op3 = instruction->op2;
-            SET_ZERO(instruction->op2);
+            memset(&instruction->op2, 0, sizeof(instruction->op2));
 
-            u32 opcode = 0xd;
+            uint32 opcode = 0xd;
             binary = condition | pinapl_arm_data_processing_instruction_to_binary(instruction, opcode);
         }
         break;
 
         case ARM_ADD:
         {
-            u32 opcode = 0x4;
+            uint32 opcode = 0x4;
             binary = condition | pinapl_arm_data_processing_instruction_to_binary(instruction, opcode);
         }
         break;
 
         case ARM_SUB:
         {
-            u32 opcode = 0x2;
+            uint32 opcode = 0x2;
             binary = condition | pinapl_arm_data_processing_instruction_to_binary(instruction, opcode);
         }
         break;
@@ -2085,8 +2083,8 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
             // Rd := Rm * Rs + Rn
             //
 
-            b32 accumulate = (instr == ARM_MLA);
-            b32 set_condition_code = 0;
+            bool32 accumulate = (instr == ARM_MLA);
+            bool32 set_condition_code = 0;
             
             binary |= condition;
             binary |= (accumulate << 21);
@@ -2107,7 +2105,7 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
         case ARM_B:
         case ARM_BL:
         {
-            b32 link_bit = (instr == ARM_BL);
+            bool32 link_bit = (instr == ARM_BL);
 
             int32 instruction_index = 0;
             for (int idx = 0; idx < stream->label_count; idx++)
@@ -2139,12 +2137,12 @@ uint32 pinapl_arm_instruction_to_binary(struct pinapl_instruction_stream *stream
         case ARM_LDR:
         case ARM_STR:
         {
-            b32 is_load = (instr == ARM_LDR);
-            b32 offset_is_a_register = 0;
-            b32 pre_indexing_bit = 1;
-            b32 up_bit = 1;
-            b32 byte_bit = 0;
-            b32 write_back_bit = 0;
+            bool32 is_load = (instr == ARM_LDR);
+            bool32 offset_is_a_register = 0;
+            bool32 pre_indexing_bit = 1;
+            bool32 up_bit = 1;
+            bool32 byte_bit = 0;
+            bool32 write_back_bit = 0;
             
             binary = condition;
             binary |= (1 << 26);
@@ -2290,6 +2288,8 @@ void pinapl_arm_dump_elf(char const *filename,
     section_header_shstr->sh_entsize = 0;
 
     int fd = open(filename, O_CREAT | O_WRONLY, 0755);
+    print(filename);
+    print("fd=%d\n", fd);
     write(fd, allocator->memory, allocator->used);
     close(fd);
 }
