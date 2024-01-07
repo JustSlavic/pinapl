@@ -130,9 +130,10 @@ void debug_print_token(struct token t)
         case TOKEN_MINUS: printf("-"); break;
         case TOKEN_ASTERICS: printf("*"); break;
         case TOKEN_SLASH: printf("/"); break;
+        case TOKEN_COMMA: printf(","); break;
 
         case TOKEN_IDENTIFIER: printf("IDENTIFIER"); break;
-        case TOKEN_LITERAL_INT: printf("INT"); break;
+        case TOKEN_LITERAL_INT: printf("LITERAL_INT"); break;
 
         case TOKEN_ARROW_RIGHT: printf("->"); break;
 

@@ -179,6 +179,54 @@ struct ast_node *parse_type(struct parser *parser)
         eat_token(parser);
         result = make_new_ast_node(parser);
         result->kind = AST__TYPE;
+        result->type.name = t.span;
+    }
+    else if (t.type == '(')
+    {
+        eat_token(parser);
+
+        struct ast_node *type1 = parse_type(parser);
+        struct token close_paren = get_token(parser);
+        if (close_paren.type == ')')
+        {
+            eat_token(parser);
+            result = type1;
+        }
+        else if (close_paren.type == ',')
+        {
+            struct ast_node *tuple1 = make_new_ast_node(parser);
+            tuple1->kind = AST__TYPE_TUPLE;
+            tuple1->type_tuple.type = type1;
+            tuple1->type_tuple.next = NULL;
+
+            struct ast_node *tuple_last = tuple1;
+            while (true)
+            {
+                struct token comma = get_token(parser);
+                if (comma.type == ',')
+                {
+                    eat_token(parser);
+                    struct ast_node *type2 = parse_type(parser);
+                    if (type2 != NULL)
+                    {
+                        struct ast_node *tuple2 = make_new_ast_node(parser);
+                        tuple2->kind = AST__TYPE_TUPLE;
+                        tuple2->type_tuple.type = type2;
+                        tuple2->type_tuple.next = NULL;
+
+                        tuple_last->type_tuple.next = tuple2;
+                        tuple_last = tuple2;
+                    }
+                }
+                else if (comma.type == ')')
+                {
+                    eat_token(parser);
+                    break;
+                }
+            }
+
+            result = tuple1;
+        }
     }
 
     return result;
@@ -459,6 +507,23 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
         case AST__TYPE:
         {
             printf("type");
+        }
+        break;
+
+        case AST__TYPE_TUPLE:
+        {
+            printf("(");
+            struct ast_node *tuple = ast;
+            debug_print_ast(tuple->type_tuple.type, depth);
+            tuple = tuple->type_tuple.next;
+            while (tuple)
+            {
+                printf(", ");
+                debug_print_ast(ast->type_tuple.type, depth);
+
+                tuple = tuple->type_tuple.next;
+            }
+            printf(")");
         }
         break;
 

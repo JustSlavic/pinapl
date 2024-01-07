@@ -25,6 +25,7 @@ enum token_type
     TOKEN_MINUS = '-',
     TOKEN_ASTERICS = '*',
     TOKEN_SLASH = '/',
+    TOKEN_COMMA = ',',
 
     TOKEN_IDENTIFIER = 256,
     TOKEN_LITERAL_INT = 257,

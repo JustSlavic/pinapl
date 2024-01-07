@@ -8,7 +8,7 @@
 
 char const source_code[] =
 "{"
-"    x := 1 + f(2);"
+"    x : (int, int) = 1 + f(2);"
 "    y := 30 + g(2 + x);"
 "    {"
 "        h(100);"
@@ -38,6 +38,9 @@ int main()
     };
 
     make_token_stream(&lexer);
+    debug_print_token_stream(&lexer);
+
+    printf("=============\n");
 
     struct parser parser = {
         .token_stream = lexer.token_stream,
@@ -52,6 +55,8 @@ int main()
 
     struct ast_node *stmts = parse_statements(&parser);
     debug_print_ast(stmts, 0);
+
+    printf("=============\n");
 
     usize sb_size = MEGABYTES(1);
     struct string_builder sb = {

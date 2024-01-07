@@ -30,7 +30,14 @@ void translate_to_c(struct ast_node *ast, string_builder *output, int depth)
 
         case AST__DECLARATION:
         {
-            string_builder__append_format(output, "int %.*s", (int) ast->declaration.name.size, ast->declaration.name.data);
+            // @warn: This if is temporary, declaration.type should be always present
+            // after the type infer stage
+            if (ast->declaration.type)
+                translate_to_c(ast->declaration.type, output, depth);
+            else
+                string_builder__append_format(output, "__TYPE_INFER__");
+            string_builder__append_format(output, " %.*s",
+                (int) ast->declaration.name.size, ast->declaration.name.data);
             if (ast->declaration.init != NULL)
             {
                 string_builder__append_string(output, " = ");
@@ -68,7 +75,28 @@ void translate_to_c(struct ast_node *ast, string_builder *output, int depth)
         break;
 
         case AST__TYPE:
-            string_builder__append_string(output, "int");
+        {
+            if (ast->kind == AST__TYPE)
+            {
+                string_builder__append_format(output, "%.*s", (int) ast->type.name.size, ast->type.name.data);
+            }
+        }
+        break;
+
+        case AST__TYPE_TUPLE:
+        {
+            string_builder__append_format(output, "struct tuple_");
+
+            struct ast_node *tuple = ast;
+            translate_to_c(tuple->type_tuple.type, output, depth);
+            tuple = tuple->type_tuple.next;
+            while (tuple)
+            {
+                string_builder__append_format(output, "_");
+                translate_to_c(tuple->type_tuple.type, output, depth);
+                tuple = tuple->type_tuple.next;
+            }
+        }
         break;
 
         default:

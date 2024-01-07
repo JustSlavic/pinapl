@@ -22,31 +22,20 @@ enum ast_node_kind
     AST__VARIABLE,
     AST__FUNCTION_CALL,
     AST__TYPE,
+    AST__TYPE_TUPLE,
 };
 
 struct ast_node;
-struct ast_type;
 
 struct ast_type_tuple
 {
-    struct ast_type *tpl1;
-    struct ast_type *next;
-};
-
-enum ast_type_kind
-{
-    AST_TYPE__,
-    AST_TYPE__TUPLE,
+    struct ast_node *type;
+    struct ast_node *next;
 };
 
 struct ast_type
 {
-    enum ast_type_kind kind;
-    union
-    {
-        struct string_view    name;
-        struct ast_type_tuple tuple;
-    };
+    struct string_view name;
 };
 
 struct ast_binary_operator
@@ -103,6 +92,8 @@ struct ast_node
         struct ast_declaration     declaration;
         struct ast_statement       statement;
         struct ast_block           block;
+        struct ast_type            type;
+        struct ast_type_tuple      type_tuple;
     };
 };
 
