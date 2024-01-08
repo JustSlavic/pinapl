@@ -10,6 +10,7 @@ enum type_registry_entry_kind
     TYPE__VOID,
     TYPE__NAME,
     TYPE__TUPLE,
+    TYPE__FUNCTION,
 };
 
 struct type_registry_entry
@@ -23,8 +24,14 @@ struct type_registry_entry
         };
         struct
         {
-            struct type_registry_entry *tuple[6];
+            struct type_registry_entry *tuple[16];
             uint32 tuple_count;
+        };
+        struct
+        {
+            struct type_registry_entry *return_type;
+            struct type_registry_entry *arg_types[16];
+            uint32 arg_count;
         };
     };
 };
@@ -47,7 +54,7 @@ enum ast_node_kind
     AST__STATEMENT,
     AST__DECLARATION,
     AST__BLOCK,
-    // AST__FUNCTION_DEFINITION,
+    AST__FUNCTION,
     // AST__RETURN_STATEMENT,
 
     // Expressions
@@ -56,8 +63,6 @@ enum ast_node_kind
     AST__VARIABLE,
     AST__FUNCTION_CALL,
     AST__TUPLE,
-    AST__TYPE,
-    AST__TYPE_TUPLE,
 };
 
 struct ast_node;
@@ -122,6 +127,11 @@ struct ast_block
     struct ast_node *statements;
 };
 
+struct ast_function
+{
+    struct ast_node *body;
+};
+
 struct ast_node
 {
     enum ast_node_kind kind;
@@ -135,6 +145,7 @@ struct ast_node
         struct ast_statement       statement;
         struct ast_block           block;
         struct ast_tuple           tuple;
+        struct ast_function        function;
     };
 };
 

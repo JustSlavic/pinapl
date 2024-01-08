@@ -26,6 +26,12 @@ void translate_type_to_c(struct translator_to_c *translator, struct type_registr
             }
         }
         break;
+
+        case TYPE__FUNCTION:
+        {
+            string_builder__append_format(output, "__FUNCTION_TYPE__");
+        }
+        break;
     }
 }
 
@@ -145,6 +151,12 @@ void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, in
                 }
             }
             string_builder__append_format(output, ")");
+        }
+        break;
+
+        case AST__FUNCTION:
+        {
+            string_builder__append_format(output, "__FUNCTION__");
         }
         break;
 

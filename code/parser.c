@@ -71,6 +71,7 @@ struct ast_node *parse_declaration(struct parser *parser);
 struct ast_node *parse_statement(struct parser *parser);
 struct ast_node *parse_statements(struct parser *parser);
 struct ast_node *parse_block(struct parser *parser);
+struct ast_node *parse_function(struct parser *parser);
 struct type_registry_entry *parse_type(struct parser *parser);
 
 
@@ -469,19 +470,33 @@ struct ast_node *parse_declaration(struct parser *parser)
 
             if (should_init)
             {
-                initializer = parse_expression(parser, 0);
+                struct token open_paren = get_token(parser);
+                if (open_paren.type == '(')
+                {
+                    initializer = parse_function(parser);
+                }
+                if (!initializer)
+                {
+                    initializer = parse_expression(parser, 0);
+
+                    struct token semicolon = get_token(parser);
+                    if (semicolon.type == ';')
+                    {
+                        eat_token(parser);
+                    }
+                    else
+                    {
+                        // @todo: report error
+                    }
+                }
             }
 
-            struct token semicolon = get_token(parser);
-            if (semicolon.type == ';')
-            {
-                result = make_new_ast_node(parser);
-                result->kind = AST__DECLARATION;
-                result->declaration.is_constant = is_constant;
-                result->declaration.name = name.span;
-                result->declaration.type = type;
-                result->declaration.init = initializer;
-            }
+            result = make_new_ast_node(parser);
+            result->kind = AST__DECLARATION;
+            result->declaration.is_constant = is_constant;
+            result->declaration.name = name.span;
+            result->declaration.type = type;
+            result->declaration.init = initializer;
         }
     }
 
@@ -517,22 +532,26 @@ struct ast_node *parse_statement(struct parser *parser)
             {
                 parser->cursor = saved;
             }
+            else
+            {
+                struct token semicolon = get_token(parser);
+                if (semicolon.type == ';')
+                {
+                    eat_token(parser);
+
+                }
+            }
         }
 
         if (ast)
         {
-            struct token semicolon = get_token(parser);
-            if (semicolon.type == ';')
+            result = make_new_ast_node(parser);
+            if (result)
             {
-                eat_token(parser);
                 result = make_new_ast_node(parser);
-                if (result)
-                {
-                    result = make_new_ast_node(parser);
-                    result->kind = AST__STATEMENT;
-                    result->statement.stmt = ast;
-                    result->statement.next = NULL;
-                }
+                result->kind = AST__STATEMENT;
+                result->statement.stmt = ast;
+                result->statement.next = NULL;
             }
         }
     }
@@ -577,6 +596,34 @@ struct ast_node *parse_block(struct parser *parser)
     return result;
 }
 
+struct ast_node *parse_function(struct parser *parser)
+{
+    struct ast_node *result = NULL;
+
+    struct token open_paren = get_token(parser);
+    if (open_paren.type == '(')
+    {
+        eat_token(parser);
+
+        struct token close_paren = get_token(parser);
+        if (close_paren.type == ')')
+        {
+            eat_token(parser);
+
+            struct ast_node *body = parse_block(parser);
+
+            result = make_new_ast_node(parser);
+            if (result)
+            {
+                result->kind = AST__FUNCTION;
+                result->function.body = body;
+            }
+        }
+    }
+
+    return result;
+}
+
 void debug_print_type(struct type_registry_entry *type)
 {
     switch (type->kind)
@@ -598,12 +645,18 @@ void debug_print_type(struct type_registry_entry *type)
             printf("type");
         }
         break;
+
+        case TYPE__FUNCTION:
+        {
+            printf("type");
+        }
+        break;
     }
 }
 
 bool32 debug_print_ast(struct ast_node *ast, int depth)
 {
-    char spaces[] = "                                                 ";
+    char spaces[] = "                                                                                                                 ";
     bool32 newlined = false;
 
 #define DO_NEWLINE if (!newlined) { printf("\n"); newlined = true; }
@@ -615,7 +668,7 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
             printf("(%c)----", ast->binary_operator.operator);
             newlined = debug_print_ast(ast->binary_operator.rhs, depth+1);
             DO_NEWLINE
-            printf("%.*s\\---", 4*depth + 3*(depth + 1), spaces);
+            printf("%.*s\\---", 4*(depth + 1) + 3*depth - 1, spaces);
             newlined = debug_print_ast(ast->binary_operator.lhs, depth+1);
             DO_NEWLINE
         }
@@ -624,26 +677,26 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
         case AST__DECLARATION:
         {
             printf("%s---", ast->declaration.is_constant ? "(::)" : "(:=)");
-            if (ast->declaration.init != NULL)
+            if (ast->declaration.type != NULL)
             {
-                newlined = debug_print_ast(ast->declaration.init, depth + 1);
+                debug_print_type(ast->declaration.type);
                 DO_NEWLINE
             }
             else
             {
-                printf("null\n");
+                printf("infr\n");
                 newlined = true;
             }
-            printf("%.*s \\---", 4*depth + 3*(depth + 1), spaces);
-            if (ast->declaration.type != NULL)
+            printf("%.*s\\--", 4*(depth + 1) + 3*depth, spaces);
+            if (ast->declaration.init != NULL)
             {
-                debug_print_type(ast->declaration.type);
+                debug_print_ast(ast->declaration.init, depth+1);
                 printf("\n");
                 newlined = true;
             }
             else
             {
-                printf("infr\n");
+                printf("null\n");
                 newlined = true;
             }
             DO_NEWLINE
@@ -701,9 +754,18 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
                 newlined = debug_print_ast(ast->tuple.next, depth + 1);
             }
             DO_NEWLINE
-            printf("%.*s \\---", 4*depth + 3*(depth + 1), spaces);
+            printf("%.*s\\--", 4*depth + 3*(depth + 1), spaces);
             newlined = debug_print_ast(ast->tuple.value, depth);
             DO_NEWLINE
+        }
+        break;
+
+        case AST__FUNCTION:
+        {
+            printf("func");
+            DO_NEWLINE
+            printf("%.*s\\--", 4*(depth + 1) + 3*depth, spaces);
+            newlined = debug_print_ast(ast->function.body, depth + 1);
         }
         break;
 

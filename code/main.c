@@ -7,16 +7,13 @@
 
 
 char const source_code[] =
-"{"
-"    x : () = 1 + f(2);"
-"    y : (int) = 30 + g(2 + x);"
-"    {"
-"        h(100);"
-"    }"
-"    t : (int, int) = (f(x + y), 1);"
-"    s : (int, int) = (1, 1, x);"
-"    r := 14; "
-"}"
+"f :: () {\n"
+"    x := 1;\n"
+"    g :: () {\n"
+"        t := x + 1;\n"
+"    }\n"
+"    t = x + g(x);\n"
+"}\n"
 ;
 
 
@@ -40,8 +37,9 @@ int main()
     };
 
     make_token_stream(&lexer);
-    debug_print_token_stream(&lexer);
+    // debug_print_token_stream(&lexer);
 
+    printf("%s\n", source_code);
     printf("=============\n");
 
     struct parser parser = {
