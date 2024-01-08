@@ -1,16 +1,57 @@
 #include "backend_c.h"
 
 
-void translate_to_c(struct ast_node *ast, string_builder *output, int depth)
+void translate_type_to_c(struct translator_to_c *translator, struct type_registry_entry *type)
+{
+    string_builder *output = translator->output;
+    switch (type->kind)
+    {
+        case TYPE__VOID:
+            string_builder__append_format(output, "void");
+        break;
+
+        case TYPE__NAME:
+        {
+            string_builder__append_format(output, "%.*s", (int) type->name.size, type->name.data);
+        }
+        break;
+
+        case TYPE__TUPLE:
+        {
+            string_builder__append_format(output, "__TUPLE_");
+            for (int i = 0; i < type->tuple_count; i++)
+            {
+                translate_type_to_c(translator, type->tuple[i]);
+                string_builder__append_format(output, "_");
+            }
+        }
+        break;
+    }
+}
+
+void translator_c__predeclare_types(struct translator_to_c *translator, struct type_registry *registry)
+{
+    string_builder *output = translator->output;
+    for (int i = 0; i < registry->count; i++)
+    {
+        struct type_registry_entry *entry = registry->entries + i;
+        string_builder__append_format(output, "define ");
+        translate_type_to_c(translator, entry);
+        string_builder__append_format(output, "\n");
+    }
+}
+
+void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, int depth)
 {
     char spaces[] = "                                                 ";
+    string_builder *output = translator->output;
 
     switch (ast->kind)
     {
         case AST__BLOCK:
         {
             string_builder__append_format(output, "{\n");
-            translate_to_c(ast->block.statements, output, depth + 1);
+            translate_to_c(translator, ast->block.statements, depth + 1);
             string_builder__append_format(output, "%.*s}\n", depth * 4, spaces);
         }
         break;
@@ -18,12 +59,12 @@ void translate_to_c(struct ast_node *ast, string_builder *output, int depth)
         case AST__STATEMENT:
         {
             string_builder__append_format(output, "%.*s", depth * 4, spaces);
-            translate_to_c(ast->statement.stmt, output, depth);
+            translate_to_c(translator, ast->statement.stmt, depth);
             if (ast->statement.stmt->kind != AST__BLOCK)
                 string_builder__append_string(output, ";\n");
             if (ast->statement.next != NULL)
             {
-                translate_to_c(ast->statement.next, output, depth);
+                translate_to_c(translator, ast->statement.next, depth);
             }
         }
         break;
@@ -33,7 +74,7 @@ void translate_to_c(struct ast_node *ast, string_builder *output, int depth)
             // @warn: This if is temporary, declaration.type should be always present
             // after the type infer stage
             if (ast->declaration.type)
-                translate_to_c(ast->declaration.type, output, depth);
+                translate_type_to_c(translator, ast->declaration.type);
             else
                 string_builder__append_format(output, "__TYPE_INFER__");
             string_builder__append_format(output, " %.*s",
@@ -41,16 +82,16 @@ void translate_to_c(struct ast_node *ast, string_builder *output, int depth)
             if (ast->declaration.init != NULL)
             {
                 string_builder__append_string(output, " = ");
-                translate_to_c(ast->declaration.init, output, depth);
+                translate_to_c(translator, ast->declaration.init, depth);
             }
         }
         break;
 
         case AST__BINARY_OPERATOR:
         {
-            translate_to_c(ast->binary_operator.lhs, output, depth);
+            translate_to_c(translator, ast->binary_operator.lhs, depth);
             string_builder__append_format(output, "%c", ast->binary_operator.operator);
-            translate_to_c(ast->binary_operator.rhs, output, depth);
+            translate_to_c(translator, ast->binary_operator.rhs, depth);
         }
         break;
 
@@ -69,39 +110,14 @@ void translate_to_c(struct ast_node *ast, string_builder *output, int depth)
         case AST__FUNCTION_CALL:
         {
             string_builder__append_format(output, "%.*s(", (int) ast->function_call.name.size, ast->function_call.name.data);
-            translate_to_c(ast->function_call.arg1, output, depth);
+            translate_to_c(translator, ast->function_call.arg1, depth);
             string_builder__append_string(output, ")");
         }
         break;
 
-        case AST__TYPE:
+        case AST__TUPLE:
         {
-            if (ast->kind == AST__TYPE)
-            {
-                string_builder__append_format(output, "%.*s", (int) ast->type.name.size, ast->type.name.data);
-            }
-        }
-        break;
-
-        case AST__TYPE_TUPLE:
-        {
-            struct ast_node *tuple = ast;
-            if (tuple->type_tuple.type != NULL)
-            {
-                string_builder__append_format(output, "struct tuple_");
-                translate_to_c(tuple->type_tuple.type, output, depth);
-                tuple = tuple->type_tuple.next;
-                while (tuple)
-                {
-                    string_builder__append_format(output, "_");
-                    translate_to_c(tuple->type_tuple.type, output, depth);
-                    tuple = tuple->type_tuple.next;
-                }
-            }
-            else
-            {
-                string_builder__append_format(output, "void");
-            }
+            string_builder__append_format(output, "(__TUPLE__)");
         }
         break;
 

@@ -5,6 +5,40 @@
 #include "lexer.h"
 
 
+enum type_registry_entry_kind
+{
+    TYPE__VOID,
+    TYPE__NAME,
+    TYPE__TUPLE,
+};
+
+struct type_registry_entry
+{
+    enum type_registry_entry_kind kind;
+    union
+    {
+        struct
+        {
+            string_view name;
+        };
+        struct
+        {
+            struct type_registry_entry *tuple[6];
+            uint32 tuple_count;
+        };
+    };
+};
+
+struct type_registry
+{
+    struct type_registry_entry entries[32];
+    usize count;
+};
+
+bool32 type_entries_equal(struct type_registry_entry *e1, struct type_registry_entry *e2);
+struct type_registry_entry *register_type_entry(struct type_registry *registry, struct type_registry_entry *entry_to_register);
+
+
 enum ast_node_kind
 {
     AST__INVALID = 0,
@@ -42,7 +76,8 @@ struct ast_tuple
 
 struct ast_type
 {
-    struct string_view name;
+    struct type_registry_entry *entry;
+    bool32 pointer_to;
 };
 
 struct ast_binary_operator
@@ -72,7 +107,7 @@ struct ast_declaration
 {
     bool32 is_constant;
     struct string_view name;
-    struct ast_node *type;
+    struct type_registry_entry *type;
     struct ast_node *init;
 };
 
@@ -99,8 +134,6 @@ struct ast_node
         struct ast_declaration     declaration;
         struct ast_statement       statement;
         struct ast_block           block;
-        struct ast_type            type;
-        struct ast_type_tuple      type_tuple;
         struct ast_tuple           tuple;
     };
 };
@@ -116,6 +149,8 @@ struct parser
     struct ast_node *ast;
     usize ast_node_count;
     usize ast_buffer_size;
+
+    struct type_registry types;
 };
 
 

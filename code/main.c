@@ -7,7 +7,7 @@
 
 
 char const source_code[] =
-"x := (1, t);"
+"x : (int, int); y : (int, int);"
 // "{"
 // "    x : () = 1 + f(2);"
 // "    y : (int) = 30 + g(2 + x);"
@@ -15,7 +15,7 @@ char const source_code[] =
 // "        h(100);"
 // "    }"
 // "    t : (int, int) = f(x + y);"
-// "    s := (1, 1, x);"
+// "    s : (int, int) = (1, 1, x);"
 // "}"
 ;
 
@@ -53,6 +53,8 @@ int main()
         .ast = malloc(sizeof(struct ast_node) * ast_buffer_size),
         .ast_node_count = 0,
         .ast_buffer_size = ast_buffer_size,
+
+        .types.count = 1, // types.entries[0] == TYPE__VOID
     };
 
     struct ast_node *stmts = parse_statements(&parser);
@@ -67,7 +69,12 @@ int main()
         .used = 0,
     };
 
-    translate_to_c(stmts, &sb, 0);
+    struct translator_to_c translator = {
+        .output = &sb,
+    };
+
+    translator_c__predeclare_types(&translator, &parser.types);
+    translate_to_c(&translator, stmts, 0);
 
     struct memory_block str = string_builder__get_string(&sb);
     printf("%.*s\n", (int) str.size, str.memory);
