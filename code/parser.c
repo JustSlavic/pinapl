@@ -4,37 +4,57 @@
 bool32 type_entries_equal(struct type_registry_entry *e1, struct type_registry_entry *e2)
 {
     bool32 result = (e1->kind == e2->kind);
-    if (result && (e1->kind == TYPE__NAME))
+    if (result)
     {
-        if (e1->name.size == e2->name.size)
+        switch (e1->kind)
         {
-            for (int i = 0; i < e1->name.size; i++)
+        case TYPE__VOID:
+            break;
+        case TYPE__NAME:
             {
-                if (e1->name.data[i] != e2->name.data[i])
+                if (e1->name.size == e2->name.size)
+                {
+                    for (int i = 0; i < e1->name.size; i++)
+                    {
+                        if (e1->name.data[i] != e2->name.data[i])
+                        {
+                            result = false;
+                            break;
+                        }
+                    }
+                }
+                else
                 {
                     result = false;
-                    break;
                 }
             }
-        }
-        else
-        {
-            result = false;
-        }
-    }
-    else if (result && (e1->kind == TYPE__TUPLE))
-    {
-        if (e1->tuple_count == e2->tuple_count)
-        {
-            for (int i = 0; i < e1->tuple_count; i++)
+            break;
+        case TYPE__TUPLE:
             {
-                result = result && type_entries_equal(e1->tuple[i], e2->tuple[i]);
-                if (result == false) break;
+                if (e1->tuple_count == e2->tuple_count)
+                {
+                    for (int i = 0; i < e1->tuple_count; i++)
+                    {
+                        result = result && type_entries_equal(e1->tuple[i], e2->tuple[i]);
+                        if (result == false) break;
+                    }
+                }
+                else
+                {
+                    result = false;
+                }
             }
-        }
-        else
-        {
-            result = false;
+            break;
+        case TYPE__FUNCTION:
+            {
+                result = result && type_entries_equal(e1->return_type, e2->return_type);
+                result = result && (e1->arg_count == e2->arg_count);
+                if (result) for (int i = 0; i < e1->arg_count; i++)
+                {
+                    result = result && type_entries_equal(e1->arg_types[i], e2->arg_types[i]);
+                }
+            }
+            break;
         }
     }
 
@@ -456,8 +476,7 @@ struct ast_node *parse_declaration(struct parser *parser)
                     else if (t2.type == ';') // x : int
                     {
                         // @note: do not eat semicolon,
-                        // because it is going to be eaten
-                        // in the 'parse_statement'
+                        // because it is going to be eaten later
                         is_constant = false;
                         should_init = false;
                     }
@@ -605,18 +624,35 @@ struct ast_node *parse_function(struct parser *parser)
     {
         eat_token(parser);
 
+        struct type_registry_entry entry_to_register = {
+            .kind = TYPE__FUNCTION,
+        };
+
+        // @todo: parse function arguments
+
         struct token close_paren = get_token(parser);
         if (close_paren.type == ')')
         {
             eat_token(parser);
+
+            struct token arrow = get_token(parser);
+            if (arrow.type == TOKEN_ARROW_RIGHT)
+            {
+                eat_token(parser);
+
+                entry_to_register.return_type = parse_type(parser);
+            }
 
             struct ast_node *body = parse_block(parser);
 
             result = make_new_ast_node(parser);
             if (result)
             {
+                struct type_registry_entry *entry = register_type_entry(&parser->types, &entry_to_register);
+
                 result->kind = AST__FUNCTION;
                 result->function.body = body;
+                result->function.type = entry;
             }
         }
     }
@@ -630,25 +666,37 @@ void debug_print_type(struct type_registry_entry *type)
     {
         case TYPE__VOID:
         {
-            printf("type");
+            printf("void");
         }
         break;
 
         case TYPE__NAME:
         {
-            printf("type");
+            printf("%.*s", (int) type->name.size, type->name.data);
         }
         break;
 
         case TYPE__TUPLE:
         {
-            printf("type");
+            printf("(");
+
+            if (type->tuple_count > 0)
+            {
+                debug_print_type(type->tuple[0]);
+            }
+
+            for (int i = 1; i < type->tuple_count; i++)
+            {
+                printf(", ");
+                debug_print_type(type->tuple[i]);
+            }
+            printf(")");
         }
         break;
 
         case TYPE__FUNCTION:
         {
-            printf("type");
+            printf("f_ty");
         }
         break;
     }
@@ -754,8 +802,8 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
                 newlined = debug_print_ast(ast->tuple.next, depth + 1);
             }
             DO_NEWLINE
-            printf("%.*s\\--", 4*depth + 3*(depth + 1), spaces);
-            newlined = debug_print_ast(ast->tuple.value, depth);
+            printf("%.*s\\--", 4*(depth + 1) + 3*(depth), spaces);
+            newlined = debug_print_ast(ast->tuple.value, depth + 1);
             DO_NEWLINE
         }
         break;
@@ -763,6 +811,11 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
         case AST__FUNCTION:
         {
             printf("func");
+            if (ast->function.type->return_type)
+            {
+                printf("-->");
+                debug_print_type(ast->function.type->return_type);
+            }
             DO_NEWLINE
             printf("%.*s\\--", 4*(depth + 1) + 3*depth, spaces);
             newlined = debug_print_ast(ast->function.body, depth + 1);

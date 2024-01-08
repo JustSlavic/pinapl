@@ -130,6 +130,7 @@ struct ast_block
 struct ast_function
 {
     struct ast_node *body;
+    struct type_registry_entry *type;
 };
 
 struct ast_node
@@ -165,10 +166,8 @@ struct parser
 };
 
 
-struct ast_node *parse_statements              (struct parser *p);
-
+struct ast_node *parse_statements(struct parser *p);
 bool32 debug_print_ast(struct ast_node *ast, int depth);
-
 
 
 #endif // PINAPL__PARSER_H

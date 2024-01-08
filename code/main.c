@@ -7,12 +7,12 @@
 
 
 char const source_code[] =
-"f :: () {\n"
-"    x := 1;\n"
-"    g :: () {\n"
-"        t := x + 1;\n"
+"f :: () -> () {\n"
+"    x : int = 1;\n"
+"    g :: () -> (int, int) {\n"
+"        t : (int, int) = x + 1;\n"
 "    }\n"
-"    t = x + g(x);\n"
+"    t = (x + g(x), 1, x);\n"
 "}\n"
 ;
 
