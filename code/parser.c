@@ -583,19 +583,19 @@ void debug_print_type(struct type_registry_entry *type)
     {
         case TYPE__VOID:
         {
-            printf("void");
+            printf("type");
         }
         break;
 
         case TYPE__NAME:
         {
-            printf("void");
+            printf("type");
         }
         break;
 
         case TYPE__TUPLE:
         {
-            printf("void");
+            printf("type");
         }
         break;
     }
@@ -606,20 +606,18 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
     char spaces[] = "                                                 ";
     bool32 newlined = false;
 
+#define DO_NEWLINE if (!newlined) { printf("\n"); newlined = true; }
+
     switch (ast->kind)
     {
         case AST__BINARY_OPERATOR:
         {
             printf("(%c)----", ast->binary_operator.operator);
             newlined = debug_print_ast(ast->binary_operator.rhs, depth+1);
-            if (!newlined) printf("\n");
+            DO_NEWLINE
             printf("%.*s\\---", 4*depth + 3*(depth + 1), spaces);
             newlined = debug_print_ast(ast->binary_operator.lhs, depth+1);
-            if (!newlined)
-            {
-                printf("\n");
-                newlined = true;
-            }
+            DO_NEWLINE
         }
         break;
 
@@ -627,7 +625,10 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
         {
             printf("%s---", ast->declaration.is_constant ? "(::)" : "(:=)");
             if (ast->declaration.init != NULL)
-                debug_print_ast(ast->declaration.init, depth + 1);
+            {
+                newlined = debug_print_ast(ast->declaration.init, depth + 1);
+                DO_NEWLINE
+            }
             else
             {
                 printf("null\n");
@@ -641,12 +642,11 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
                 newlined = true;
             }
             else
-                printf("infr");
-            if (!newlined)
             {
-                printf("\n");
+                printf("infr\n");
                 newlined = true;
             }
+            DO_NEWLINE
         }
         break;
 
@@ -657,11 +657,7 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
                 newlined = debug_print_ast(ast->function_call.arg1, depth + 1);
             else
                 printf("null");
-            if (!newlined)
-            {
-                printf("\n");
-                newlined = true;
-            }
+            DO_NEWLINE
         }
         break;
 
@@ -704,10 +700,10 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
                 printf("---");
                 newlined = debug_print_ast(ast->tuple.next, depth + 1);
             }
-            if (!newlined) printf("\n");
+            DO_NEWLINE
             printf("%.*s \\---", 4*depth + 3*(depth + 1), spaces);
             newlined = debug_print_ast(ast->tuple.value, depth);
-            if (!newlined) printf("\n");
+            DO_NEWLINE
         }
         break;
 

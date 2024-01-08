@@ -117,7 +117,34 @@ void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, in
 
         case AST__TUPLE:
         {
-            string_builder__append_format(output, "(__TUPLE__)");
+            string_builder__append_format(output, "(");
+            struct ast_node *tuple = ast;
+            if (tuple->tuple.value)
+                translate_to_c(translator, tuple->tuple.value, depth);
+            else
+                string_builder__append_format(output, "void");
+
+            tuple = tuple->tuple.next;
+
+            while (true)
+            {
+                if (tuple->kind == AST__TUPLE)
+                {
+                    string_builder__append_format(output, ", ");
+                    if (tuple->tuple.value)
+                        translate_to_c(translator, tuple->tuple.value, depth);
+                    else
+                        string_builder__append_format(output, "void");
+                    tuple = tuple->tuple.next;
+                }
+                else
+                {
+                    string_builder__append_format(output, ", ");
+                    translate_to_c(translator, tuple, depth);
+                    break;
+                }
+            }
+            string_builder__append_format(output, ")");
         }
         break;
 
