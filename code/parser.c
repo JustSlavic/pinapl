@@ -35,7 +35,16 @@ bool32 type_entries_equal(struct type_registry_entry *e1, struct type_registry_e
                 {
                     for (int i = 0; i < e1->tuple_count; i++)
                     {
-                        result = result && type_entries_equal(e1->tuple[i], e2->tuple[i]);
+                        result = result && type_entries_equal(e1->tuple_types[i], e2->tuple_types[i]);
+                        result = result && (e1->tuple_names[i].size == e2->tuple_names[i].size);
+                        for (int char_index = 0; char_index < e1->tuple_names[i].size; char_index++)
+                        {
+                            if (e1->tuple_names[i].data[char_index] != e2->tuple_names[i].data[char_index])
+                            {
+                                result = false;
+                                break;
+                            }
+                        }
                         if (result == false) break;
                     }
                 }
@@ -87,7 +96,8 @@ struct type_registry_entry *register_type_entry(struct type_registry *registry, 
 
 struct ast_node *parse_expression_operand(struct parser *parser);
 struct ast_node *parse_expression(struct parser *parser, int precedence);
-struct ast_node *parse_declaration(struct parser *parser);
+struct ast_node *parse_declaration_without_semicolon(struct parser *parser);
+struct ast_node *parse_declaration_with_semicolon(struct parser *parser);
 struct ast_node *parse_statement(struct parser *parser);
 struct ast_node *parse_statements(struct parser *parser);
 struct ast_node *parse_block(struct parser *parser);
@@ -121,6 +131,14 @@ struct ast_node *make_new_ast_node(struct parser *parser)
         parser->ast_node_count += 1;
     }
     return result;
+}
+
+void pop_ast_node(struct parser *parser)
+{
+    if (parser->ast_node_count > 0)
+    {
+        parser->ast_node_count -= 1;
+    }
 }
 
 struct ast_node *parse_tuple(struct parser *parser)
@@ -365,18 +383,39 @@ struct type_registry_entry *parse_type(struct parser *parser)
             struct type_registry_entry entry_to_register = {
                 .kind = TYPE__TUPLE,
             };
-            struct type_registry_entry *entry1 = parse_type(parser);
-            if (entry1 != NULL)
+
+
+            usize parser_saved_ast_count = parser->ast_node_count;
+            usize parser_saved_cursor = parser->cursor;
+            struct ast_node *decl = parse_declaration_without_semicolon(parser);
+            parser->ast_node_count = parser_saved_ast_count;
+
+
+            struct type_registry_entry *decl1_type;
+            string_view decl1_name;
+            if (decl)
+            {
+                decl1_name = decl->declaration.name;
+                decl1_type = decl->declaration.type;
+            }
+            else
+            {
+                parser->cursor = parser_saved_cursor;
+                decl1_type = parse_type(parser);
+            }
+
+            if (decl1_type != NULL)
             {
                 struct token comma = get_token(parser);
                 if (comma.type == ')')
                 {
                     eat_token(parser);
-                    result = entry1;
+                    result = decl1_type;
                 }
                 else if (comma.type == ',')
                 {
-                    entry_to_register.tuple[0] = entry1;
+                    entry_to_register.tuple_types[0] = decl1_type;
+                    entry_to_register.tuple_names[0] = decl1_name;
                     entry_to_register.tuple_count += 1;
 
                     while (true)
@@ -386,10 +425,35 @@ struct type_registry_entry *parse_type(struct parser *parser)
                         {
                             eat_token(parser);
 
-                            struct type_registry_entry *entry2 = parse_type(parser);
-                            if (entry2 != NULL)
-                                if (entry_to_register.tuple_count < ARRAY_COUNT(entry_to_register.tuple))
-                                    entry_to_register.tuple[entry_to_register.tuple_count++] = entry2;
+                            parser_saved_ast_count = parser->ast_node_count;
+                            parser_saved_cursor = parser->cursor;
+                            struct ast_node *decl = parse_declaration_without_semicolon(parser);
+                            parser->ast_node_count = parser_saved_ast_count;
+
+                            struct type_registry_entry *decl2_type;
+                            string_view decl2_name;
+                            if (decl)
+                            {
+                                decl2_name = decl->declaration.name;
+                                decl2_type = decl->declaration.type;
+                                parser->ast_node_count = parser_saved_ast_count;
+                            }
+                            else
+                            {
+                                parser->cursor = parser_saved_cursor;
+                                decl2_type = parse_type(parser);
+                            }
+
+                            printf("entry_to_register.tuple_count == %d\n", entry_to_register.tuple_count);
+                            if (decl2_type != NULL)
+                            {
+                                if (entry_to_register.tuple_count < ARRAY_COUNT(entry_to_register.tuple_types))
+                                {
+                                    entry_to_register.tuple_types[entry_to_register.tuple_count] = decl2_type;
+                                    entry_to_register.tuple_names[entry_to_register.tuple_count] = decl2_name;
+                                    entry_to_register.tuple_count += 1;
+                                }
+                            }
                         }
                         else if (comma.type == ')')
                         {
@@ -413,7 +477,7 @@ struct type_registry_entry *parse_type(struct parser *parser)
     return result;
 }
 
-struct ast_node *parse_declaration(struct parser *parser)
+struct ast_node *parse_declaration(struct parser *parser, bool32 ignore_semicolon)
 {
     // x :: <expr>;
     // x := <expr>;
@@ -498,14 +562,17 @@ struct ast_node *parse_declaration(struct parser *parser)
                 {
                     initializer = parse_expression(parser, 0);
 
-                    struct token semicolon = get_token(parser);
-                    if (semicolon.type == ';')
+                    if (!ignore_semicolon)
                     {
-                        eat_token(parser);
-                    }
-                    else
-                    {
-                        // @todo: report error
+                        struct token semicolon = get_token(parser);
+                        if (semicolon.type == ';')
+                        {
+                            eat_token(parser);
+                        }
+                        else
+                        {
+                            // @todo: report error
+                        }
                     }
                 }
             }
@@ -519,6 +586,18 @@ struct ast_node *parse_declaration(struct parser *parser)
         }
     }
 
+    return result;
+}
+
+struct ast_node *parse_declaration_without_semicolon(struct parser *parser)
+{
+    struct ast_node *result = parse_declaration(parser, true);
+    return result;
+}
+
+struct ast_node *parse_declaration_with_semicolon(struct parser *parser)
+{
+    struct ast_node *result = parse_declaration(parser, false);
     return result;
 }
 
@@ -541,8 +620,19 @@ struct ast_node *parse_statement(struct parser *parser)
     }
     else
     {
-        struct ast_node *ast = parse_declaration(parser);
-        if (ast == NULL)
+        struct ast_node *ast = parse_declaration_with_semicolon(parser);
+        if (ast)
+        {
+            result = make_new_ast_node(parser);
+            if (result)
+            {
+                result = make_new_ast_node(parser);
+                result->kind = AST__STATEMENT;
+                result->statement.stmt = ast;
+                result->statement.next = NULL;
+            }
+        }
+        else
         {
             parser->cursor = saved;
 
@@ -559,18 +649,6 @@ struct ast_node *parse_statement(struct parser *parser)
                     eat_token(parser);
 
                 }
-            }
-        }
-
-        if (ast)
-        {
-            result = make_new_ast_node(parser);
-            if (result)
-            {
-                result = make_new_ast_node(parser);
-                result->kind = AST__STATEMENT;
-                result->statement.stmt = ast;
-                result->statement.next = NULL;
             }
         }
     }
@@ -682,13 +760,21 @@ void debug_print_type(struct type_registry_entry *type)
 
             if (type->tuple_count > 0)
             {
-                debug_print_type(type->tuple[0]);
+                if (type->tuple_names[0].data != NULL)
+                {
+                    printf("%.*s : ", (int) type->tuple_names[0].size, type->tuple_names[0].data);
+                }
+                debug_print_type(type->tuple_types[0]);
             }
 
             for (int i = 1; i < type->tuple_count; i++)
             {
                 printf(", ");
-                debug_print_type(type->tuple[i]);
+                if (type->tuple_names[i].data != NULL)
+                {
+                    printf("%.*s : ", (int) type->tuple_names[i].size, type->tuple_names[i].data);
+                }
+                debug_print_type(type->tuple_types[i]);
             }
             printf(")");
         }

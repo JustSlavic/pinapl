@@ -24,7 +24,8 @@ struct type_registry_entry
         };
         struct
         {
-            struct type_registry_entry *tuple[16];
+            struct type_registry_entry *tuple_types[16];
+            string_view tuple_names[16];
             uint32 tuple_count;
         };
         struct

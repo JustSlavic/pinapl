@@ -21,7 +21,7 @@ void translate_type_to_c(struct translator_to_c *translator, struct type_registr
             string_builder__append_format(output, "__TUPLE_");
             for (int i = 0; i < type->tuple_count; i++)
             {
-                translate_type_to_c(translator, type->tuple[i]);
+                translate_type_to_c(translator, type->tuple_types[i]);
                 string_builder__append_format(output, "_");
             }
         }
