@@ -74,8 +74,8 @@ struct ast_type_tuple
 
 struct ast_tuple
 {
-    struct ast_node *value;
-    struct ast_node *next;
+    struct ast_node *values[16];
+    usize value_count;
 };
 
 struct ast_binary_operator

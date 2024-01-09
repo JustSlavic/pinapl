@@ -20,8 +20,11 @@
 
 
 char const source_code[] =
+"f :: (x : int, y : int, z : int) -> (result : int, error : bool) {\n"
+"    return (1, true);\n"
+"}\n"
 "g :: () {\n"
-"    (result, x) := x + f(x, x + 3, 700);\n"
+"    (result, error) := f(x, x + 3, 700);\n"
 "}\n"
 ;
 

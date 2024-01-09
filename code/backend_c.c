@@ -123,6 +123,7 @@ void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, in
 
         case AST__TUPLE:
         {
+#if 0
             string_builder__append_format(output, "(");
             struct ast_node *tuple = ast;
             if (tuple->tuple.value)
@@ -151,6 +152,7 @@ void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, in
                 }
             }
             string_builder__append_format(output, ")");
+#endif
         }
         break;
 
