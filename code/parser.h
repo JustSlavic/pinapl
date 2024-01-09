@@ -5,7 +5,7 @@
 #include "lexer.h"
 
 
-enum type_registry_entry_kind
+enum type_entry_kind
 {
     TYPE__VOID,
     TYPE__NAME,
@@ -13,9 +13,9 @@ enum type_registry_entry_kind
     TYPE__FUNCTION,
 };
 
-struct type_registry_entry
+struct type_entry
 {
-    enum type_registry_entry_kind kind;
+    enum type_entry_kind kind;
     union
     {
         struct
@@ -24,26 +24,26 @@ struct type_registry_entry
         };
         struct
         {
-            struct type_registry_entry *tuple_types[16];
+            struct type_entry *tuple_types[16];
             string_view tuple_names[16];
             uint32 tuple_count;
         };
         struct
         {
-            struct type_registry_entry *return_type;
-            struct type_registry_entry *arguments;
+            struct type_entry *return_type;
+            struct type_entry *arguments;
         };
     };
 };
 
 struct type_registry
 {
-    struct type_registry_entry entries[32];
+    struct type_entry entries[32];
     usize count;
 };
 
-bool32 type_entries_equal(struct type_registry_entry *e1, struct type_registry_entry *e2);
-struct type_registry_entry *register_type_entry(struct type_registry *registry, struct type_registry_entry *entry_to_register);
+bool32 type_entries_equal(struct type_entry *e1, struct type_entry *e2);
+struct type_entry *register_type_entry(struct type_registry *registry, struct type_entry *entry_to_register);
 
 
 enum ast_node_kind
@@ -81,7 +81,7 @@ struct ast_tuple
 
 struct ast_type
 {
-    struct type_registry_entry *entry;
+    struct type_entry *entry;
     bool32 pointer_to;
 };
 
@@ -113,7 +113,7 @@ struct ast_declaration
 {
     bool32 is_constant;
     struct string_view name;
-    struct type_registry_entry *type;
+    struct type_entry *type;
     struct ast_node *init;
 };
 
@@ -131,7 +131,7 @@ struct ast_block
 struct ast_function
 {
     struct ast_node *body;
-    struct type_registry_entry *type;
+    struct type_entry *type;
 };
 
 struct ast_return

@@ -1,7 +1,7 @@
 #include "backend_c.h"
 
 
-void translate_type_to_c(struct translator_to_c *translator, struct type_registry_entry *type)
+void translate_type_to_c(struct translator_to_c *translator, struct type_entry *type)
 {
     string_builder *output = translator->output;
     switch (type->kind)
@@ -40,7 +40,7 @@ void translator_c__predeclare_types(struct translator_to_c *translator, struct t
     string_builder *output = translator->output;
     for (int i = 0; i < registry->count; i++)
     {
-        struct type_registry_entry *entry = registry->entries + i;
+        struct type_entry *entry = registry->entries + i;
         string_builder__append_format(output, "define ");
         translate_type_to_c(translator, entry);
         string_builder__append_format(output, "\n");

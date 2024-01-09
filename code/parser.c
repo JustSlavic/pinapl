@@ -1,7 +1,7 @@
 #include "parser.h"
 
 
-bool32 type_entries_equal(struct type_registry_entry *e1, struct type_registry_entry *e2)
+bool32 type_entries_equal(struct type_entry *e1, struct type_entry *e2)
 {
     bool32 result = (e1->kind == e2->kind);
     if (result)
@@ -66,9 +66,9 @@ bool32 type_entries_equal(struct type_registry_entry *e1, struct type_registry_e
     return result;
 }
 
-struct type_registry_entry *register_type_entry(struct type_registry *registry, struct type_registry_entry *entry_to_register)
+struct type_entry *register_type_entry(struct type_registry *registry, struct type_entry *entry_to_register)
 {
-    struct type_registry_entry *entry = NULL;
+    struct type_entry *entry = NULL;
     for (int i = 0; i < registry->count; i++)
     {
         if (type_entries_equal(entry_to_register, registry->entries + i))
@@ -98,7 +98,7 @@ struct ast_node *parse_statement(struct parser *parser);
 struct ast_node *parse_statements(struct parser *parser);
 struct ast_node *parse_block(struct parser *parser);
 struct ast_node *parse_function(struct parser *parser);
-struct type_registry_entry *parse_type(struct parser *parser);
+struct type_entry *parse_type(struct parser *parser);
 
 
 struct token get_token(struct parser *parser)
@@ -371,9 +371,9 @@ struct ast_node *parse_expression(struct parser *parser, int precedence)
     return left_operand;
 }
 
-struct type_registry_entry *parse_tuple_type(struct parser *parser)
+struct type_entry *parse_tuple_type(struct parser *parser)
 {
-    struct type_registry_entry *result = NULL;
+    struct type_entry *result = NULL;
 
     struct token open_paren = get_token(parser);
     if (open_paren.type == '(')
@@ -388,7 +388,7 @@ struct type_registry_entry *parse_tuple_type(struct parser *parser)
         }
         else
         {
-            struct type_registry_entry entry_to_register = {
+            struct type_entry entry_to_register = {
                 .kind = TYPE__TUPLE,
             };
 
@@ -399,7 +399,7 @@ struct type_registry_entry *parse_tuple_type(struct parser *parser)
             parser->ast_node_count = parser_saved_ast_count;
 
 
-            struct type_registry_entry *decl1_type;
+            struct type_entry *decl1_type;
             string_view decl1_name;
             if (decl)
             {
@@ -438,7 +438,7 @@ struct type_registry_entry *parse_tuple_type(struct parser *parser)
                             struct ast_node *decl = parse_declaration_without_semicolon(parser);
                             parser->ast_node_count = parser_saved_ast_count;
 
-                            struct type_registry_entry *decl2_type;
+                            struct type_entry *decl2_type;
                             string_view decl2_name;
                             if (decl)
                             {
@@ -469,7 +469,7 @@ struct type_registry_entry *parse_tuple_type(struct parser *parser)
                         }
                     }
 
-                    struct type_registry_entry *tuple_entry = register_type_entry(&parser->types, &entry_to_register);
+                    struct type_entry *tuple_entry = register_type_entry(&parser->types, &entry_to_register);
                     result = tuple_entry;
                 }
                 else
@@ -483,9 +483,9 @@ struct type_registry_entry *parse_tuple_type(struct parser *parser)
     return result;
 }
 
-struct type_registry_entry *parse_type(struct parser *parser)
+struct type_entry *parse_type(struct parser *parser)
 {
-    struct type_registry_entry *result = NULL;
+    struct type_entry *result = NULL;
 
     struct token t = get_token(parser);
     if (t.type == TOKEN_IDENTIFIER)
@@ -493,7 +493,7 @@ struct type_registry_entry *parse_type(struct parser *parser)
         eat_token(parser);
 
         // @speed
-        struct type_registry_entry entry_to_register = {
+        struct type_entry entry_to_register = {
             .kind = TYPE__NAME,
             .name = t.span,
         };
@@ -503,7 +503,7 @@ struct type_registry_entry *parse_type(struct parser *parser)
     {
         eat_token(parser);
 
-        struct type_registry_entry entry_to_register = {
+        struct type_entry entry_to_register = {
             .kind = TYPE__NAME,
             .name = t.span,
         };
@@ -544,7 +544,7 @@ struct ast_node *parse_declaration(struct parser *parser, bool32 ignore_semicolo
             bool32 should_init = false;
 
             struct ast_node *initializer = NULL;
-            struct type_registry_entry *type = NULL;
+            struct type_entry *type = NULL;
 
             struct token t = get_token(parser);
             if (t.type == '=') // <ident> := <expr>
@@ -776,10 +776,10 @@ struct ast_node *parse_function(struct parser *parser)
     struct token open_paren = get_token(parser);
     if (open_paren.type == '(')
     {
-        struct type_registry_entry *arguments = parse_tuple_type(parser);
+        struct type_entry *arguments = parse_tuple_type(parser);
         if (arguments)
         {
-            struct type_registry_entry entry_to_register = {
+            struct type_entry entry_to_register = {
                 .kind = TYPE__FUNCTION,
                 .arguments = arguments,
             };
@@ -797,7 +797,7 @@ struct ast_node *parse_function(struct parser *parser)
             result = make_new_ast_node(parser);
             if (result)
             {
-                struct type_registry_entry *entry = register_type_entry(&parser->types, &entry_to_register);
+                struct type_entry *entry = register_type_entry(&parser->types, &entry_to_register);
 
                 result->kind = AST__FUNCTION;
                 result->function.body = body;
@@ -809,7 +809,7 @@ struct ast_node *parse_function(struct parser *parser)
     return result;
 }
 
-void debug_print_type(struct type_registry_entry *type)
+void debug_print_type(struct type_entry *type)
 {
     switch (type->kind)
     {
