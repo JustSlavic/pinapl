@@ -238,19 +238,30 @@ struct ast_node *parse_expression_operand(struct parser *parser)
                 struct ast_node *arg1 = parse_expression(parser, 0);
                 if (arg1 != NULL)
                 {
-                    close_paren = get_token(parser);
-                    if (close_paren.type == ')')
-                    {
-                        eat_token(parser);
+                    struct ast_node *fc = make_new_ast_node(parser);
+                    fc->kind = AST__FUNCTION_CALL;
+                    fc->function_call.name = t.span;
+                    fc->function_call.args[0] = arg1;
+                    fc->function_call.arg_count = 1;
 
-                        result = make_new_ast_node(parser);
-                        if (result)
+                    while (true)
+                    {
+                        struct token comma = get_token(parser);
+                        if (comma.type == ',')
                         {
-                            result->kind = AST__FUNCTION_CALL;
-                            result->function_call.name = t.span;
-                            result->function_call.arg1 = arg1;
+                            eat_token(parser);
+
+                            struct ast_node *arg2 = parse_expression(parser, 0);
+                            fc->function_call.args[fc->function_call.arg_count++] = arg2;
+                        }
+                        else if (comma.type == ')')
+                        {
+                            eat_token(parser);
+                            break;
                         }
                     }
+
+                    result = fc;
                 }
             }
         }
@@ -905,10 +916,21 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
         case AST__FUNCTION_CALL:
         {
             printf("fn()---");
-            if (ast->function_call.arg1 != NULL)
-                newlined = debug_print_ast(ast->function_call.arg1, depth + 1);
+            if (ast->function_call.arg_count > 0)
+            {
+                newlined = debug_print_ast(ast->function_call.args[0], depth + 1);
+                DO_NEWLINE
+                for (int i = 1; i < ast->function_call.arg_count; i++)
+                {
+                    printf("%.*s\\--", 4*(depth + 1) + 3*depth, spaces);
+                    newlined = debug_print_ast(ast->function_call.args[i], depth + 1);
+                    DO_NEWLINE
+                }
+            }
             else
+            {
                 printf("null");
+            }
             DO_NEWLINE
         }
         break;
@@ -961,7 +983,7 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
 
         case AST__FUNCTION:
         {
-            printf("func");
+            printf("func ");
             if (ast->function.type)
             {
                 debug_print_type(ast->function.type);

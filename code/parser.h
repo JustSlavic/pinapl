@@ -105,7 +105,8 @@ struct ast_variable
 struct ast_function_call
 {
     struct string_view name;
-    struct ast_node *arg1;
+    struct ast_node *args[16];
+    uint32 arg_count;
 };
 
 struct ast_declaration

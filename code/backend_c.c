@@ -116,7 +116,7 @@ void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, in
         case AST__FUNCTION_CALL:
         {
             string_builder__append_format(output, "%.*s(", (int) ast->function_call.name.size, ast->function_call.name.data);
-            translate_to_c(translator, ast->function_call.arg1, depth);
+            // translate_to_c(translator, ast->function_call.arg1, depth);
             string_builder__append_string(output, ")");
         }
         break;
