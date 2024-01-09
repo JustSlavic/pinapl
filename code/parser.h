@@ -79,12 +79,6 @@ struct ast_tuple
     struct ast_node *next;
 };
 
-struct ast_type
-{
-    struct type_entry *entry;
-    bool32 pointer_to;
-};
-
 struct ast_binary_operator
 {
     char operator;
