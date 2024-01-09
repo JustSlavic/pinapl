@@ -83,8 +83,8 @@ void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, in
                 translate_type_to_c(translator, ast->declaration.type);
             else
                 string_builder__append_format(output, "__TYPE_INFER__");
-            string_builder__append_format(output, " %.*s",
-                (int) ast->declaration.name.size, ast->declaration.name.data);
+            // string_builder__append_format(output, " %.*s",
+            //     (int) ast->declaration.name.size, ast->declaration.name.data);
             if (ast->declaration.init != NULL)
             {
                 string_builder__append_string(output, " = ");

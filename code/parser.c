@@ -400,10 +400,10 @@ struct type_entry *parse_tuple_type(struct parser *parser)
 
 
             struct type_entry *decl1_type;
-            string_view decl1_name;
+            // string_view decl1_name;
             if (decl)
             {
-                decl1_name = decl->declaration.name;
+                // decl1_name = decl->declaration.name;
                 decl1_type = decl->declaration.type;
             }
             else
@@ -423,7 +423,7 @@ struct type_entry *parse_tuple_type(struct parser *parser)
                 else if (comma.type == ',')
                 {
                     entry_to_register.tuple_types[0] = decl1_type;
-                    entry_to_register.tuple_names[0] = decl1_name;
+                    // entry_to_register.tuple_names[0] = decl1_name;
                     entry_to_register.tuple_count += 1;
 
                     while (true)
@@ -439,10 +439,10 @@ struct type_entry *parse_tuple_type(struct parser *parser)
                             parser->ast_node_count = parser_saved_ast_count;
 
                             struct type_entry *decl2_type;
-                            string_view decl2_name;
+                            // string_view decl2_name;
                             if (decl)
                             {
-                                decl2_name = decl->declaration.name;
+                                // decl2_name = decl->declaration.name;
                                 decl2_type = decl->declaration.type;
                                 parser->ast_node_count = parser_saved_ast_count;
                             }
@@ -457,7 +457,7 @@ struct type_entry *parse_tuple_type(struct parser *parser)
                                 if (entry_to_register.tuple_count < ARRAY_COUNT(entry_to_register.tuple_types))
                                 {
                                     entry_to_register.tuple_types[entry_to_register.tuple_count] = decl2_type;
-                                    entry_to_register.tuple_names[entry_to_register.tuple_count] = decl2_name;
+                                    // entry_to_register.tuple_names[entry_to_register.tuple_count] = decl2_name;
                                     entry_to_register.tuple_count += 1;
                                 }
                             }
@@ -525,13 +525,84 @@ struct ast_node *parse_declaration(struct parser *parser, bool32 ignore_semicolo
     // x : int : <expr>;
     // x : int = <expr>;
     struct ast_node *result = NULL;
+    struct ast_node *lhs = NULL;
 
-    struct token name = eat_token(parser);
-    if (name.type != TOKEN_IDENTIFIER)
+    struct token name = get_token(parser);
+    if (name.type == TOKEN_IDENTIFIER)
     {
-        // @todo: report error
+        eat_token(parser);
+
+        lhs = make_new_ast_node(parser);
+        lhs->kind = AST__VARIABLE;
+        lhs->variable.name = name.span;
     }
     else
+    {
+        if (name.type == '(') // Allow tuple of identifiers
+        {
+            eat_token(parser);
+
+            struct token name1 = get_token(parser);
+            if (name1.type == TOKEN_IDENTIFIER)
+            {
+                eat_token(parser);
+
+                struct ast_node *init_var1 = make_new_ast_node(parser);
+                init_var1->kind = AST__VARIABLE;
+                init_var1->variable.name = name1.span;
+
+                struct ast_node *init_tuple1 = make_new_ast_node(parser);
+                init_tuple1->kind = AST__TUPLE;
+                init_tuple1->tuple.value = init_var1;
+                init_tuple1->tuple.next = NULL;
+
+                struct ast_node *last_tuple = init_tuple1;
+
+                while (true)
+                {
+                    struct token comma = get_token(parser);
+                    if (comma.type == ',')
+                    {
+                        eat_token(parser);
+
+                        struct token name2 = get_token(parser);
+                        if (name2.type == TOKEN_IDENTIFIER)
+                        {
+                            eat_token(parser);
+
+                            struct ast_node *init_var2 = make_new_ast_node(parser);
+                            init_var2->kind = AST__VARIABLE;
+                            init_var2->variable.name = name2.span;
+
+                            struct ast_node *init_tuple2 = make_new_ast_node(parser);
+                            init_tuple2->kind = AST__TUPLE;
+                            init_tuple2->tuple.value = init_var2;
+                            init_tuple2->tuple.next = NULL;
+
+                            last_tuple->tuple.next = init_tuple2;
+                            last_tuple = init_tuple2;
+                        }
+                    }
+                    else if (comma.type == ')')
+                    {
+                        eat_token(parser);
+                        break;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                lhs = init_tuple1;
+            }
+        }
+        else
+        {
+            // @todo: report error
+        }
+    }
+
     {
         struct token colon = eat_token(parser);
         if (colon.type != ':')
@@ -620,8 +691,8 @@ struct ast_node *parse_declaration(struct parser *parser, bool32 ignore_semicolo
             result = make_new_ast_node(parser);
             result->kind = AST__DECLARATION;
             result->declaration.is_constant = is_constant;
-            result->declaration.name = name.span;
             result->declaration.type = type;
+            result->declaration.lhs  = lhs;
             result->declaration.init = initializer;
         }
     }
@@ -897,6 +968,14 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
                 printf("infr\n");
                 newlined = true;
             }
+
+            printf("%.*s\\--", 4*(depth + 1) + 3*depth, spaces);
+            if (ast->declaration.lhs)
+            {
+                newlined = debug_print_ast(ast->declaration.lhs, depth + 1);
+                DO_NEWLINE
+            }
+
             printf("%.*s\\--", 4*(depth + 1) + 3*depth, spaces);
             if (ast->declaration.init != NULL)
             {

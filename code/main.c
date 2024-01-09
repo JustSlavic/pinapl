@@ -6,14 +6,22 @@
 #include "backend_c.h"
 
 
+/*
+    todos:
+
+    * scopes
+     \__type inference
+        \__ type checking
+    * translation to C
+    * error reporting
+    * tightening up the parser
+      (correct error handling, all cases handling, and not leaking)
+*/
+
+
 char const source_code[] =
-"t :: 23;\n"
-"f :: (x : int, y : int) -> (result: int) {\n"
-"    error : bool = false;\n"
-"}\n"
-"g :: (x : int) -> int {\n"
-"    result := x + f(x, x + 3, 700);\n"
-"    return result;\n"
+"g :: () {\n"
+"    (result, x) := x + f(x, x + 3, 700);\n"
 "}\n"
 ;
 
@@ -62,6 +70,7 @@ int main()
 
     printf("=============\n");
 
+#if 0
     usize sb_size = MEGABYTES(1);
     struct string_builder sb = {
         .memory.memory = malloc(sb_size),
@@ -78,6 +87,7 @@ int main()
 
     struct memory_block str = string_builder__get_string(&sb);
     printf("%.*s\n", (int) str.size, str.memory);
+#endif
 
     return 0;
 }

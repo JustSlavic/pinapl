@@ -69,7 +69,6 @@ struct ast_node;
 
 struct ast_type_tuple
 {
-    struct ast_node *type;
     struct ast_node *next;
 };
 
@@ -106,8 +105,8 @@ struct ast_function_call
 struct ast_declaration
 {
     bool32 is_constant;
-    struct string_view name;
     struct type_entry *type;
+    struct ast_node *lhs;
     struct ast_node *init;
 };
 
