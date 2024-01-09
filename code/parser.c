@@ -57,11 +57,7 @@ bool32 type_entries_equal(struct type_registry_entry *e1, struct type_registry_e
         case TYPE__FUNCTION:
             {
                 result = result && type_entries_equal(e1->return_type, e2->return_type);
-                result = result && (e1->arg_count == e2->arg_count);
-                if (result) for (int i = 0; i < e1->arg_count; i++)
-                {
-                    result = result && type_entries_equal(e1->arg_types[i], e2->arg_types[i]);
-                }
+                result = result && type_entries_equal(e1->arguments, e2->arguments);
             }
             break;
         }
@@ -352,23 +348,12 @@ struct ast_node *parse_expression(struct parser *parser, int precedence)
     return left_operand;
 }
 
-struct type_registry_entry *parse_type(struct parser *parser)
+struct type_registry_entry *parse_tuple_type(struct parser *parser)
 {
     struct type_registry_entry *result = NULL;
 
-    struct token t = get_token(parser);
-    if (t.type == TOKEN_IDENTIFIER)
-    {
-        eat_token(parser);
-
-        // @speed
-        struct type_registry_entry entry_to_register = {
-            .kind = TYPE__NAME,
-            .name = t.span,
-        };
-        result = register_type_entry(&parser->types, &entry_to_register);
-    }
-    else if (t.type == '(')
+    struct token open_paren = get_token(parser);
+    if (open_paren.type == '(')
     {
         eat_token(parser);
 
@@ -471,7 +456,30 @@ struct type_registry_entry *parse_type(struct parser *parser)
                 }
             }
         }
+    }
 
+    return result;
+}
+
+struct type_registry_entry *parse_type(struct parser *parser)
+{
+    struct type_registry_entry *result = NULL;
+
+    struct token t = get_token(parser);
+    if (t.type == TOKEN_IDENTIFIER)
+    {
+        eat_token(parser);
+
+        // @speed
+        struct type_registry_entry entry_to_register = {
+            .kind = TYPE__NAME,
+            .name = t.span,
+        };
+        result = register_type_entry(&parser->types, &entry_to_register);
+    }
+    else if (t.type == '(')
+    {
+        result = parse_tuple_type(parser);
     }
 
     return result;
@@ -647,7 +655,10 @@ struct ast_node *parse_statement(struct parser *parser)
                 if (semicolon.type == ';')
                 {
                     eat_token(parser);
-
+                    result = make_new_ast_node(parser);
+                    result->kind = AST__STATEMENT;
+                    result->statement.stmt = ast;
+                    result->statement.next = NULL;
                 }
             }
         }
@@ -700,18 +711,13 @@ struct ast_node *parse_function(struct parser *parser)
     struct token open_paren = get_token(parser);
     if (open_paren.type == '(')
     {
-        eat_token(parser);
-
-        struct type_registry_entry entry_to_register = {
-            .kind = TYPE__FUNCTION,
-        };
-
-        // @todo: parse function arguments
-
-        struct token close_paren = get_token(parser);
-        if (close_paren.type == ')')
+        struct type_registry_entry *arguments = parse_tuple_type(parser);
+        if (arguments)
         {
-            eat_token(parser);
+            struct type_registry_entry entry_to_register = {
+                .kind = TYPE__FUNCTION,
+                .arguments = arguments,
+            };
 
             struct token arrow = get_token(parser);
             if (arrow.type == TOKEN_ARROW_RIGHT)
@@ -782,7 +788,12 @@ void debug_print_type(struct type_registry_entry *type)
 
         case TYPE__FUNCTION:
         {
-            printf("f_ty");
+            debug_print_type(type->arguments);
+            if (type->return_type)
+            {
+                printf(" -> ");
+                debug_print_type(type->return_type);
+            }
         }
         break;
     }
@@ -897,10 +908,9 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
         case AST__FUNCTION:
         {
             printf("func");
-            if (ast->function.type->return_type)
+            if (ast->function.type)
             {
-                printf("-->");
-                debug_print_type(ast->function.type->return_type);
+                debug_print_type(ast->function.type);
             }
             DO_NEWLINE
             printf("%.*s\\--", 4*(depth + 1) + 3*depth, spaces);

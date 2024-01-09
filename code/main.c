@@ -7,9 +7,9 @@
 
 
 char const source_code[] =
-"f :: () -> () {\n"
-"    x : (e : int, s : int) = 1 + 1;\n"
-"    y : (e : int, s : int) = 1 * 1;\n"
+"f :: (x : int, y : int) -> (result : int, error : bool) {\n"
+"    result = x + y;\n"
+"    error  = false;\n"
 "}\n"
 ;
 

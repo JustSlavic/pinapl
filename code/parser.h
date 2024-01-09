@@ -31,8 +31,7 @@ struct type_registry_entry
         struct
         {
             struct type_registry_entry *return_type;
-            struct type_registry_entry *arg_types[16];
-            uint32 arg_count;
+            struct type_registry_entry *arguments;
         };
     };
 };
