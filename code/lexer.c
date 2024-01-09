@@ -3,10 +3,16 @@
 
 char *keywords[] = {
     "return",
+    "bool",
+    "true",
+    "false",
 };
 
 enum token_type keyword_types[] = {
     TOKEN_KW_RETURN,
+    TOKEN_KW_BOOL,
+    TOKEN_KW_TRUE,
+    TOKEN_KW_FALSE,
 };
 
 bool32 is_ascii_space(char c) { return (c == ' '); }
@@ -80,15 +86,17 @@ void make_token_stream(struct lexer *lexer)
             {
                 char *keyword = keywords[keyword_index];
                 bool32 equal = true;
-                for (uint32 char_index = 0; char_index < t.span.size; char_index++)
+                uint32 char_index = 0;
+                while (char_index < t.span.size)
                 {
                     if ((keyword[char_index] == 0) || (keyword[char_index] != t.span.data[char_index]))
                     {
                         equal = false;
                         break;
                     }
+                    char_index++;
                 }
-                if (equal)
+                if (equal && (keyword[char_index] == 0))
                 {
                     t.type = keyword_types[keyword_index];
                     break;

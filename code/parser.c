@@ -265,6 +265,18 @@ struct ast_node *parse_expression_operand(struct parser *parser)
             }
         }
     }
+    else if (t.type == TOKEN_KW_TRUE || t.type == TOKEN_KW_FALSE)
+    {
+        eat_token(parser);
+
+        result = make_new_ast_node(parser);
+        if (result)
+        {
+            // @todo: make proper bool type
+            result->kind = AST__LITERAL_INT;
+            result->literal_int.value = (t.type == TOKEN_KW_TRUE ? 1 : 0);
+        }
+    }
     else if (t.type == TOKEN_LITERAL_INT)
     {
         eat_token(parser);
@@ -471,6 +483,16 @@ struct type_registry_entry *parse_type(struct parser *parser)
         eat_token(parser);
 
         // @speed
+        struct type_registry_entry entry_to_register = {
+            .kind = TYPE__NAME,
+            .name = t.span,
+        };
+        result = register_type_entry(&parser->types, &entry_to_register);
+    }
+    else if (t.type == TOKEN_KW_BOOL)
+    {
+        eat_token(parser);
+
         struct type_registry_entry entry_to_register = {
             .kind = TYPE__NAME,
             .name = t.span,

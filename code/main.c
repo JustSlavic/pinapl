@@ -7,10 +7,8 @@
 
 
 char const source_code[] =
-"f :: (x : int, y : int) -> (result : int, error : bool) {\n"
-"    result = x + y;\n"
-"    error  = false;\n"
-"    return (result * error - 1, error + 2 * x);"
+"f :: (x : int, y : int) {\n"
+"    error : bool = false;\n"
 "}\n"
 ;
 

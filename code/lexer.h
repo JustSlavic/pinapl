@@ -33,6 +33,9 @@ enum token_type
     TOKEN_ARROW_RIGHT = 271,
     
     TOKEN_KW_RETURN = 300,
+    TOKEN_KW_BOOL,
+    TOKEN_KW_TRUE,
+    TOKEN_KW_FALSE,
     
     TOKEN_EOF = 500,
 };
