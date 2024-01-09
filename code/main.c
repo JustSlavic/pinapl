@@ -7,7 +7,7 @@
 
 
 char const source_code[] =
-"f :: (x : int, y : int) {\n"
+"f :: (x : int, y : int) -> (result: int) {\n"
 "    error : bool = false;\n"
 "}\n"
 ;
@@ -35,6 +35,7 @@ int main()
     make_token_stream(&lexer);
     debug_print_token_stream(&lexer);
 
+    printf("=============\n");
     printf("%s\n", source_code);
     printf("=============\n");
 

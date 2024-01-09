@@ -173,6 +173,9 @@ void debug_print_token(struct token t)
         case TOKEN_ARROW_RIGHT: printf("->"); break;
 
         case TOKEN_KW_RETURN: printf("return"); break;
+        case TOKEN_KW_BOOL: printf("bool"); break;
+        case TOKEN_KW_TRUE: printf("true"); break;
+        case TOKEN_KW_FALSE: printf("false"); break;
         default: printf("Invalid!");
     }
 }

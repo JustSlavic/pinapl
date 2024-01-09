@@ -441,7 +441,6 @@ struct type_registry_entry *parse_tuple_type(struct parser *parser)
                                 decl2_type = parse_type(parser);
                             }
 
-                            printf("entry_to_register.tuple_count == %d\n", entry_to_register.tuple_count);
                             if (decl2_type != NULL)
                             {
                                 if (entry_to_register.tuple_count < ARRAY_COUNT(entry_to_register.tuple_types))
