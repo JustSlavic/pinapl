@@ -626,6 +626,39 @@ struct ast_node *parse_statement(struct parser *parser)
             result->statement.next = NULL;
         }
     }
+    else if (t.type == TOKEN_KW_RETURN)
+    {
+        eat_token(parser);
+
+        struct ast_node *return_statement = NULL;
+        struct token semicolon = get_token(parser);
+        if (semicolon.type == ';')
+        {
+            eat_token(parser);
+
+            return_statement = make_new_ast_node(parser);
+            return_statement->kind = AST__RETURN;
+            return_statement->return_.return_expression = NULL;
+        }
+        else
+        {
+            struct ast_node *return_expression = parse_expression(parser, 0);
+            semicolon = get_token(parser);
+            if (semicolon.type == ';')
+            {
+                eat_token(parser);
+
+                return_statement = make_new_ast_node(parser);
+                return_statement->kind = AST__RETURN;
+                return_statement->return_.return_expression = return_expression;
+            }
+        }
+
+        result = make_new_ast_node(parser);
+        result->kind = AST__STATEMENT;
+        result->statement.stmt = return_statement;
+        result->statement.next = NULL;
+    }
     else
     {
         struct ast_node *ast = parse_declaration_with_semicolon(parser);
@@ -915,6 +948,18 @@ bool32 debug_print_ast(struct ast_node *ast, int depth)
             DO_NEWLINE
             printf("%.*s\\--", 4*(depth + 1) + 3*depth, spaces);
             newlined = debug_print_ast(ast->function.body, depth + 1);
+        }
+        break;
+
+        case AST__RETURN:
+        {
+            printf("ret");
+            if (ast->return_.return_expression)
+            {
+                printf("----");
+                newlined = debug_print_ast(ast->return_.return_expression, depth + 1);
+                DO_NEWLINE
+            }
         }
         break;
 

@@ -1,6 +1,14 @@
 #include "lexer.h"
 
 
+char *keywords[] = {
+    "return",
+};
+
+enum token_type keyword_types[] = {
+    TOKEN_KW_RETURN,
+};
+
 bool32 is_ascii_space(char c) { return (c == ' '); }
 bool32 is_ascii_whitespace(char c) { return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'); }
 bool32 is_ascii_alpha(char c) { return ((c >= 'A') && (c <= 'Z')) || ((c >= 'a') && (c <= 'z')); }
@@ -67,6 +75,25 @@ void make_token_stream(struct lexer *lexer)
             t.type = TOKEN_IDENTIFIER;
             t.span.data = lexer->buffer + lexer->cursor;
             t.span.size = consume_while(lexer, is_valid_identifier_body);
+
+            for (int keyword_index = 0; keyword_index < ARRAY_COUNT(keywords); keyword_index++)
+            {
+                char *keyword = keywords[keyword_index];
+                bool32 equal = true;
+                for (uint32 char_index = 0; char_index < t.span.size; char_index++)
+                {
+                    if ((keyword[char_index] == 0) || (keyword[char_index] != t.span.data[char_index]))
+                    {
+                        equal = false;
+                        break;
+                    }
+                }
+                if (equal)
+                {
+                    t.type = keyword_types[keyword_index];
+                    break;
+                }
+            }
         }
         else if (is_ascii_digit(c))
         {

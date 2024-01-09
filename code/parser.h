@@ -55,7 +55,7 @@ enum ast_node_kind
     AST__DECLARATION,
     AST__BLOCK,
     AST__FUNCTION,
-    // AST__RETURN_STATEMENT,
+    AST__RETURN,
 
     // Expressions
     AST__BINARY_OPERATOR,
@@ -133,6 +133,11 @@ struct ast_function
     struct type_registry_entry *type;
 };
 
+struct ast_return
+{
+    struct ast_node *return_expression;
+};
+
 struct ast_node
 {
     enum ast_node_kind kind;
@@ -147,6 +152,7 @@ struct ast_node
         struct ast_block           block;
         struct ast_tuple           tuple;
         struct ast_function        function;
+        struct ast_return          return_;
     };
 };
 
