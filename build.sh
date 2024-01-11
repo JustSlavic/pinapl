@@ -60,22 +60,18 @@ function pvs_analyze() {
     less pvs_report.json
 }
 
+function contains_in() {
+    for it in $2; do
+        if [ "$1" = "$it" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
 
-case $command in
-    build)
-        build
-        ;;
-
-    run)
-        run
-        ;;
-
-    pvs-analyze)
-        pvs_analyze
-        ;;
-
-    *)
-        echo "Could not recognize command '$command'"
-        ;;
-esac
+if contains_in $command "build run pvs-analyze"; then
+    "$command"
+else
+    echo "Could not recognize command '$command'"
+fi
 
