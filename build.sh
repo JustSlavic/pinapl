@@ -3,6 +3,7 @@
 set -e
 
 PROJECT=pinapl
+COMPILE_COMMANDS_FILE=compile_commands.json
 
 mkdir -p bin
 
@@ -21,6 +22,9 @@ fi
 os_name=$(uname -s)
 
 function build() {
+    if [ "$command" = "pvs-analyze" ]; then
+        COMPILE_DB_JSON="-MJ $COMPILE_COMMANDS_FILE"
+    fi
     if [ "$subcommand" = "debug" ]; then
         DEBUG="-DDEBUG -g3"
         WARNINGS="-Wall"
@@ -30,8 +34,9 @@ function build() {
 
     case $os_name in
         Darwin | Linux)
-            gcc code/main.c -o bin/$PROJECT -I code/based $WARNINGS $DEBUG
-            echo "[gcc code/main.c -o bin/$PROJECT -I code/based $DEBUG $WARNINGS]... Success"
+            build_command="gcc code/main.c -o bin/$PROJECT -I code/based $WARNINGS $DEBUG $COMPILE_DB_JSON"
+            exec $($build_command)
+            echo "[$build_command]... Success"
             ;;
         *)
             echo "Unrecognazied os name ($os_name)"
@@ -43,6 +48,18 @@ function run() {
     ( cd www && ../bin/$PROJECT )
 }
 
+function pvs_analyze() {
+    build
+
+    db_contents=$(cat $COMPILE_COMMANDS_FILE)
+    db_contents_except_last_comma=${db_contents%?}
+    echo "[$db_contents_except_last_comma]" > $COMPILE_COMMANDS_FILE
+
+    pvs-studio-analyzer analyze -o pvs_output.log -j2
+    plog-converter -a GA:1,2 -t json -o pvs_report.json pvs_output.log
+    less pvs_report.json
+}
+
 
 case $command in
     build)
@@ -51,6 +68,10 @@ case $command in
 
     run)
         run
+        ;;
+
+    pvs-analyze)
+        pvs_analyze
         ;;
 
     *)
