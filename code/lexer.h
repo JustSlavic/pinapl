@@ -33,26 +33,44 @@ enum token_type
     TOKEN_ARROW_RIGHT = 271,
     
     TOKEN_KW_RETURN = 300,
+
     TOKEN_KW_BOOL,
     TOKEN_KW_TRUE,
     TOKEN_KW_FALSE,
-    
+
     TOKEN_EOF = 500,
 };
 
 struct token
 {
-    enum token_type type;
+    enum token_type kind;
 
     int line;
     int column;
 
     union
     {
-        int integer_value;
+        int32 boolean_value;
+        int64 integer_value;
+        float floating_value;
     };
 
     struct string_view span;
+};
+typedef struct token token;
+
+FORCE_INLINE token token__invalid()
+{
+    token result;
+    result.kind = TOKEN_INVALID;
+    return result;
+}
+
+struct token_stream
+{
+    token *tokens;
+    usize count;
+    usize capacity;
 };
 
 struct lexer
@@ -65,15 +83,15 @@ struct lexer
     usize line;
     usize column;
 
-    struct token *token_stream;
-    usize token_count;
-    usize token_stream_size;
+    struct token_stream stream;
+
+    struct logger *logger;
 };
 
 
-void make_token_stream(struct lexer *lexer);
-void debug_print_token_stream(struct lexer *lexer);
+void lexer__tokenize(struct lexer *lexer);
 int get_precedence(struct token operator);
+void debug_print_token_stream(struct lexer *lexer);
 
 
 #endif // PINAPL__LEXER_H

@@ -3,6 +3,7 @@
 
 void translate_type_to_c(struct translator_to_c *translator, struct type_entry *type)
 {
+#if 0
     string_builder *output = translator->output;
     switch (type->kind)
     {
@@ -33,10 +34,12 @@ void translate_type_to_c(struct translator_to_c *translator, struct type_entry *
         }
         break;
     }
+#endif
 }
 
 void translator_c__predeclare_types(struct translator_to_c *translator, struct type_registry *registry)
 {
+#if 0
     string_builder *output = translator->output;
     for (int i = 0; i < registry->count; i++)
     {
@@ -45,10 +48,12 @@ void translator_c__predeclare_types(struct translator_to_c *translator, struct t
         translate_type_to_c(translator, entry);
         string_builder__append_format(output, "\n");
     }
+#endif
 }
 
 void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, int depth)
 {
+#if 0
     char spaces[] = "                                                 ";
     string_builder *output = translator->output;
 
@@ -123,7 +128,6 @@ void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, in
 
         case AST__TUPLE:
         {
-#if 0
             string_builder__append_format(output, "(");
             struct ast_node *tuple = ast;
             if (tuple->tuple.value)
@@ -152,7 +156,6 @@ void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, in
                 }
             }
             string_builder__append_format(output, ")");
-#endif
         }
         break;
 
@@ -165,4 +168,5 @@ void translate_to_c(struct translator_to_c *translator, struct ast_node *ast, in
         default:
         break;
     }
+#endif
 }

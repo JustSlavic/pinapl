@@ -1,38 +1,65 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <base.h>
+#include <memory_allocator.h>
+#include <logger.h>
+
 #include "lexer.h"
 #include "parser.h"
-#include "backend_c.h"
 
 
 /*
     todos:
 
-    * scopes
-     \__type inference
-        \__ type checking
+    type_tuple {
+        type_entry *type_names[16];
+    };
+
+    ast_tuple {
+        string_view names[16];
+        type_entry *type;
+    }
+
+    * three types of tuples in the language
+     \__ type tuples                         f :: () -> (int, int) {};
+        \__ variable to declare tuples       (x, y) := f();
+           \__ typed variables to declare    f :: (x : int, y : int) {}
+              \__
+                 * scopes
+                  \__ type inference
+                     \__ type checking
     * translation to C
     * error reporting
     * tightening up the parser
       (correct error handling, all cases handling, and not leaking)
+    * placeholder _, and all the places where it's allowed
+      - return values from function: (_, x) := foo(); discards first value in tuple
 */
 
 
 char const source_code[] =
-"f :: (x : int, y : int, z : int) -> (result : int, error : bool) {\n"
-"    return (1, true);\n"
-"}\n"
-"g :: () {\n"
-"    (result, error) := f(x, x + 3, 700);\n"
-"}\n"
+"(bool, int)"
 ;
 
 
 int main()
 {
-    usize token_stream_size = 1024;
+    usize memory_size_for_logger = MEGABYTES(1);
+    usize token_stream_capacity = 1024;
     usize ast_buffer_size = 1024;
+
+    memory_block memory_for_logger = {
+        .memory = malloc(memory_size_for_logger),
+        .size = memory_size_for_logger,
+    };
+
+    struct logger logger = {
+        .sb = {
+            .memory = memory_for_logger,
+            .used = 0,
+        }
+    };
 
     struct lexer lexer = {
         .buffer = (char const *) source_code,
@@ -43,36 +70,73 @@ int main()
         .line = 1,
         .column = 0,
 
-        .token_stream = malloc(sizeof(struct token) * token_stream_size),
-        .token_count = 0,
-        .token_stream_size = token_stream_size,
+        .stream = {
+            .tokens = malloc(sizeof(struct token) * token_stream_capacity),
+            .count = 0,
+            .capacity = token_stream_capacity,
+        },
+
+        .logger = &logger,
     };
 
-    make_token_stream(&lexer);
+    lexer__tokenize(&lexer);
     debug_print_token_stream(&lexer);
+
+    printf("=============\n");
+
+    logger__flush_file(&logger, 1);
+
+    struct parser parser = {
+        .token_stream = lexer.stream,
+        .token_cursor = 0,
+
+        .ast = malloc(sizeof(ast_node) * ast_buffer_size),
+        .ast_count = 0,
+        .ast_capacity = ast_buffer_size,
+
+        .rollback_buffer_count = 0,
+
+        .type_registry = make_type_registry(32),
+
+        
+        .logger = &logger,
+    };
+
+    // ast_node *ast = parse_expression(&parser, 0);
+    // debug__print_ast(ast, 0);
+
+    struct type *t = parse_type(&parser);
+    debug__print_type(t);
+    printf("=============\n");
+    debug__print_type_registry(parser.type_registry);
+
+#if 0
 
     printf("=============\n");
     printf("%s\n", source_code);
     printf("=============\n");
 
-    struct parser parser = {
-        .token_stream = lexer.token_stream,
-        .token_count = lexer.token_count,
 
-        .cursor = 0,
+        .types.entry_count = 1, // types.entries[0] == TYPE__VOID
 
-        .ast = malloc(sizeof(struct ast_node) * ast_buffer_size),
-        .ast_node_count = 0,
-        .ast_buffer_size = ast_buffer_size,
+        .scopes.count = 1,
 
-        .types.count = 1, // types.entries[0] == TYPE__VOID
-    };
+        .global_scope = parser.scopes.scopes,
 
-    struct ast_node *stmts = parse_statements(&parser);
+    struct ast_node *stmts = parse_statements(&parser, parser.global_scope);
     debug_print_ast(stmts, 0);
 
-    printf("=============\n");
+    // type_entry *tuple_of_types = parse_tuple_of_types(&parser);
+    // debug_print_type(tuple_of_types);
 
+    // ast_node *tpl = parse_tuple_of_variables(&parser);
+    // ast_node *tpl = parse_tuple_of_expressions(&parser);
+    // ast_node *tpl = parse_tuple_of_declarations(&parser);
+
+    // debug_print_ast(tpl, 0);
+
+    printf("=============\n");
+#endif
 #if 0
     usize sb_size = MEGABYTES(1);
     struct string_builder sb = {
@@ -98,5 +162,5 @@ int main()
 
 #include "lexer.c"
 #include "parser.c"
-#include "backend_c.c"
 #include <string_builder.c>
+#include <logger.c>

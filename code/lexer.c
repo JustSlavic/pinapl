@@ -32,7 +32,22 @@ char get_char(struct lexer *lexer)
 char eat_char(struct lexer *lexer)
 {
     char c = get_char(lexer);
-    lexer->cursor += 1;
+    if (c > 0)
+    {
+        lexer->cursor += 1;
+        lexer->column += 1;
+
+        if (c == '\n' || c == '\r')
+        {
+            lexer->column = 1;
+            lexer->line += 1;
+            char c2 = get_char(lexer);
+            if ((c == '\n' && c2 == '\r') || (c == '\r' && c2 == '\n'))
+            {
+                lexer->cursor += 1;
+            }
+        }
+    }
     return c;
 }
 
@@ -62,50 +77,43 @@ int consume_until(struct lexer *lexer, bool32 (*predicate)(char))
     return count;
 }
 
-void make_token_stream(struct lexer *lexer)
+void lexer__tokenize(struct lexer *lexer)
 {
-    while (lexer->token_count < lexer->token_stream_size)
+    while (lexer->stream.count < lexer->stream.capacity)
     {
         consume_while(lexer, is_ascii_whitespace);
 
-        struct token t = {};
+        token t = {
+            .line = lexer->line,
+            .column = lexer->column,
+        };
+
 
         char c = get_char(lexer);
         if (c == 0)
         {
-            t.type = TOKEN_EOF;
+            t.kind = TOKEN_EOF;
             break;
         }
         else if (is_valid_identifier_head(c))
         {
-            t.type = TOKEN_IDENTIFIER;
+            t.kind = TOKEN_IDENTIFIER;
             t.span.data = lexer->buffer + lexer->cursor;
             t.span.size = consume_while(lexer, is_valid_identifier_body);
 
             for (int keyword_index = 0; keyword_index < ARRAY_COUNT(keywords); keyword_index++)
             {
                 char *keyword = keywords[keyword_index];
-                bool32 equal = true;
-                uint32 char_index = 0;
-                while (char_index < t.span.size)
+                if (cstring__compare_cn(keyword, t.span.data, t.span.size) == 0)
                 {
-                    if ((keyword[char_index] == 0) || (keyword[char_index] != t.span.data[char_index]))
-                    {
-                        equal = false;
-                        break;
-                    }
-                    char_index++;
-                }
-                if (equal && (keyword[char_index] == 0))
-                {
-                    t.type = keyword_types[keyword_index];
+                    t.kind = keyword_types[keyword_index];
                     break;
                 }
             }
         }
         else if (is_ascii_digit(c))
         {
-            t.type = TOKEN_LITERAL_INT,
+            t.kind = TOKEN_LITERAL_INT,
             t.span.data = lexer->buffer + lexer->cursor;
 
             isize integer_value = 0;
@@ -129,24 +137,24 @@ void make_token_stream(struct lexer *lexer)
 
             if ((c == '-') && (c1 == '>'))
             {
-                t.type = TOKEN_ARROW_RIGHT;
+                t.kind = TOKEN_ARROW_RIGHT;
                 t.span.size = 2;
                 eat_char(lexer);
             }
             else
             {
-                t.type = (enum token_type) c;
+                t.kind = (enum token_type) c;
                 t.span.size = 1;
             }
         }
 
-        lexer->token_stream[lexer->token_count++] = t;
+        lexer->stream.tokens[lexer->stream.count++] = t;
     }
 }
 
 void debug_print_token(struct token t)
 {
-    switch (t.type)
+    switch (t.kind)
     {
         case TOKEN_EOF: printf("EOF"); break;
         case TOKEN_PAREN_OPEN: printf("("); break;
@@ -182,22 +190,25 @@ void debug_print_token(struct token t)
 
 void debug_print_token_stream(struct lexer *lexer)
 {
-    for (int i = 0; i < lexer->token_count; i++)
+    for (int i = 0; i < lexer->stream.count; i++)
     {
-        debug_print_token(lexer->token_stream[i]);
+        debug_print_token(lexer->stream.tokens[i]);
         printf("\n");
     }
 }
 
 int get_precedence(struct token operator)
 {
-    switch (operator.type)
+    switch (operator.kind)
     {
-        case TOKEN_PLUS: return 1;
-        case TOKEN_MINUS: return 1;
-        case TOKEN_ASTERICS: return 2;
-        case TOKEN_SLASH: return 2;
-        default: return 0;
+        case '+':
+        case '-':
+            return 1;
+        case '*':
+        case '/':
+            return 2;
+        default:
+            return 0;
     }
     return 0;
 }
