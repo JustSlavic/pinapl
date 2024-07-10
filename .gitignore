@@ -6,3 +6,8 @@ bin/
 
 # Apple bs
 *.DS_Store
+
+# PVS Studio
+compile_commands.json
+pvs_output.log
+pvs_report.json

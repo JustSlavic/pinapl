@@ -3,6 +3,8 @@
 set -e
 
 PROJECT=pinapl
+COMPILER=g++
+STANDARD=c++17
 COMPILE_COMMANDS_FILE=compile_commands.json
 
 mkdir -p bin
@@ -26,15 +28,15 @@ function build() {
         COMPILE_DB_JSON="-MJ $COMPILE_COMMANDS_FILE"
     fi
     if [ "$subcommand" = "debug" ]; then
-        DEBUG="-DDEBUG -g3"
+        DEBUG="-DDEBUG -g3 -O0"
         WARNINGS="-Wall"
     else
-        WARNINGS="-Wall -Werror"
+        WARNINGS="-Wall -Werror -O2"
     fi
 
     case $os_name in
         Darwin | Linux)
-            build_command="gcc code/main.c -o bin/$PROJECT -I code/based $WARNINGS $DEBUG $COMPILE_DB_JSON"
+            build_command="$COMPILER code/main.cpp -o bin/$PROJECT -I code/based -std=$STANDARD $WARNINGS $DEBUG $COMPILE_DB_JSON"
             exec $($build_command)
             echo "[$build_command]... Success"
             ;;
@@ -45,7 +47,7 @@ function build() {
 }
 
 function run() {
-    ( cd www && ../bin/$PROJECT )
+    bin/$PROJECT
 }
 
 function pvs_analyze() {

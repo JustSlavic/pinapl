@@ -1,361 +1,430 @@
-#include "parser.h"
+#include "parser.hpp"
 
 
-struct type *register_type__name(struct parser *parser, string_view name);
+namespace pinapl {
 
 
-token get_token(struct parser *parser)
+type_id_t parser::reg_type(string_view name)
 {
-    token result = token__invalid();
-    if (parser->token_cursor < parser->token_stream.count)
+    for (int i = 0; i < types.size(); i++)
     {
-        result = parser->token_stream.tokens[parser->token_cursor];
+        if (name == types[i].name) return i;
     }
-    return result;
+    type_id_t id = types.size();
+    types.push_back(type{name});
+    return id;
 }
 
-void eat_token(struct parser *parser)
+ast_node *parser::parse_type(lexer *lex)
 {
-    parser->token_cursor += 1;
-}
-
-token eat_token_t(struct parser *parser)
-{
-    token result = get_token(parser);
-    parser->token_cursor += 1;
-    return result;
-}
-
-
-ast_node *make_new_ast_node(struct parser *parser)
-{
-    ast_node *result = NULL;
-    if (parser->ast_count < parser->ast_capacity)
+    auto t = lex->get_token();
+    if (t.kind == TOKEN_IDENTIFIER ||
+        t.kind == TOKEN_KW_INT ||
+        t.kind == TOKEN_KW_BOOL)
     {
-        result = parser->ast + parser->ast_count;
-        parser->ast_count += 1;
+        lex->eat_token();
+
+        auto type_id = reg_type(t.span);
+        ast_node node;
+        node.m_type.id = type_id;
+        ast.push_back(node);
+        return ast.end();
     }
-    return result;
+    return NULL;
 }
 
-void parser__save_position(struct parser *parser)
+ast_node *parser::parse_variable(lexer *lex)
 {
-    ASSERT(parser->rollback_buffer_count < ARRAY_COUNT(parser->rollback_buffer));
-    if (parser->rollback_buffer_count < ARRAY_COUNT(parser->rollback_buffer))
+    auto t = lex->get_token();
+    if (t.kind == TOKEN_IDENTIFIER)
     {
-        usize index = parser->rollback_buffer_count++;
-        parser->rollback_buffer[index].tok_stream_position = parser->token_cursor;
-        parser->rollback_buffer[index].ast_buffer_position = parser->ast_count;
-    }
-}
+        lex->eat_token();
 
-void parser__rollback(struct parser *parser)
-{
-    ASSERT(parser->rollback_buffer_count > 0);
-    if (parser->rollback_buffer_count > 0)
-    {
-        usize index = parser->rollback_buffer_count;
-        parser->token_cursor = parser->rollback_buffer[index].tok_stream_position;
-        parser->ast_count = parser->rollback_buffer[index].ast_buffer_position;
-        parser->rollback_buffer_count--;
+        
     }
 }
 
 
-ast_node *parse_expression_operand(struct parser *parser)
+void debug_print_ast_type(parser *p, ast_node *node)
 {
-    LOGGER(parser);
-    ast_node *result = NULL;
+    auto t = p->types[node->m_type.id];
+    printf("t:%.*s", (int) t.name.size, t.name.data);
+}
 
-    token t1 = eat_token_t(parser);
-    if (t1.kind == TOKEN_IDENTIFIER)
+void parser::debug_print_ast()
+{
+    for (int i = 0; i < ast.size(); i++)
     {
-        token t2 = get_token(parser);
-        if (t2.kind == '(') // IDENT OPEN_PAREN (it's the function call)
-        {
-            // @todo: function calls with setting argument names
-        }
-        else // IDENT not_OPEN_PAREN  (it's just a variable)
-        {
-            result = make_new_ast_node(parser);
-            if (result) ast__set_variable(result, t1.span);
-        }
+        debug_print_ast_type(this, ast.data() + i);
     }
-    else if (t1.kind == TOKEN_KW_TRUE)
-    {
-        result = make_new_ast_node(parser);
-        if (result) ast__set_boolean(result, true);
-    }
-    else if (t1.kind == TOKEN_KW_FALSE)
-    {
-        result = make_new_ast_node(parser);
-        if (result) ast__set_boolean(result, false);
-    }
-    else if (t1.kind == TOKEN_LITERAL_INT)
-    {
-        result = make_new_ast_node(parser);
-        if (result) ast__set_integer(result, t1.integer_value);
-    }
-    else
-    {
-        LOG("Could not recognize language at %d:%d!\n", t1.line, t1.column);
-        LOG("Expected (id|true|false|int lit) at %d:%d\n", t1.line, t1.column);
-    }
-
-    return result;
 }
 
 
-ast_node *parse_expression(struct parser *parser, int precedence)
-{
-    LOGGER(parser);
-    ast_node *lhs = NULL;
 
-    token t1 = get_token(parser);
-    if (t1.kind == '(') // OPEN_PAREN (could be a tuple OR a parenthesized expression)
-    {
-        eat_token(parser);
+} // namespace pinapl
 
-        token t3 = get_token(parser);
-        if (t3.kind == ')') // OPEN_PAREN CLOSE_PAREN (this is empty tuple == void)
-        {
-            eat_token(parser);
-            lhs = make_new_ast_node(parser);
-            lhs->kind = AST__TUPLE;
-            if (lhs == NULL)
-            {
-                LOG("Could not allocate new ast node\n");
-                return NULL;
-            }
-        }
-        else
-        {
-            ast_node *expr1 = parse_expression(parser, 0);
-            if (expr1)
-            {
-                token t3 = get_token(parser);
-                if (t3.kind == ',') // OPEN_PAREN EXPR COMMA (It's a tuple)
-                {
-                    ast_node *tuple = make_new_ast_node(parser);
-                    ast_tuple__push(tuple, expr1);
 
-                    while (true)
-                    {
-                        token t3 = get_token(parser);
-                        if (t3.kind == ',')
-                        {
-                            eat_token(parser);
-                            ast_node *expr2 = parse_expression(parser, 0);
-                            ast_tuple__push(tuple, expr2);
-                        }
-                        else if (t3.kind == ')')
-                        {
-                            eat_token(parser);
-                            break;
-                        }
-                        else
-                        {
-                            LOG("Error while parsing tuple of expressions at %d:%d\n", t3.line, t3.column);
-                            return NULL;
-                        }
-                    }
 
-                    lhs = tuple;
-                }
-                else if (t3.kind == ')') // OPEN_PAREN EXPR CLOSE_PAREN (It's a parenth expression)
-                {
-                    eat_token(parser);
-                    lhs = expr1;
-                }
-                else
-                {
-                    LOG("Error while parsing tuple of expressions OR parenth expression\n");
-                }
-            }
-            else
-            {
-                LOG("Could not parse after '('\n");
-            }
-        }
-    }
-    else
-    {
-        lhs = parse_expression_operand(parser);
-        if (lhs == NULL)
-        {
-            LOG("Could not parse expression\n");
-            return NULL;
-        }
-    }
 
-    while (true)
-    {
-        token operator = get_token(parser);
-        if ((operator.kind != '+') &&
-            (operator.kind != '-') &&
-            (operator.kind != '*') &&
-            (operator.kind != '/') &&
-            (operator.kind != '=')) { break; }
 
-        int operator_precedence = get_precedence(operator);
-        if (operator_precedence < precedence) { break; }
 
-        eat_token(parser);
 
-        // +1 for left associativity, +0 for right associativity
-        ast_node *rhs = parse_expression(parser, operator_precedence + 1);
-        if (rhs == NULL)
-        {
-            LOG("Could not parse expression\n");
-            return NULL;
-        }
 
-        ast_node *binary_operator = make_new_ast_node(parser);
-        if (binary_operator) ast__set_binary_operator(binary_operator, operator.span, lhs, rhs);
+// struct type *register_type__name(struct parser *parser, string_view name);
 
-        lhs = binary_operator;
-    }
 
-    return lhs;
-}
+// token get_token(struct parser *parser)
+// {
+//     token result = token__invalid();
+//     if (parser->token_cursor < parser->token_stream.count)
+//     {
+//         result = parser->token_stream.tokens[parser->token_cursor];
+//     }
+//     return result;
+// }
 
-struct type *parse_type(struct parser *parser)
-{
-    LOGGER(parser);
-    struct type *result = NULL;
+// void eat_token(struct parser *parser)
+// {
+//     parser->token_cursor += 1;
+// }
 
-    token t1 = get_token(parser);
-    if ((t1.kind == TOKEN_KW_BOOL) ||
-        (t1.kind == TOKEN_IDENTIFIER))
-    {
-        eat_token(parser);
-        result = register_type__name(parser, t1.span);
-    }
-    else if (t1.kind == '(')
-    {
-        eat_token(parser);
-        struct type *type1 = parse_type(parser);
-        if (type1)
-        {
-            struct type tuple = {
-                .kind = TYPE__TUPLE,
-                .t.types[0] = type1,
-                .t.count = 1,
-            };
+// token eat_token_t(struct parser *parser)
+// {
+//     token result = get_token(parser);
+//     parser->token_cursor += 1;
+//     return result;
+// }
 
-            while (true)
-            {
-                token t2 = get_token(parser);
-                if (t2.kind == ',')
-                {
-                    eat_token(parser);
-                    struct type *type2 = parse_type(parser);
-                    tuple.t.types[tuple.t.count++] = type2;
-                }
-                else if (t2.kind == ')')
-                {
-                    eat_token(parser);
-                    break;
-                }
-                else
-                {
-                    break;
-                }
-            }
 
-            result = register_type(parser, &tuple);
-        }
-        else
-        {
-            LOG("Could not parse tuple type at %d:%d\n", t1.line, t1.column);
-        }
-    }
-    else
-    {
-        LOG("Could not recognize type at %d:%d\n", t1.line, t1.column);
-    }
+// ast_node *make_new_ast_node(struct parser *parser)
+// {
+//     ast_node *result = NULL;
+//     if (parser->ast_count < parser->ast_capacity)
+//     {
+//         result = parser->ast + parser->ast_count;
+//         parser->ast_count += 1;
+//     }
+//     return result;
+// }
 
-    return result;
-}
+// void parser__save_position(struct parser *parser)
+// {
+//     ASSERT(parser->rollback_buffer_count < ARRAY_COUNT(parser->rollback_buffer));
+//     if (parser->rollback_buffer_count < ARRAY_COUNT(parser->rollback_buffer))
+//     {
+//         usize index = parser->rollback_buffer_count++;
+//         parser->rollback_buffer[index].tok_stream_position = parser->token_cursor;
+//         parser->rollback_buffer[index].ast_buffer_position = parser->ast_count;
+//     }
+// }
 
-struct type *registry__push_type(struct type_registry *registry, struct type *type)
-{
-    struct type *result = NULL;
-    if (registry->count < registry->capacity)
-    {
-        registry->types[registry->count] = *type;
-        result = registry->types + registry->count++;
-    }
-    return result;
-}
+// void parser__rollback(struct parser *parser)
+// {
+//     ASSERT(parser->rollback_buffer_count > 0);
+//     if (parser->rollback_buffer_count > 0)
+//     {
+//         usize index = parser->rollback_buffer_count;
+//         parser->token_cursor = parser->rollback_buffer[index].tok_stream_position;
+//         parser->ast_count = parser->rollback_buffer[index].ast_buffer_position;
+//         parser->rollback_buffer_count--;
+//     }
+// }
 
-bool32 types_equal(struct type *type1, struct type *type2)
-{
-    bool32 equal = true;
-    if (type1->kind != type2->kind)
-    {
-        equal = false;
-    }
-    else
-    {
-        if (type1->kind == TYPE__NAME)
-        {
-            equal = (string_view__compare(type1->n.name, type2->n.name) == 0);
-        }
-        else if (type1->kind == TYPE__TUPLE)
-        {
-            if (type1->t.count != type2->t.count)
-            {
-                equal = false;
-            }
-            else
-            {
-                for (int i = 0; i < type1->t.count; i++)
-                {
-                    equal = types_equal(type1->t.types[i], type2->t.types[i]);
-                    if (!equal) break;
-                }
-            }
-        }
-    }
-    return equal;
-}
 
-struct type *register_type(struct parser *parser, struct type *type1)
-{
-    LOGGER(parser);
+// ast_node *parse_expression_operand(struct parser *parser)
+// {
+//     LOGGER(parser);
+//     ast_node *result = NULL;
 
-    struct type *result = NULL;
-    for (int type_index = 0; type_index < parser->type_registry->count; type_index++)
-    {
-        struct type *type2 = parser->type_registry->types + type_index;
+//     token t1 = eat_token_t(parser);
+//     if (t1.kind == TOKEN_IDENTIFIER)
+//     {
+//         token t2 = get_token(parser);
+//         if (t2.kind == '(') // IDENT OPEN_PAREN (it's the function call)
+//         {
+//             // @todo: function calls with setting argument names
+//         }
+//         else // IDENT not_OPEN_PAREN  (it's just a variable)
+//         {
+//             result = make_new_ast_node(parser);
+//             if (result) ast__set_variable(result, t1.span);
+//         }
+//     }
+//     else if (t1.kind == TOKEN_KW_TRUE)
+//     {
+//         result = make_new_ast_node(parser);
+//         if (result) ast__set_boolean(result, true);
+//     }
+//     else if (t1.kind == TOKEN_KW_FALSE)
+//     {
+//         result = make_new_ast_node(parser);
+//         if (result) ast__set_boolean(result, false);
+//     }
+//     else if (t1.kind == TOKEN_LITERAL_INT)
+//     {
+//         result = make_new_ast_node(parser);
+//         if (result) ast__set_integer(result, t1.integer_value);
+//     }
+//     else
+//     {
+//         LOG("Could not recognize language at %d:%d!\n", t1.line, t1.column);
+//         LOG("Expected (id|true|false|int lit) at %d:%d\n", t1.line, t1.column);
+//     }
 
-        if (types_equal(type1, type2))
-        {
-            result = type2;
-        }
-    }
+//     return result;
+// }
 
-    if (result == NULL)
-    {
-        result = registry__push_type(parser->type_registry, type1);
-        if (result == NULL)
-        {
-            LOG("Could not push type into registry\n");
-        }
-    }
 
-    return result;
-}
+// ast_node *parse_expression(struct parser *parser, int precedence)
+// {
+//     LOGGER(parser);
+//     ast_node *lhs = NULL;
 
-struct type *register_type__name(struct parser *parser, string_view name)
-{
-    struct type type = {
-        .kind = TYPE__NAME,
-        .n.name = name,
-    };
-    return register_type(parser, &type);
-}
+//     token t1 = get_token(parser);
+//     if (t1.kind == '(') // OPEN_PAREN (could be a tuple OR a parenthesized expression)
+//     {
+//         eat_token(parser);
+
+//         token t3 = get_token(parser);
+//         if (t3.kind == ')') // OPEN_PAREN CLOSE_PAREN (this is empty tuple == void)
+//         {
+//             eat_token(parser);
+//             lhs = make_new_ast_node(parser);
+//             lhs->kind = AST__TUPLE;
+//             if (lhs == NULL)
+//             {
+//                 LOG("Could not allocate new ast node\n");
+//                 return NULL;
+//             }
+//         }
+//         else
+//         {
+//             ast_node *expr1 = parse_expression(parser, 0);
+//             if (expr1)
+//             {
+//                 token t3 = get_token(parser);
+//                 if (t3.kind == ',') // OPEN_PAREN EXPR COMMA (It's a tuple)
+//                 {
+//                     ast_node *tuple = make_new_ast_node(parser);
+//                     ast_tuple__push(tuple, expr1);
+
+//                     while (true)
+//                     {
+//                         token t3 = get_token(parser);
+//                         if (t3.kind == ',')
+//                         {
+//                             eat_token(parser);
+//                             ast_node *expr2 = parse_expression(parser, 0);
+//                             ast_tuple__push(tuple, expr2);
+//                         }
+//                         else if (t3.kind == ')')
+//                         {
+//                             eat_token(parser);
+//                             break;
+//                         }
+//                         else
+//                         {
+//                             LOG("Error while parsing tuple of expressions at %d:%d\n", t3.line, t3.column);
+//                             return NULL;
+//                         }
+//                     }
+
+//                     lhs = tuple;
+//                 }
+//                 else if (t3.kind == ')') // OPEN_PAREN EXPR CLOSE_PAREN (It's a parenth expression)
+//                 {
+//                     eat_token(parser);
+//                     lhs = expr1;
+//                 }
+//                 else
+//                 {
+//                     LOG("Error while parsing tuple of expressions OR parenth expression\n");
+//                 }
+//             }
+//             else
+//             {
+//                 LOG("Could not parse after '('\n");
+//             }
+//         }
+//     }
+//     else
+//     {
+//         lhs = parse_expression_operand(parser);
+//         if (lhs == NULL)
+//         {
+//             LOG("Could not parse expression\n");
+//             return NULL;
+//         }
+//     }
+
+//     while (true)
+//     {
+//         token operator = get_token(parser);
+//         if ((operator.kind != '+') &&
+//             (operator.kind != '-') &&
+//             (operator.kind != '*') &&
+//             (operator.kind != '/') &&
+//             (operator.kind != '=')) { break; }
+
+//         int operator_precedence = get_precedence(operator);
+//         if (operator_precedence < precedence) { break; }
+
+//         eat_token(parser);
+
+//         // +1 for left associativity, +0 for right associativity
+//         ast_node *rhs = parse_expression(parser, operator_precedence + 1);
+//         if (rhs == NULL)
+//         {
+//             LOG("Could not parse expression\n");
+//             return NULL;
+//         }
+
+//         ast_node *binary_operator = make_new_ast_node(parser);
+//         if (binary_operator) ast__set_binary_operator(binary_operator, operator.span, lhs, rhs);
+
+//         lhs = binary_operator;
+//     }
+
+//     return lhs;
+// }
+
+// struct type *parse_type(struct parser *parser)
+// {
+//     LOGGER(parser);
+//     struct type *result = NULL;
+
+//     token t1 = get_token(parser);
+//     if ((t1.kind == TOKEN_KW_BOOL) ||
+//         (t1.kind == TOKEN_IDENTIFIER))
+//     {
+//         eat_token(parser);
+//         result = register_type__name(parser, t1.span);
+//     }
+//     else if (t1.kind == '(')
+//     {
+//         eat_token(parser);
+//         struct type *type1 = parse_type(parser);
+//         if (type1)
+//         {
+//             struct type tuple = {
+//                 .kind = TYPE__TUPLE,
+//                 .t.types[0] = type1,
+//                 .t.count = 1,
+//             };
+
+//             while (true)
+//             {
+//                 token t2 = get_token(parser);
+//                 if (t2.kind == ',')
+//                 {
+//                     eat_token(parser);
+//                     struct type *type2 = parse_type(parser);
+//                     tuple.t.types[tuple.t.count++] = type2;
+//                 }
+//                 else if (t2.kind == ')')
+//                 {
+//                     eat_token(parser);
+//                     break;
+//                 }
+//                 else
+//                 {
+//                     break;
+//                 }
+//             }
+
+//             result = register_type(parser, &tuple);
+//         }
+//         else
+//         {
+//             LOG("Could not parse tuple type at %d:%d\n", t1.line, t1.column);
+//         }
+//     }
+//     else
+//     {
+//         LOG("Could not recognize type at %d:%d\n", t1.line, t1.column);
+//     }
+
+//     return result;
+// }
+
+// struct type *registry__push_type(struct type_registry *registry, struct type *type)
+// {
+//     struct type *result = NULL;
+//     if (registry->count < registry->capacity)
+//     {
+//         registry->types[registry->count] = *type;
+//         result = registry->types + registry->count++;
+//     }
+//     return result;
+// }
+
+// bool32 types_equal(struct type *type1, struct type *type2)
+// {
+//     bool32 equal = true;
+//     if (type1->kind != type2->kind)
+//     {
+//         equal = false;
+//     }
+//     else
+//     {
+//         if (type1->kind == TYPE__NAME)
+//         {
+//             equal = (string_view__compare(type1->n.name, type2->n.name) == 0);
+//         }
+//         else if (type1->kind == TYPE__TUPLE)
+//         {
+//             if (type1->t.count != type2->t.count)
+//             {
+//                 equal = false;
+//             }
+//             else
+//             {
+//                 for (int i = 0; i < type1->t.count; i++)
+//                 {
+//                     equal = types_equal(type1->t.types[i], type2->t.types[i]);
+//                     if (!equal) break;
+//                 }
+//             }
+//         }
+//     }
+//     return equal;
+// }
+
+// struct type *register_type(struct parser *parser, struct type *type1)
+// {
+//     LOGGER(parser);
+
+//     struct type *result = NULL;
+//     for (int type_index = 0; type_index < parser->type_registry->count; type_index++)
+//     {
+//         struct type *type2 = parser->type_registry->types + type_index;
+
+//         if (types_equal(type1, type2))
+//         {
+//             result = type2;
+//         }
+//     }
+
+//     if (result == NULL)
+//     {
+//         result = registry__push_type(parser->type_registry, type1);
+//         if (result == NULL)
+//         {
+//             LOG("Could not push type into registry\n");
+//         }
+//     }
+
+//     return result;
+// }
+
+// struct type *register_type__name(struct parser *parser, string_view name)
+// {
+//     struct type type = {
+//         .kind = TYPE__NAME,
+//         .n.name = name,
+//     };
+//     return register_type(parser, &type);
+// }
 
 #if 0
 
@@ -1214,7 +1283,7 @@ void debug_print_type(struct type_entry *type)
 
 
 
-
+#if 0
 void ast__set_variable(ast_node *node, string_view name)
 {
     node->kind = AST__VARIABLE;
@@ -1602,5 +1671,5 @@ bool32 debug__print_ast(struct ast_node *ast, int depth)
 
     return newlined;
 }
-
+#endif
 
