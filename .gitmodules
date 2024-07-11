@@ -1,6 +1,3 @@
-[submodule "src/based"]
-	path = src/based
-	url = git@github.com:JustSlavic/based.git
 [submodule "code/based"]
 	path = code/based
 	url = git@github.com:JustSlavic/based.git
