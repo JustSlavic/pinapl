@@ -1,18 +1,74 @@
 #include "parser.hpp"
+#include <hash.hpp>
 
 
 namespace pinapl {
 
 
-type_id_t parser::reg_type(string_view name)
+ast_node ast_node::make_type(type_id_t id)
 {
-    for (int i = 0; i < types.size(); i++)
+    ast_node result;
+    result.kind = AST_NODE__TYPE;
+    result.m_type.index = id;
+
+    return result;
+}
+
+ast_node ast_node::make_variable(string_view name)
+{
+    ast_node result;
+    result.kind = AST_NODE__VARIABLE;
+    result.m_variable.name = name;
+
+    return result;
+}
+
+ast_node ast_node::make_int_literal(int64 n)
+{
+    ast_node result;
+    result.kind = AST_NODE__INT_LIT;
+    result.m_int_lit.n = n;
+
+    return result;
+}
+
+
+type_id_t parser::reg_type(type t)
+{
+    uint32 hash = t.hash[0] + t.hash[1] + t.hash[2] + t.hash[3];
+
+    for (uint32 offset = 0; offset < TYPES_HASH_TABLE_SIZE; offset++)
     {
-        if (name == types[i].name) return i;
+        uint32 index = ((hash + offset) % TYPES_HASH_TABLE_SIZE);
+        if (types_hash_table__hash[index] == 0)
+        {
+            types_hash_table__hash[index] = hash;
+            types_hash_table__type[index] = t;
+
+            return index;
+        }
+        else
+        {
+            if (types_hash_table__type[index] == t)
+            {
+                return index;
+            }
+        }
     }
-    type_id_t id = types.size();
-    types.push_back(type{name});
-    return id;
+
+    ASSERT_FAIL("Hash table is full. Make bigger hash table.");
+    return 0;
+}
+
+type parser::get_type(type_id_t index)
+{
+    return types_hash_table__type[index];
+}
+
+type parser::get_type(ast_node *node)
+{
+    ASSERT(node->kind == AST_NODE__TYPE);
+    return types_hash_table__type[node->m_type.index];
 }
 
 ast_node *parser::parse_type(lexer *lex)
@@ -24,11 +80,51 @@ ast_node *parser::parse_type(lexer *lex)
     {
         lex->eat_token();
 
-        auto type_id = reg_type(t.span);
-        ast_node node;
-        node.m_type.id = type_id;
-        ast.push_back(node);
-        return ast.end();
+        type type_s = {};
+        type_s.kind = TYPE__SINGLE;
+        type_s.hash[0] = hash_djb2((byte *) t.span.data, t.span.size);
+        type_s.name = t.span;
+
+        auto type_id = reg_type(type_s);
+        ast.push_back(ast_node::make_type(type_id));
+        return ast.end() - 1;
+    }
+    else if (t.kind == '(')
+    {
+        lex->eat_token();
+
+        type type_s = {};
+
+        for (int i = 0; i < ARRAY_COUNT(type::hash); i++)
+        {
+            ast_node *type_node = parse_type(lex);
+            if (type_node)
+            {
+                type_s.hash[i] = type_node->m_type.index;
+                type_s.count += 1;
+
+                auto comma = lex->get_token();
+                if (comma.kind == ',')
+                {
+                    lex->eat_token();
+                }
+                else if (comma.kind == ')')
+                {
+                    lex->eat_token();
+                    break;
+                }
+            }
+            else
+            {
+                ASSERT_FAIL("Runtime error");
+            }
+        }
+
+        type_s.kind = type_s.count == 0 ? TYPE__UNIT : TYPE__TUPLE;
+
+        auto type_id = reg_type(type_s);
+        ast.push_back(ast_node::make_type(type_id));
+        return ast.end() - 1;
     }
     return NULL;
 }
@@ -39,23 +135,82 @@ ast_node *parser::parse_variable(lexer *lex)
     if (t.kind == TOKEN_IDENTIFIER)
     {
         lex->eat_token();
+        ast.push_back(ast_node::make_variable(t.span));
+        return ast.end();
+    }
+    return NULL;
+}
 
-        
+ast_node *parser::parse_int_literal(lexer *lex)
+{
+    auto t = lex->get_token();
+    if (t.kind == TOKEN_LITERAL_INT)
+    {
+        lex->eat_token();
+        ast.push_back(ast_node::make_int_literal(t.integer_value));
+        return ast.end();
+    }
+    return NULL;
+}
+
+void debug_print_ast_type(parser *p, type t)
+{
+    if (t.kind == TYPE__UNIT)
+    {
+        printf("t:()");
+    }
+    else if (t.kind == TYPE__SINGLE)
+    {
+        printf("t:%.*s", (int) t.name.size, t.name.data);
+    }
+    else if (t.kind == TYPE__TUPLE)
+    {
+        printf("t:(");
+        for (int i = 0; i < t.count; i++)
+        {
+            auto t0 = p->get_type(t.hash[i]);
+            debug_print_ast_type(p, t0);
+            if (i < t.count - 1) printf(", ");
+        }
+        printf(")");
     }
 }
 
-
-void debug_print_ast_type(parser *p, ast_node *node)
+void debug_print_ast_type_node(parser *p, ast_node *node)
 {
-    auto t = p->types[node->m_type.id];
-    printf("t:%.*s", (int) t.name.size, t.name.data);
+    auto t = p->get_type(node);
+    debug_print_ast_type(p, t);
 }
+
+void debug_print_ast_variable(parser *p, ast_node *node)
+{
+    auto name = node->m_variable.name;
+    printf("v:%.*s", (int) name.size, name.data);
+}
+
+void debug_print_ast_int_literal(parser *p, ast_node *node)
+{
+    printf("l:%lld", node->m_int_lit.n);
+}
+
 
 void parser::debug_print_ast()
 {
     for (int i = 0; i < ast.size(); i++)
     {
-        debug_print_ast_type(this, ast.data() + i);
+        ast_node *node = ast.data() + i;
+        switch (node->kind)
+        {
+        case AST_NODE__TYPE: debug_print_ast_type_node(this, node);
+            break;
+        case AST_NODE__VARIABLE: debug_print_ast_variable(this, node);
+            break;
+        case AST_NODE__INT_LIT: debug_print_ast_int_literal(this, node);
+            break;
+        default:
+            printf("<error>");
+        }
+        printf("\n");
     }
 }
 

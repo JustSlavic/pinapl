@@ -71,6 +71,8 @@ lexer lexer::from(void *data, usize size)
 
 token lexer::get_token()
 {
+    if (current_token_ok) return current_token;
+
     consume_while(is_ascii_whitespace);
 
     token t = {};
@@ -96,6 +98,24 @@ token lexer::get_token()
                 break;
             }
         }
+    }
+    else if (is_ascii_digit(c))
+    {
+        t.kind = TOKEN_LITERAL_INT;
+        t.span.data = get_remaining_input();
+
+        int64 n = 0;
+        while (is_ascii_digit(c))
+        {
+            n *= 10;
+            n += (c - '0');
+
+            eat_char();
+            c = get_char();
+        }
+
+        t.integer_value = n;
+        t.span.size = get_remaining_input() - t.span.data;
     }
     else
     {

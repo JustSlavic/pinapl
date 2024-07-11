@@ -36,8 +36,7 @@
 
 
 char const source_code[] =
-// "(bool, int)"
-"int"
+"(int, bool)"
 ;
 
 // (int, bool) // functions and everywhere else
@@ -53,6 +52,7 @@ int main()
 
     parser.parse_type(&lex);
 
+    printf("\nAST:\n");
     parser.debug_print_ast();
     printf("\n");
 
