@@ -50,6 +50,19 @@ function run() {
     bin/$PROJECT
 }
 
+function test() {
+    case $os_name in
+        Darwin | Linux)
+            build_command="$COMPILER code/test/test_main.cpp -o bin/$PROJECT-test -I code/based -std=$STANDARD -Wall -Werror -DDEBUG -g3 -O0"
+            exec $($build_command)
+            echo "[$build_command]... Success"
+            ;;
+        *)
+            echo "Unrecognazied os name ($os_name)"
+            ;;
+    esac
+}
+
 function pvs_analyze() {
     build
 
@@ -71,7 +84,7 @@ function contains_in() {
     return 1
 }
 
-if contains_in $command "build run pvs-analyze"; then
+if contains_in $command "build run test pvs_analyze"; then
     "$command"
 else
     echo "Could not recognize command '$command'"

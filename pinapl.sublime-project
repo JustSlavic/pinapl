@@ -26,6 +26,14 @@
                 "shell_cmd": "$folder/build.sh debug && $folder/bin/pinapl",
                 "working_dir": "$folder",
             }
+        },
+        {
+            "name": "Build Test",
+
+            "osx": {
+                "shell_cmd": "$folder/build.sh test && $folder/bin/pinapl-test",
+                "working_dir": "$folder",
+            }
         }
     ]
 }

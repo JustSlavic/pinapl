@@ -3,6 +3,7 @@
 
 #include <base.h>
 #include <lexer.hpp>
+#include <string_view.hpp>
 
 
 namespace pinapl
