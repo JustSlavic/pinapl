@@ -69,11 +69,7 @@ typedef uint32 type_id_t;
 
 enum type_kind
 {
-    TYPE__NONE,
-
-    TYPE__UNIT,
-    TYPE__SINGLE,
-    TYPE__TUPLE,
+    TYPE__TUPLE,     // (), (a, b), (a, b, c), (a, b, c, d)
     TYPE__FUNCTION,
 };
 
@@ -85,12 +81,8 @@ struct type
     // if tuple - all hashes are type_id_t-s pointing to sub-types
     // if function - first is return type, second is argument type
     uint32 hash[4];
-
-    union
-    {
-        uint32 count; // only for tuples
-        string_view name; // only for single types
-    };
+    uint32 count; // only for tuples
+    string_view name; // only for single types
 };
 
 FORCE_INLINE bool operator == (type lhs, type rhs)

@@ -36,7 +36,7 @@
 
 
 char const source_code[] =
-"(int, bool)"
+"((), (bool, int), int, int)"
 ;
 
 // (int, bool) // functions and everywhere else
