@@ -7,6 +7,7 @@
     TEST_RUN(ParseInt); \
     TEST_RUN(ParseBool); \
     TEST_RUN(ParseTuple); \
+    TEST_RUN(ParseTupleTuples); \
     (void)0
 
 
@@ -109,5 +110,27 @@ TEST(ParseTuple)
         TEST_ASSERT_NEQ(index1, 0); // Check int is not Unit type
         TEST_ASSERT_EQ(index1, index_int); // Check int is the same int as above
 
+    }
+}
+
+TEST(ParseTupleTuples)
+{
+    char const source_code[] = "((), ())";
+    auto lex = pinapl::lexer::from((void *)source_code, sizeof(source_code));
+    pinapl::parser parser = {};
+    parser.parse_type(&lex);
+
+    TEST_ASSERT_EQ(parser.ast.size(), 3);
+    TEST_ASSERT_EQ(parser.ast[0].kind, pinapl::AST_NODE__TYPE);
+    TEST_ASSERT_EQ(parser.ast[1].kind, pinapl::AST_NODE__TYPE);
+    TEST_ASSERT_EQ(parser.ast[2].kind, pinapl::AST_NODE__TYPE);
+
+    {
+        auto t = parser.get_type(&parser.ast[0]);
+        TEST_ASSERT_EQ(t.count, 0);
+    }
+    {
+        auto t = parser.get_type(&parser.ast[1]);
+        TEST_ASSERT_EQ(t.count, 0);
     }
 }

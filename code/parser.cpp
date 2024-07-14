@@ -35,9 +35,8 @@ ast_node ast_node::make_int_literal(int64 n)
 
 type_id_t parser::reg_type(type t)
 {
-    uint32 hash = 0; // !!!
-    for (uint32 i = 0; i < t.count; i++)
-        hash += t.hash[i];
+    uint32 hash = t.count == 1 ? t.hash[0]
+        : hash_djb2((byte *) t.hash, sizeof(t.hash));
 
     for (uint32 offset = 0; offset < TYPES_HASH_TABLE_SIZE; offset++)
     {
@@ -83,9 +82,7 @@ ast_node *parser::parse_type(lexer *lex)
         lex->eat_token();
 
         type type_s = {};
-        // @note: !!! ((), ()) this type should not get hash = 0
-        // although each () has to... ???
-        type_s.hash[0] = 1 + hash_djb2((byte *) t.span.data, t.span.size);
+        type_s.hash[0] = hash_djb2((byte *) t.span.data, t.span.size);
         type_s.count = 1;
         type_s.name = t.span;
 
