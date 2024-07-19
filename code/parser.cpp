@@ -35,7 +35,8 @@ ast_node ast_node::make_int_literal(int64 n)
 
 type_id_t parser::reg_type(type t)
 {
-    uint32 hash = t.count == 1 ? t.hash[0]
+    uint32 hash = t.count == 0 ? 0
+        : t.count == 1 ? t.hash[0]
         : hash_djb2((byte *) t.hash, sizeof(t.hash));
 
     for (uint32 offset = 0; offset < TYPES_HASH_TABLE_SIZE; offset++)
@@ -82,9 +83,9 @@ ast_node *parser::parse_type(lexer *lex)
         lex->eat_token();
 
         type type_s = {};
+        type_s.name = t.span;
         type_s.hash[0] = hash_djb2((byte *) t.span.data, t.span.size);
         type_s.count = 1;
-        type_s.name = t.span;
 
         auto type_id = reg_type(type_s);
         ast.push_back(ast_node::make_type(type_id));
@@ -173,23 +174,25 @@ void debug_print_ast_type(parser *p, type t)
         printf("t:");
         if (t.count == 0)
         {
-            printf("() index=%d;", 0);
+            printf("() index=0");
         }
         else if (t.count == 1)
         {
             uint32 index = t.hash[0] % TYPES_HASH_TABLE_SIZE;
-            printf("(%.*s index=%d);", (int) t.name.size, t.name.data, index);
+            printf("(%.*s) index=%d", (int) t.name.size, t.name.data, index);
         }
         else
         {
             printf("(");
             for (int i = 0; i < t.count; i++)
             {
-                auto t0 = p->get_type(t.hash[i] % TYPES_HASH_TABLE_SIZE);
+                auto index = t.hash[i] % TYPES_HASH_TABLE_SIZE;
+                auto t0 = p->get_type(index);
                 debug_print_ast_type(p, t0);
+                printf(" index=%d", index);
                 if (i < t.count - 1) printf(", ");
             }
-            printf(");");
+            printf(")");
         }
     }
 }
