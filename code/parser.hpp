@@ -98,6 +98,8 @@ enum ast_node_kind
 {
     AST_NODE__NONE,
 
+    AST_NODE__TUPLE_DECL,
+
     AST_NODE__TYPE,
     AST_NODE__VARIABLE,
     AST_NODE__INT_LIT,
@@ -118,11 +120,20 @@ struct ast_node__int_literal
     int64 n;
 };
 
+struct ast_node__tuple_decl
+{
+    ast_node *elements[4];
+    string_view names[4];
+    uint32 count;
+};
+
 struct ast_node
 {
     ast_node_kind kind;
     union
     {
+        ast_node__tuple_decl   m_tuple_decl;
+
         ast_node__type         m_type;
         ast_node__variable     m_variable;
         ast_node__int_literal  m_int_lit;
@@ -146,6 +157,8 @@ struct parser
     type get_type(ast_node *node);
 
     void push_ast_node(ast_node node);
+
+    ast_node *parse_tuple_decl(lexer *lex);
 
     ast_node *parse_type(lexer *lex);
     ast_node *parse_variable(lexer *lex);

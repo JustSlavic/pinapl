@@ -73,6 +73,103 @@ type parser::get_type(ast_node *node)
     return types_hash_table__type[node->m_type.index];
 }
 
+ast_node *parser::parse_tuple_decl(lexer *lex)
+{
+    ast_node result = {};
+
+    auto t = lex->get_token();
+    if (t.kind == TOKEN_EOF)
+    {
+        return NULL;
+    }
+    else if (t.kind == TOKEN_IDENTIFIER ||
+             t.kind == TOKEN_KW_INT ||
+             t.kind == TOKEN_KW_BOOL)
+    {
+        lex->eat_token();
+
+        auto colon = lex->get_token();
+        if (colon.kind == ':')
+        {
+            lex->eat_token();
+            ast_node *parsed = parse_tuple_decl(lex);
+            if (!parsed)
+            {
+                return NULL;
+            }
+            else
+            {
+                result.kind = AST_NODE__TUPLE_DECL;
+                result.m_tuple_decl.names[0] = t.span;
+                result.m_tuple_decl.elements[0] = parsed;
+                result.m_tuple_decl.count = 1;
+            }
+        }
+        else
+        {
+            result.kind = AST_NODE__TUPLE_DECL;
+            result.m_tuple_decl.names[0] = t.span;
+            result.m_tuple_decl.count = 1;
+        }
+    }
+    else if (t.kind == '(')
+    {
+        result.kind = AST_NODE__TUPLE_DECL;
+
+        lex->eat_token();
+        auto paren = lex->get_token();
+        if (paren.kind == ')')
+        {
+            lex->eat_token();
+        }
+        else
+        {
+            ast_node *parsed = parse_tuple_decl(lex);
+            if (!parsed)
+            {
+                return NULL;
+            }
+
+            result.m_tuple_decl.elements[0] = parsed;
+            result.m_tuple_decl.count = 1;
+
+            while (true)
+            {
+                auto comma_or_paren = lex->get_token();
+                if (comma_or_paren.kind == TOKEN_EOF)
+                {
+                    return NULL;
+                }
+                else if (comma_or_paren.kind == ',')
+                {
+                    lex->eat_token();
+                }
+                else if (comma_or_paren.kind == ')')
+                {
+                    lex->eat_token();
+                    break;
+                }
+
+                ast_node *parsed = parse_tuple_decl(lex);
+                if (!parsed)
+                {
+                    return NULL;
+                }
+
+                result.m_tuple_decl.elements[result.m_tuple_decl.count] = parsed;
+                result.m_tuple_decl.count += 1;
+            }
+        }
+    }
+    else
+    {
+        return NULL;
+    }
+
+    ast.push_back(result);
+    return ast.end() - 1;
+}
+
 ast_node *parser::parse_type(lexer *lex)
 {
     auto t = lex->get_token();
@@ -214,6 +311,36 @@ void debug_print_ast_int_literal(parser *p, ast_node *node)
     printf("l:%lld;", node->m_int_lit.n);
 }
 
+void debug_print_ast__tuple_decl(parser *p, ast_node *node)
+{
+    auto *decl = &node->m_tuple_decl;
+    if (decl->count == 0)
+    {
+        printf("()");
+    }
+    else if (decl->count == 1)
+    {
+        if (decl->elements[0] == NULL)
+            printf("(%.*s)", (int) decl->names[0].size, decl->names[0].data);
+        else
+        {
+            printf("(%.*s:", (int) decl->names[0].size, decl->names[0].data);
+            debug_print_ast__tuple_decl(p, decl->elements[0]);
+            printf(")");
+        }
+    }
+    else
+    {
+        printf("(");
+        debug_print_ast__tuple_decl(p, decl->elements[0]);
+        for (int i = 1; i < decl->count; i++)
+        {
+            printf(", ");
+            debug_print_ast__tuple_decl(p, decl->elements[i]);
+        }
+        printf(")");
+    }
+}
 
 void parser::debug_print_ast()
 {
@@ -227,6 +354,8 @@ void parser::debug_print_ast()
         case AST_NODE__VARIABLE: debug_print_ast_variable(this, node);
             break;
         case AST_NODE__INT_LIT: debug_print_ast_int_literal(this, node);
+            break;
+        case AST_NODE__TUPLE_DECL: debug_print_ast__tuple_decl(this, node);
             break;
         default:
             printf("<error>");

@@ -131,7 +131,7 @@ token lexer::get_token()
 
 token lexer::eat_token()
 {
-    token result = current_token_ok ? current_token : get_token();
+    token result = get_token();
     current_token_ok = false;
     return result;
 }
