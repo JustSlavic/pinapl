@@ -119,8 +119,22 @@ token lexer::get_token()
     }
     else
     {
-        t.kind = (token_kind) c;
+        t.span.data = get_remaining_input();
+
         eat_char();
+        char c1 = get_char();
+
+        if (c == '-' && c1 == '>')
+        {
+            eat_char();
+            t.kind = TOKEN_ARROW_RIGHT;
+            t.span.size = 2;
+        }
+        else
+        {
+            t.kind = (token_kind) c;
+            t.span.size = 1;
+        }
     }
 
     current_token = t;

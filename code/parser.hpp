@@ -71,6 +71,7 @@ enum ast_node_kind
     AST_NODE__NONE,
 
     AST_NODE__TUPLE_DECL,
+    AST_NODE__FUNC_DECL,
 
     AST_NODE__VARIABLE,
     AST_NODE__INT_LIT,
@@ -95,10 +96,9 @@ struct ast_node__tuple_decl
 
 struct ast_node__func_decl
 {
-    string_view name;
     ast_node *argument;
     ast_node *returns;
-}
+};
 
 struct ast_node
 {
@@ -121,6 +121,7 @@ struct parser
     static_array<ast_node, 32> ast;
 
     ast_node *parse_tuple_decl(lexer *lex);
+    ast_node *parse_func_decl(lexer *lex);
 
     ast_node *parse_variable(lexer *lex);
     ast_node *parse_int_literal(lexer *lex);

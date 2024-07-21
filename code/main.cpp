@@ -36,8 +36,8 @@
 
 
 char const source_code[] =
-// "(int, _, (), bool)"
-"x : (int, bool)"
+"() -> (x: int, _, (), b : bool)"
+// "x : (int, bool)"
 ;
 
 // (int, bool) // functions and everywhere else
@@ -51,7 +51,7 @@ int main()
 
     pinapl::parser parser = {};
 
-    bool parsed = parser.parse_tuple_decl(&lex);
+    bool parsed = parser.parse_func_decl(&lex);
     printf("parsed = %s\n", parsed ? "true" : "false");
 
     printf("\nAST:\n");

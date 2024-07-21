@@ -23,7 +23,6 @@ ast_node ast_node::make_int_literal(int64 n)
     return result;
 }
 
-
 ast_node *parser::parse_tuple_decl(lexer *lex)
 {
     ast_node result = {};
@@ -121,6 +120,50 @@ ast_node *parser::parse_tuple_decl(lexer *lex)
     return ast.end() - 1;
 }
 
+ast_node *parser::parse_func_decl(lexer *lex)
+{
+    ast_node result = {};
+
+    auto t = lex->get_token();
+    if (t.kind == TOKEN_EOF)
+    {
+        return NULL;
+    }
+    else if (t.kind == '(')
+    {
+        ast_node *argument = parse_tuple_decl(lex);
+        ast_node *returns  = NULL;
+
+        if (!argument)
+        {
+            return NULL;
+        }
+
+        auto arrow = lex->get_token();
+        if (arrow.kind == TOKEN_ARROW_RIGHT)
+        {
+            lex->eat_token();
+            returns = parse_tuple_decl(lex);
+
+            if (!returns)
+            {
+                return NULL;
+            }
+        }
+
+        result.kind = AST_NODE__FUNC_DECL;
+        result.m_func_decl.argument = argument;
+        result.m_func_decl.returns  = returns;
+    }
+    else
+    {
+        return NULL;
+    }
+
+    ast.push_back(result);
+    return ast.end() - 1;
+}
+
 ast_node *parser::parse_variable(lexer *lex)
 {
     auto t = lex->get_token();
@@ -187,6 +230,17 @@ void debug_print_ast__tuple_decl(parser *p, ast_node *node)
     }
 }
 
+void debug_print_ast__func_decl(parser *p, ast_node *node)
+{
+    auto *decl = &node->m_func_decl;
+    debug_print_ast__tuple_decl(p, decl->argument);
+    printf(" -> ");
+    if (decl->returns)
+    {
+        debug_print_ast__tuple_decl(p, decl->returns);
+    }
+}
+
 void parser::debug_print_ast()
 {
     for (int i = 0; i < ast.size(); i++)
@@ -199,6 +253,8 @@ void parser::debug_print_ast()
         case AST_NODE__INT_LIT: debug_print_ast_int_literal(this, node);
             break;
         case AST_NODE__TUPLE_DECL: debug_print_ast__tuple_decl(this, node);
+            break;
+        case AST_NODE__FUNC_DECL: debug_print_ast__func_decl(this, node);
             break;
         default:
             printf("<error>");
