@@ -65,34 +65,6 @@ namespace pinapl
 
 struct ast_node;
 
-typedef uint32 type_id_t;
-
-enum type_kind
-{
-    TYPE__TUPLE,     // (), (a, b), (a, b, c), (a, b, c, d)
-    TYPE__FUNCTION,
-};
-
-struct type
-{
-    type_kind kind;
-    // if unit - all hashes are zero
-    // if single - only hash[0] is valid
-    // if tuple - all hashes are type_id_t-s pointing to sub-types
-    // if function - first is return type, second is argument type
-    uint32 hash[4];
-    uint32 count; // only for tuples
-    string_view name; // only for single types
-};
-
-FORCE_INLINE bool operator == (type lhs, type rhs)
-{
-    if (lhs.kind != rhs.kind) return false;
-    for (int i = 0; i < ARRAY_COUNT(lhs.hash); i++)
-        if (lhs.hash[i] != rhs.hash[i])
-            return false;
-    return true;
-}
 
 enum ast_node_kind
 {
@@ -100,14 +72,8 @@ enum ast_node_kind
 
     AST_NODE__TUPLE_DECL,
 
-    AST_NODE__TYPE,
     AST_NODE__VARIABLE,
     AST_NODE__INT_LIT,
-};
-
-struct ast_node__type
-{
-    type_id_t index;
 };
 
 struct ast_node__variable
@@ -127,19 +93,25 @@ struct ast_node__tuple_decl
     uint32 count;
 };
 
+struct ast_node__func_decl
+{
+    string_view name;
+    ast_node *argument;
+    ast_node *returns;
+}
+
 struct ast_node
 {
     ast_node_kind kind;
     union
     {
         ast_node__tuple_decl   m_tuple_decl;
+        ast_node__func_decl    m_func_decl;
 
-        ast_node__type         m_type;
         ast_node__variable     m_variable;
         ast_node__int_literal  m_int_lit;
     };
 
-    static ast_node make_type(type_id_t id);
     static ast_node make_variable(string_view name);
     static ast_node make_int_literal(int64 n);
 };
@@ -148,19 +120,8 @@ struct parser
 {
     static_array<ast_node, 32> ast;
 
-    #define TYPES_HASH_TABLE_SIZE 32
-    uint32 types_hash_table__hash[TYPES_HASH_TABLE_SIZE];
-    type   types_hash_table__type[TYPES_HASH_TABLE_SIZE];
-
-    type_id_t reg_type(type);
-    type get_type(type_id_t index);
-    type get_type(ast_node *node);
-
-    void push_ast_node(ast_node node);
-
     ast_node *parse_tuple_decl(lexer *lex);
 
-    ast_node *parse_type(lexer *lex);
     ast_node *parse_variable(lexer *lex);
     ast_node *parse_int_literal(lexer *lex);
 
