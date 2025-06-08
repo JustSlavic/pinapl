@@ -1,0 +1,77 @@
+#ifndef IR0_STREAM_H
+#define IR0_STREAM_H
+
+#include "common.h"
+
+
+typedef enum ir0_tag
+{
+    Ir0_Unknown = 0,
+    Ir0_Mov,
+    Ir0_Ldr,
+    Ir0_Str,
+    Ir0_Add,
+    Ir0_Sub,
+    Ir0_Mul,
+    Ir0_Div,
+    Ir0_Ret,
+
+    Ir0_Cmp,
+
+    Ir0_Jmp,
+    Ir0_Jeq,
+    Ir0_Jne,
+    Ir0_Jlt,
+    Ir0_Jle,
+    Ir0_Jgt,
+    Ir0_Jge,
+} ir0_tag;
+
+typedef enum ir0_arg_tag
+{
+    Ir0_ArgumentUnknown = 0,
+    Ir0_ArgumentImmediate,
+    Ir0_ArgumentRegister,
+    Ir0_ArgumentLabel,
+} ir0_arg_tag;
+
+typedef struct ir0_arg
+{
+    ir0_arg_tag tag;
+    uint32 u32;
+} ir0_arg;
+
+typedef struct ir0_instruction
+{
+    ir0_tag tag;
+    ir0_arg args[3];
+    uint32 arg_count;
+} ir0_instruction;
+
+typedef struct ir0_stream
+{
+    ir0_instruction *instructions;
+    uint32 count;
+    uint32 capacity;
+
+    char   *label_buffer;
+    uint32  label_buffer_count;
+    uint32  label_buffer_capacity;
+    uint32 *label_index_in_buffer;
+    uint32 *label_at;
+    uint32  label_count;
+    uint32  label_capacity;
+} ir0_stream;
+
+
+void ir0_push_0(ir0_stream *stream);
+void ir0_push_1r(ir0_stream *stream);
+void ir0_push_1u(ir0_stream *stream);
+void ir0_push_1l(ir0_stream *stream);
+void ir0_push_2ru(ir0_stream *stream);
+void ir0_push_2rr(ir0_stream *stream);
+void ir0_push_3rrr(ir0_stream *stream);
+void ir0_push_3rru(ir0_stream *stream);
+
+
+#endif // IR0_STREAM_H

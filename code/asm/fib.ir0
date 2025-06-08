@@ -1,0 +1,11 @@
+
+fib:
+    mov     r0, 1
+    mov     r1, 1
+.L0:
+    add     r0, r0, r1
+    add     r1, r0, r1
+    cmp     r0, 10
+    jlt     .L0
+
+    ret

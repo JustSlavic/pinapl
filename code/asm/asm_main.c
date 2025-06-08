@@ -1,82 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 
-typedef uint8_t uint8;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
+#include "common.h"
+#include "ascii.h"
+#include "ir0_stream.h"
+#include "ir0_lexer.h"
 
-typedef enum ir0_arg_tag
-{
-    Ir0_ArgumentUnknown = 0,
-    Ir0_ArgumentImmediate,
-    Ir0_ArgumentRegister,
-    Ir0_ArgumentLabel,
-} ir0_arg_tag;
-
-typedef struct ir0_arg
-{
-    ir0_arg_tag tag;
-    union
-    {
-        uint32 u32;
-        uint32 offset;
-        char const *label_name;
-    };
-} ir0_arg;
-
-typedef enum ir0_tag
-{
-    Ir0_Unknown = 0,
-    Ir0_Mov,
-    Ir0_Ldr,
-    Ir0_Str,
-    Ir0_Add,
-    Ir0_Sub,
-    Ir0_Mul,
-    Ir0_Div,
-
-    Ir0_Cmp,
-
-    Ir0_Jmp,
-    Ir0_Jeq,
-    Ir0_Jne,
-    Ir0_Jlt,
-    Ir0_Jle,
-    Ir0_Jgt,
-    Ir0_Jge,
-} ir0_tag;
-
-typedef struct ir0_instruction
-{
-    ir0_tag tag;
-    ir0_arg arg1, arg2;
-} ir0_instruction;
-
-typedef struct ir0
-{
-    ir0_instruction *stream;
-    uint32 count;
-    uint32 capacity;
-
-    char   *label_buffer;
-    uint32  label_buffer_count;
-    uint32  label_buffer_capacity;
-    uint32 *label_index_in_buffer;
-    uint32 *label_at;
-    uint32  label_count;
-    uint32  label_capacity;
-} ir0;
 
 void ir0_push_instruction1u(ir0 *ir0, ir0_tag tag,
                             ir0_arg_tag arg_tag, uint32 arg_value)
 {
-    ir0_instruction instruction = {
-        .tag = tag,
-        .arg1 = {
-            .tag = arg_tag,
-            .u32 = arg_value,
-        },
+    ir0_instruction instruction = { .tag = tag };
+    instruction.args[0] = (ir0_arg)
+    {
+        .tag = arg_tag,
+        .u32 = arg_value,
     };
     ir0->stream[ir0->count++] = instruction;
 }
@@ -88,7 +26,7 @@ void ir0_push_instruction1l(ir0 *ir0, ir0_tag tag,
         .tag = tag,
         .arg1 = {
             .tag = arg_tag,
-            .label_name = label_name,
+            .label = make_string_view_from_cstring(label_name),
         },
     };
     ir0->stream[ir0->count++] = instruction;
@@ -130,27 +68,37 @@ void ir0_push_label(ir0 *stream, char const *label_name)
     }
 }
 
-uint32 ir0_find_label(ir0 *stream, char const *label_name)
+void ir0_push_label_string_view(ir0 *stream, string_view label_name)
+{
+    if (stream->label_count < stream->label_capacity)
+    {
+        uint32 index_in_buffer = stream->label_buffer_count;
+        uint32 index_of_label = stream->label_count;
+
+        stream->label_index_in_buffer[index_of_label] = index_in_buffer;
+        stream->label_at[index_of_label] = stream->count;
+        stream->label_count += 1;
+
+        for (uint32 i = 0; i < label_name.size; i++)
+        {
+            stream->label_buffer[stream->label_buffer_count++] = label_name.data[i];
+        }
+    }
+}
+
+uint32 ir0_find_label(ir0 *stream, string_view label)
 {
     for (uint32 label_index = 0; label_index < stream->label_count; label_index++)
     {
         uint32 index_in_buffer = stream->label_index_in_buffer[label_index];
-
-        int found = 1;
-        char const *name = label_name;
-        char const *buffer_name = &stream->label_buffer[index_in_buffer];
-        while (*name)
+        string_view buffer_substring =
         {
-            if (*name != *buffer_name)
-            {
-                found = 0;
-                break;
-            }
-            name++;
-            buffer_name++;
-        }
+            .data = stream->label_buffer + index_in_buffer,
+            .size = label.size,
+        };
 
-        if (found) return label_index;
+        if (string_view_equal(label, buffer_substring))
+            return label_index;
     }
     return -1;
 }
@@ -303,62 +251,24 @@ void ir0_interpreter_cmp(ir0_interpreter *interpreter, ir0_instruction instructi
                             : Ir0_More;
 }
 
-int ir0_interpreter_jeq(ir0_interpreter *interpreter, ir0_instruction instruction)
-{
-    if (interpreter->cmp_result == Ir0_Equal)
-    {
-        if (instruction.arg1.tag == Ir0_ArgumentLabel)
-        {
-            uint32 index = ir0_find_label(interpreter->stream, instruction.arg1.label_name);
-            uint32 at = interpreter->stream->label_at[index];
-            interpreter->reg_ip.r_u32 = at;
-            return 1;
-        }
-        else
-        {
-            printf("JEQ: Invalid instruction argument!\n");
-        }
+#define DEFINE_INTERPRETER_JUMP_OPERATION_1(CmpName, OpName) \
+    int ir0_interpreter_##OpName(ir0_interpreter *interpreter, ir0_instruction instruction) { \
+        if (interpreter->cmp_result == (CmpName)) { \
+            if (instruction.arg1.tag == Ir0_ArgumentLabel) { \
+                uint32 index = ir0_find_label(interpreter->stream, instruction.arg1.label); \
+                uint32 at = interpreter->stream->label_at[index]; \
+                interpreter->reg_ip.r_u32 = at; \
+                return 1; \
+            } else { \
+                printf("JEQ: Invalid instruction argument!\n"); \
+            } \
+        } \
+        return 0; \
     }
-    return 0;
-}
 
-int ir0_interpreter_jlt(ir0_interpreter *interpreter, ir0_instruction instruction)
-{
-    if (interpreter->cmp_result == Ir0_Less)
-    {
-        if (instruction.arg1.tag == Ir0_ArgumentLabel)
-        {
-            uint32 index = ir0_find_label(interpreter->stream, instruction.arg1.label_name);
-            uint32 at = interpreter->stream->label_at[index];
-            interpreter->reg_ip.r_u32 = at;
-            return 1;
-        }
-        else
-        {
-            printf("JLT: Invalid instruction argument!\n");
-        }
-    }
-    return 0;
-}
-
-int ir0_interpreter_jgt(ir0_interpreter *interpreter, ir0_instruction instruction)
-{
-    if (interpreter->cmp_result == Ir0_More)
-    {
-        if (instruction.arg1.tag == Ir0_ArgumentLabel)
-        {
-            uint32 index = ir0_find_label(interpreter->stream, instruction.arg1.label_name);
-            uint32 at = interpreter->stream->label_at[index];
-            interpreter->reg_ip.r_u32 = at;
-            return 1;
-        }
-        else
-        {
-            printf("JGT: Invalid instruction argument!\n");
-        }
-    }
-    return 0;
-}
+DEFINE_INTERPRETER_JUMP_OPERATION_1(Ir0_Equal, jeq)
+DEFINE_INTERPRETER_JUMP_OPERATION_1(Ir0_Less,  jlt)
+DEFINE_INTERPRETER_JUMP_OPERATION_1(Ir0_More,  jgt)
 
 #define DEFINE_INTERPRETER_ARITHMETIC_OPERATION(OpSymbol, OpName) \
     void ir0_interpreter_##OpName(ir0_interpreter *interpreter, ir0_instruction instruction) { \
@@ -469,6 +379,7 @@ int main()
         .stream = malloc(sizeof(ir0_instruction) * 1000),
         .count  = 0,
         .capacity = 1000,
+
         .label_buffer = malloc(1024),
         .label_buffer_count = 0,
         .label_buffer_capacity = 1024,
@@ -478,13 +389,20 @@ int main()
         .label_capacity = 32,
     };
 
-    MOV_RI(R0, 1)
-    MOV_RI(R1, 1)
-LABEL(L0)
-    ADD_RR(R0, R1)
-    ADD_RR(R1, R0)
-    CMP_RI(R0, 6)
-    JLT_L(L0)
+// LABEL(fib);
+//     MOV_RI(R0, 1)
+//     MOV_RI(R1, 1)
+// LABEL(L0)
+//     ADD_RR(R0, R1)
+//     STR_RR(R0, R3)
+//     ADD_RI(R3, 2)
+
+//     ADD_RR(R1, R0)
+//     STR_RR(R1, R3)
+//     ADD_RI(R3, 2)
+
+//     CMP_RI(R0, 100)
+//     JLT_L(L0)
 
     ir0_interpreter interpreter =
     {
@@ -492,8 +410,136 @@ LABEL(L0)
         .memory = malloc(1 << 10),
         .memory_size = 1 << 10,
     };
+
+    char source[] =
+        "mov     r0, 10\n"
+        "mov     r1, 11\n"
+        "mov     r2, 12\n"
+        "mov     r3, 13\n"
+        "mov     r4, 14\n"
+        ;
+
+    uint32 keyword_count = 3;
+    keyword_pair *keywords = malloc(keyword_count * sizeof(keyword_pair));
+    keywords[0].keyword = make_string_view_from_cstring("mov");
+    keywords[0].tag = Token_KeywordMov;
+    keywords[1].keyword = make_string_view_from_cstring("add");
+    keywords[1].tag = Token_KeywordAdd;
+    keywords[2].keyword = make_string_view_from_cstring("sub");
+    keywords[2].tag = Token_KeywordSub;
+
+    lexer lexer =
+    {
+        .data = (uint8 *) source,
+        .size = sizeof(source),
+
+        .cursor = 0,
+        .line = 1,
+        .column = 1,
+
+        .keywords = {
+            .pairs = keywords,
+            .count = keyword_count,
+        },
+    };
+
+    while (true)
+    {
+        token t = get_token(&lexer);
+        if (t.tag == Token_Identifier)
+        {
+            // Label
+            eat_token(&lexer);
+            t = get_token(&lexer);
+            if (t.tag == ':')
+            {
+                ir0_push_label_string_view(&stream, t.span);
+            }
+        }
+        else if ((t.tag & Token_Keyword) > 0)
+        {
+            // Instruction
+            eat_token(&lexer);
+            ir0_tag instruction_tag = Ir0_Unknown;
+            if ((t.span.size == 3) &&
+                (t.span.data[0] == 'm') &&
+                (t.span.data[1] == 'o') &&
+                (t.span.data[2] == 'v'))
+            {
+                instruction_tag = Ir0_Mov;
+            }
+
+            int32 at_line = t.line;
+
+            ir0_arg args[3] = {};
+            uint32 count = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                token t1 = get_token(&lexer);
+                if (t1.line != at_line) break;
+                eat_token(&lexer);
+                token t2 = get_token(&lexer);
+
+                if (t1.tag == Token_Identifier || t1.tag == Token_LiteralInteger)
+                {
+                    count += 1;
+                    if (t1.tag == Token_Identifier)
+                    {
+                        if ((t1.span.size == 2)
+                            && (t1.span.data[0] == 'r')
+                            && is_ascii_digit(t1.span.data[1]))
+                        {
+                            args[i].tag = Ir0_ArgumentRegister;
+                            args[i].u32 = (t1.span.data[1] - '0');
+                        }
+                        else if ((t1.span.size == 3)
+                                 && (t1.span.data[0] == 'r')
+                                 && is_ascii_digit(t1.span.data[1])
+                                 && is_ascii_digit(t1.span.data[2]))
+                        {
+                            args[i].tag = Ir0_ArgumentRegister;
+                            args[i].u32 = (t1.span.data[1] - '0') * 10
+                                        + (t1.span.data[2] - '0');
+                        }
+                        else
+                        {
+                            args[i].tag = Ir0_ArgumentLabel;
+                        }
+                    }
+                    if (t1.tag == Token_LiteralInteger)
+                    {
+                        args[i].tag = Ir0_ArgumentImmediate;
+                        args[i].u32 = t1.integer_value;
+                    }
+                    if ((t2.line == at_line) && (t2.tag = ','))
+                    {
+                        eat_token(&lexer);
+                    }
+                }
+            }
+
+            if (count == 2)
+            {
+                ir0_push_instruction2(&stream,
+                    instruction_tag,
+                    args[0].tag,
+                    args[0].u32,
+                    args[1].tag,
+                    args[1].u32);
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
     ir0_interpreter_run(&interpreter);
     ir0_interpreter_print_state(&interpreter);
 
     return 0;
 }
+
+#include "ascii.c"
+#include "lexer.c"
+#include "ir0_lexer.c"
+#include "string_view.c"
