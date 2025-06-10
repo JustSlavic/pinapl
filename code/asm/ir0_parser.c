@@ -42,6 +42,9 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
         .keywords = malloc(sizeof(string_view) * ARRAY_COUNT(keywords)),
         .keyword_tags = malloc(sizeof(int32) * ARRAY_COUNT(keywords)),
         .keyword_count = ARRAY_COUNT(keywords),
+
+        .is_valid_identifier_head = ir0_is_valid_identifier_head,
+        .is_valid_identifier_body = ir0_is_valid_identifier_body,
     };
 
     for (uint32 keyword_index = 0; keyword_index < ARRAY_COUNT(keywords); keyword_index++)
@@ -60,9 +63,10 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
         .capacity = stream_instruction_count,
 
         .label_buffer = malloc(stream_label_buffer_size),
-        .label_buffer_count = 0,
+        .label_buffer_size = 0,
         .label_buffer_capacity = stream_label_buffer_size,
-        .label_index_in_buffer = malloc(stream_label_count * sizeof(uint32)),
+
+        .labels = malloc(stream_label_count * sizeof(string_view)),
         .label_at = malloc(stream_label_count * sizeof(uint32)),
         .label_count = 0,
         .label_capacity = stream_label_count,
@@ -76,35 +80,19 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
 
         printf("   token " STRING_VIEW_FMT "\n", STRING_VIEW_PRINT(t.span));
 
-        if ((t.tag == Token_Identifier) || (t.tag == '.'))
+        if (t.tag == Token_Identifier)
         {
             // Label
-            if (t.tag == Token_Identifier)
+            eat_token(&lexer); // eat label
+            token t1 = get_token(&lexer); // get colon
+            if (t1.tag == ':')
             {
-                eat_token(&lexer); // eat label
-                token t1 = get_token(&lexer); // get colon
-                if (t1.tag == ':')
-                {
-                    eat_token(&lexer); // eat colon
-                    printf("Label 1\n");
-                    // ir0_push_label_string_view(&stream, t.span);
-                }
-            }
-            if (t.tag == '.')
-            {
-                eat_token(&lexer); // eat period
-                token t1 = get_token(&lexer); // get label
-                if ((t1.tag == Token_Identifier) && ((t.column + 1) == t1.column))
-                {
-                    eat_token(&lexer); // eat label
-                    token t2 = get_token(&lexer); // get colon
-                    if (t2.tag == ':')
-                    {
-                        eat_token(&lexer); // eat colon
-                        printf("Label 2\n");
-                        // ir0_push_label_string_view(&stream, t.span);
-                    }
-                }
+                eat_token(&lexer); // eat colon
+                int32 label_index = ir0_find_label(&stream, t.span);
+                if (label_index >= 0)
+                    stream.label_at[label_index] = stream.count;
+                else
+                    label_index = ir0_push_label_at(&stream, t.span, stream.count);
             }
         }
         else if ((t.tag & Token_Keyword) > 0)
@@ -157,6 +145,9 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
                         else
                         {
                             args[i].tag = Ir0_ArgumentLabel;
+                            int32 label_index = ir0_find_label(&stream, t1.span);
+                            if (label_index < 0) label_index = ir0_push_label(&stream, t1.span);
+                            args[i].u32 = label_index;
                         }
                     }
                     if (t1.tag == Token_LiteralInteger)
@@ -173,10 +164,13 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
 
             {
                 ir0_instruction instruction = { .tag = instruction_tag };
+                printf("    { tag=%d; args=[", instruction_tag);
                 for (uint32 i = 0; i < count; i++)
                 {
-                    instruction.args[0] = args[0];
+                    instruction.args[i] = args[i];
+                    printf("{tag=%d, value=%d}", args[i].tag, args[i].u32);
                 }
+                printf("]\n");
                 instruction.arg_count = count;
                 stream.instructions[stream.count++] = instruction;
             }

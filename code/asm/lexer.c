@@ -1,8 +1,8 @@
 #include "lexer.h"
 #include "ascii.h"
 
-static bool32 is_valid_identifier_head(char c) { return (c == '_') || is_ascii_alpha(c); }
-static bool32 is_valid_identifier_body(char c) { return (c == '_') || is_ascii_alpha(c) || is_ascii_digit(c); }
+bool32 is_valid_identifier_head(char c) { return (c == '_') || is_ascii_alpha(c); }
+bool32 is_valid_identifier_body(char c) { return (c == '_') || is_ascii_alpha(c) || is_ascii_digit(c); }
 
 char get_char(lexer *l)
 {
@@ -105,11 +105,13 @@ token get_token(lexer *l)
     {
         t.tag = Token_Eof;
     }
-    else if (is_valid_identifier_head(c))
+    else if (l->is_valid_identifier_head(c))
     {
         t.tag = Token_Identifier;
         t.span.data = (char const *) (l->data + l->cursor);
-        t.span.size = consume_while(l, is_valid_identifier_body);
+        eat_char(l); // Consume identifier head now, becuse consume_while
+                     // might have predicate that does not include head character.
+        t.span.size = consume_while(l, l->is_valid_identifier_body) + 1;
 
         int32 keyword_tag = find_keyword(l, t.span);
         if (keyword_tag > Token_Invalid)

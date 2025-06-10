@@ -60,4 +60,5 @@ int main(int argc, char **argv)
 #include "lexer.c"
 #include "ir0_lexer.c"
 #include "ir0_parser.c"
+#include "ir0_stream.c"
 #include "ir0_interpreter.c"

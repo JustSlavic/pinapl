@@ -32,6 +32,8 @@ enum token_kind
     TOKEN_SLASH = '/',
     TOKEN_COMMA = ',',
 
+    TOKEN_MORE = '>',
+
     TOKEN_IDENTIFIER = 256,
     TOKEN_LITERAL_INT = 257,
 
@@ -44,6 +46,10 @@ enum token_kind
     TOKEN_KW_FALSE,
     TOKEN_KW_INT,
     TOKEN_KW_FLOAT,
+
+    TOKEN_KW_SELECT,
+    TOKEN_KW_FROM,
+    TOKEN_KW_WHERE,
 
     TOKEN_EOF = 500,
 };

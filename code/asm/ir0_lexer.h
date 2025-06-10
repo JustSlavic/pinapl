@@ -27,4 +27,8 @@ enum
 };
 
 
+bool32 ir0_is_valid_identifier_head(char c);
+bool32 ir0_is_valid_identifier_body(char c);
+
+
 #endif // IR0_LEXER_H

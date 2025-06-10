@@ -42,6 +42,11 @@ char const *token_kind_to_cstr(token_kind tk)
     case TOKEN_KW_INT: return "TOKEN_KW_INT";
     case TOKEN_KW_FLOAT: return "TOKEN_KW_FLOAT";
 
+    case TOKEN_MORE: return ">";
+    case TOKEN_KW_SELECT: return "TOKEN_KW_SELECT";
+    case TOKEN_KW_FROM: return "TOKEN_KW_FROM";
+    case TOKEN_KW_WHERE: return "TOKEN_KW_WHERE";
+
     case TOKEN_EOF: return "TOKEN_EOF";
     }
     return "<error>";
@@ -57,6 +62,9 @@ struct keyword_table_entry
 GLOBAL keywords[] = {
     { "return", TOKEN_KW_RETURN },
     { "int", TOKEN_KW_INT },
+    { "SELECT", TOKEN_KW_SELECT },
+    { "FROM", TOKEN_KW_FROM },
+    { "WHERE", TOKEN_KW_WHERE },
 };
 
 

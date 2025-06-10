@@ -56,6 +56,8 @@ typedef struct token
         string_view span;
 } token;
 
+typedef bool32 predicate_t(char);
+
 typedef struct lexer
 {
     uint8 *data;
@@ -71,9 +73,10 @@ typedef struct lexer
     string_view *keywords;
     int32       *keyword_tags;
     uint32       keyword_count;
-} lexer;
 
-typedef bool32 predicate_t(char);
+    predicate_t *is_valid_identifier_head;
+    predicate_t *is_valid_identifier_body;
+} lexer;
 
 char get_char(lexer *);
 char eat_char(lexer *);
@@ -84,5 +87,7 @@ int eat_string(lexer *, const char *, uint32);
 token get_token(lexer *);
 token eat_token(lexer *);
 
+bool32 is_valid_identifier_head(char c);
+bool32 is_valid_identifier_body(char c);
 
 #endif // LEXER_H

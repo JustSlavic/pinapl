@@ -1,11 +1,21 @@
 
 fib:
-    mov     r0, 1
-    mov     r1, 1
-.L0:
-    add     r0, r0, r1
-    add     r1, r0, r1
-    cmp     r0, 10
-    jlt     .L0
+    mov     r0, 0
+    mov     r1, 8
+    mov     r2, 0
+    mov     r3, 1
+.loop:
+    cmp     r0, r1
+    jeq     .end
 
-    ret
+    add     r4, r2, r3
+    mov     r2, r3
+    mov     r3, r4
+    mov     r4, 0
+
+    add     r0, r0, 1
+
+    jmp     .loop
+
+.end:
+

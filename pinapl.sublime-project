@@ -23,7 +23,7 @@
                 "syntax": "Packages/User/sublime-setup/polar_build_output_gcc.sublime-syntaxx"
             },
             "osx": {
-                "shell_cmd": "$folder/build.sh debug && $folder/bin/pinapl",
+                "shell_cmd": "$folder/build.sh asm && $folder/bin/b $folder/code/asm/fib.ir0",
                 "working_dir": "$folder",
             }
         },

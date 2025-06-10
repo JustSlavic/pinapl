@@ -2,6 +2,7 @@
 #define IR0_STREAM_H
 
 #include "common.h"
+#include "string_view.h"
 
 
 typedef enum ir0_tag
@@ -55,23 +56,26 @@ typedef struct ir0_stream
     uint32 capacity;
 
     char   *label_buffer;
-    uint32  label_buffer_count;
+    uint32  label_buffer_size;
     uint32  label_buffer_capacity;
-    uint32 *label_index_in_buffer;
-    uint32 *label_at;
-    uint32  label_count;
-    uint32  label_capacity;
+
+    string_view *labels;
+     int32      *label_at;
+    uint32       label_count;
+    uint32       label_capacity;
 } ir0_stream;
 
 
-void ir0_push_0(ir0_stream *stream);
-void ir0_push_1r(ir0_stream *stream);
-void ir0_push_1u(ir0_stream *stream);
-void ir0_push_1l(ir0_stream *stream);
-void ir0_push_2ru(ir0_stream *stream);
-void ir0_push_2rr(ir0_stream *stream);
-void ir0_push_3rrr(ir0_stream *stream);
-void ir0_push_3rru(ir0_stream *stream);
-
+void ir0_push_0(ir0_stream *stream, int32 tag);
+// void ir0_push_1r(ir0_stream *stream);
+// void ir0_push_1u(ir0_stream *stream);
+// void ir0_push_1l(ir0_stream *stream);
+// void ir0_push_2ru(ir0_stream *stream);
+// void ir0_push_2rr(ir0_stream *stream);
+// void ir0_push_3rrr(ir0_stream *stream);
+// void ir0_push_3rru(ir0_stream *stream);
+int32 ir0_push_label_at(ir0_stream *stream, string_view label_name, int32 at);
+int32 ir0_push_label(ir0_stream *stream, string_view label_name);
+int32 ir0_find_label(ir0_stream *stream, string_view label);
 
 #endif // IR0_STREAM_H

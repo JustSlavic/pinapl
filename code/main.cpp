@@ -36,8 +36,9 @@
 
 
 char const source_code[] =
-"() -> (x: int, _, (), b : bool)"
-// "x : (int, bool)"
+// "() -> (x: int, _, (), b : bool)"
+"(x, y, too_stupid_for_programming_me)"
+// "x + 1 - 2"
 ;
 
 // (int, bool) // functions and everywhere else
@@ -50,12 +51,12 @@ int main()
     auto lex = pinapl::lexer::from((void *)source_code, sizeof(source_code));
 
     pinapl::parser parser = {};
+    auto *ast = parser.parse_expression(&lex, 0);
+    // printf("parsed = %s\n", parsed ? "true" : "false");
 
-    bool parsed = parser.parse_func_decl(&lex);
-    printf("parsed = %s\n", parsed ? "true" : "false");
-
-    printf("\nAST:\n");
-    parser.debug_print_ast();
+    printf("\n");
+    printf("AST:\n");
+    debug_print_ast(ast);
     printf("\n");
 
     // printf("Token stream:\n");
