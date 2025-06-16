@@ -1,27 +1,13 @@
 
 counting:
-    mov     r0, 222
-    str     r0, [0]
-    mov     r0, 173
-    str     r0, [1]
-    mov     r0, 190
-    str     r0, [2]
-    mov     r0, 239
-    str     r0, [3]
+    mov     r0, 8
 
-    mov     r1, 84
-    str     r1, [8]
-    mov     r1, 89
-    str     r1, [9]
+    str     84, [r0]
+    str     89, [r0 + 1]
 
-    mov     r1, 80
-    str     r1, [11]
-    mov     r1, 73
-    str     r1, [12]
-    mov     r1, 68
-    str     r1, [13]
-    mov     r1, 79
-    str     r1, [14]
-    mov     r1, 82
-    str     r1, [15]
+    str     80, [r0 + 3]
+    str     73, [r0 + 4]
+    str     68, [r0 + 5]
+    str     79, [r0 + 6]
+    str     82, [r0 + 7]
     jmp     .end

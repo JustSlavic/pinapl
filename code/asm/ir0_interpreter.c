@@ -81,14 +81,18 @@ void ir0_interpreter_ldr(ir0_interpreter *interpreter, ir0_instruction instructi
 
 void ir0_interpreter_str(ir0_interpreter *interpreter, ir0_instruction instruction)
 {
-    ir0_register *src = NULL;
+    uint32 src = 0;
     if (instruction.args[0].tag == Ir0_ArgumentRegister)
     {
-        src = interpreter->registers + instruction.args[0].u32;
+        src = interpreter->registers[instruction.args[0].u32].r_u32;
+    }
+    else if (instruction.args[0].tag == Ir0_ArgumentImmediate)
+    {
+        src = instruction.args[0].u32;
     }
     else
     {
-        printf("Interpreter Error: Could not use 'ldr' instruction with the first argument not register.\n");
+        printf("Interpreter Error: Could not use 'str' instruction with the first argument not register.\n");
         return;
     }
 
@@ -124,7 +128,7 @@ void ir0_interpreter_str(ir0_interpreter *interpreter, ir0_instruction instructi
                address, interpreter->memory_size);
         return;
     }
-    *(uint32 *)(interpreter->memory + address) = src->r_u32;
+    *(uint32 *)(interpreter->memory + address) = src;
 }
 
 #define DEFINE_INTERPRETER_ARITHMETIC_OPERATION(OpSymbol, OpName) \
