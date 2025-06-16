@@ -12,6 +12,8 @@ typedef struct keyword_pair
 static keyword_pair keywords[] =
 {
     { "mov", Token_KeywordMov, Ir0_Mov },
+    { "ldr", Token_KeywordLdr, Ir0_Ldr },
+    { "str", Token_KeywordStr, Ir0_Str },
     { "add", Token_KeywordAdd, Ir0_Add },
     { "sub", Token_KeywordSub, Ir0_Sub },
     { "mul", Token_KeywordMul, Ir0_Mul },
@@ -26,6 +28,141 @@ static keyword_pair keywords[] =
     { "jgt", Token_KeywordJgt, Ir0_Jgt },
     { "jge", Token_KeywordJge, Ir0_Jge },
 };
+
+int32 ir0_identifier_is_register(string_view s)
+{
+    if ((s.size == 2) && (s.data[0] == 'r') && is_ascii_digit(s.data[1]))
+    {
+        return (s.data[1] - '0');
+    }
+    if ((s.size == 3) && (s.data[0] == 'r') && is_ascii_digit(s.data[1]) && is_ascii_digit(s.data[2]))
+    {
+        return (s.data[1] - '0') * 10 + (s.data[2] - '0');
+    }
+    return -1;
+}
+
+bool32 ir0_parse_address_calculation(lexer *l, ir0_address_calculation *addr)
+{
+    token open_bracket = eat_token(l);
+    if (open_bracket.tag != '[')
+    {
+        printf("Effective address parsing error. There should be '['\n"
+               "Why did you even called this function? Use 'get_token' to test for '[' before calling this function\n");
+        return false;
+    }
+
+    int32 sign = 1;
+    addr->c = 1;
+    addr->r1 = -1;
+    addr->r2 = -1;
+    addr->a = 0;
+
+    token t1 = get_token(l);
+    if (t1.tag == Token_LiteralInteger)
+    {
+        eat_token(l);
+        token s1 = get_token(l);
+        if (s1.tag == '*')
+        {
+            eat_token(l);
+            addr->c = t1.integer_value;
+            token t2 = get_token(l);
+            if (t2.tag == Token_Identifier)
+            {
+                // Continue
+            }
+            else
+            {
+                // Error
+            }
+        }
+        else if (s1.tag == ']')
+        {
+            addr->a = t1.integer_value;
+        }
+        else
+        {
+            // Error
+        }
+    }
+
+    {
+        token t = get_token(l);
+        if (t.tag == Token_Identifier)
+        {
+            eat_token(l);
+            addr->r1 = ir0_identifier_is_register(t.span);
+            token s = get_token(l);
+            if (s.tag == '+' || s.tag == '-')
+            {
+                eat_token(l);
+                if (s.tag == '-') sign = -1;
+                // Continue
+            }
+            else if (s.tag == ']')
+            {
+                // Continue
+            }
+            else
+            {
+                // Error
+            }
+        }
+    }
+
+    {
+        token t = get_token(l);
+        if (t.tag == Token_Identifier)
+        {
+            eat_token(l);
+            addr->r2 = ir0_identifier_is_register(t.span);
+            token s = get_token(l);
+            if (s.tag == '+' || s.tag == '-')
+            {
+                eat_token(l);
+                if (s.tag == '-') sign = -1;
+                // Continue
+            }
+            else if (s.tag == ']')
+            {
+                // Continue
+            }
+            else
+            {
+                // Error
+            }
+        }
+    }
+
+    {
+        token t = get_token(l);
+        if (t.tag == Token_LiteralInteger)
+        {
+            eat_token(l);
+            addr->a = sign * t.integer_value;
+        }
+        else
+        {
+            // Error
+        }
+    }
+
+    token bracket_close = eat_token(l);
+    if (bracket_close.tag != ']')
+    {
+        printf("Effective address parsing error. There should be ']' or '+'\n");
+        return false;
+    }
+
+    printf("Effective address parsing: [%d, %d, %d, %d];\n",
+        addr->c,
+        addr->r1,
+        addr->r2,
+        addr->a);
+
+    return true;
+}
 
 
 ir0_stream ir0_parse_text(char const *source, int32 source_size)
@@ -72,6 +209,7 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
         .label_capacity = stream_label_count,
     };
 
+    int error = 0;
     while (true)
     {
         token t = get_token(&lexer);
@@ -118,49 +256,60 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
             {
                 token t1 = get_token(&lexer);
                 if (t1.line != at_line) break;
-                eat_token(&lexer);
-                token t2 = get_token(&lexer);
 
-                if (t1.tag == Token_Identifier || t1.tag == Token_LiteralInteger)
+                if (t1.tag == Token_Identifier ||
+                    t1.tag == Token_LiteralInteger ||
+                    t1.tag == '[')
                 {
                     count += 1;
                     if (t1.tag == Token_Identifier)
                     {
-                        if ((t1.span.size == 2)
-                            && (t1.span.data[0] == 'r')
-                            && is_ascii_digit(t1.span.data[1]))
-                        {
-                            args[i].tag = Ir0_ArgumentRegister;
-                            args[i].u32 = (t1.span.data[1] - '0');
-                        }
-                        else if ((t1.span.size == 3)
-                                 && (t1.span.data[0] == 'r')
-                                 && is_ascii_digit(t1.span.data[1])
-                                 && is_ascii_digit(t1.span.data[2]))
-                        {
-                            args[i].tag = Ir0_ArgumentRegister;
-                            args[i].u32 = (t1.span.data[1] - '0') * 10
-                                        + (t1.span.data[2] - '0');
-                        }
-                        else
+                        eat_token(&lexer);
+                        int32 is_reg = ir0_identifier_is_register(t1.span);
+                        if (is_reg < 0)
                         {
                             args[i].tag = Ir0_ArgumentLabel;
                             int32 label_index = ir0_find_label(&stream, t1.span);
                             if (label_index < 0) label_index = ir0_push_label(&stream, t1.span);
                             args[i].u32 = label_index;
                         }
+                        else
+                        {
+                            args[i].tag = Ir0_ArgumentRegister;
+                            args[i].u32 = is_reg;
+                        }
                     }
-                    if (t1.tag == Token_LiteralInteger)
+                    else if (t1.tag == Token_LiteralInteger)
                     {
+                        eat_token(&lexer);
                         args[i].tag = Ir0_ArgumentImmediate;
                         args[i].u32 = t1.integer_value;
                     }
+                    else if (t1.tag == '[')
+                    {
+                        ir0_address_calculation addr_calc = {};
+                        bool32 success = ir0_parse_address_calculation(&lexer, &addr_calc);
+                        printf("    Effective address parsing success = %s\n", success ? "true" : "false");
+                        args[i].tag = Ir0_ArgumentAddress;
+                        args[i].addr = addr_calc;
+                    }
+
+                    token t2 = get_token(&lexer);
                     if ((t2.line == at_line) && (t2.tag = ','))
                     {
                         eat_token(&lexer);
                     }
                 }
+                else
+                {
+                    printf("Could not parse argument for the instruction!\n");
+                    printf("    token: " STRING_VIEW_FMT "\n", STRING_VIEW_PRINT(t1.span));
+                    error = 1;
+                    break;
+                }
             }
+
+            if (error) break;
 
             {
                 ir0_instruction instruction = { .tag = instruction_tag };
@@ -181,5 +330,6 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
         }
     }
 
+    if (error) stream.count = 0;
     return stream;
 }

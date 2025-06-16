@@ -34,7 +34,7 @@ int main(int argc, char **argv)
         printf("file_size = %d\n", file_size);
 
         ir0_stream stream = ir0_parse_text(file_content, file_size);
-        (void) stream;
+        if (stream.count == 0) return 1;
 
         ir0_interpreter interpreter =
         {

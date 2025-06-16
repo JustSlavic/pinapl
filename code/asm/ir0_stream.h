@@ -33,13 +33,24 @@ typedef enum ir0_arg_tag
     Ir0_ArgumentUnknown = 0,
     Ir0_ArgumentImmediate,
     Ir0_ArgumentRegister,
+    Ir0_ArgumentAddress,
     Ir0_ArgumentLabel,
 } ir0_arg_tag;
+
+typedef struct ir0_address_calculation
+{
+    // c * r1 + r2 + a
+    int32 c;
+    int32 r1;
+    int32 r2;
+    int32 a;
+} ir0_address_calculation;
 
 typedef struct ir0_arg
 {
     ir0_arg_tag tag;
     uint32 u32;
+    ir0_address_calculation addr;
 } ir0_arg;
 
 typedef struct ir0_instruction

@@ -32,6 +32,101 @@ void ir0_interpreter_mov(ir0_interpreter *interpreter, ir0_instruction instructi
     dest->r_u32 = value;
 }
 
+void ir0_interpreter_ldr(ir0_interpreter *interpreter, ir0_instruction instruction)
+{
+    ir0_register *dest = NULL;
+    if (instruction.args[0].tag == Ir0_ArgumentRegister)
+    {
+        dest = interpreter->registers + instruction.args[0].u32;
+    }
+    else
+    {
+        printf("Interpreter Error: Could not use 'ldr' instruction with the first argument not register.\n");
+        return;
+    }
+
+    uint32 address = 0;
+    if (instruction.args[1].tag == Ir0_ArgumentAddress)
+    {
+        address = instruction.args[1].addr.a;
+
+        int32 r2 = instruction.args[1].addr.r2;
+        if (r2 >= 0)
+        {
+            address += interpreter->registers[r2].r_u32;
+        }
+
+        int32 c = instruction.args[1].addr.c;
+        int32 r1 = instruction.args[1].addr.r1;
+        if (r1 >= 0)
+        {
+            address += c * interpreter->registers[r1].r_u32;
+        }
+    }
+    else
+    {
+        printf("Interpreter Error: Could not use 'ldr' instruction with the second argument not effective address calculation.\n");
+        return;
+    }
+
+    if (address < 0 || address >= interpreter->memory_size)
+    {
+        printf("Interpreter error! Trying to read memory at address 0x%x, "
+               "out of allowed memory region [0x0-0x%llx]\n",
+               address, interpreter->memory_size);
+        return;
+    }
+    dest->r_u32 = *(uint32 *)(interpreter->memory + address);
+}
+
+void ir0_interpreter_str(ir0_interpreter *interpreter, ir0_instruction instruction)
+{
+    ir0_register *src = NULL;
+    if (instruction.args[0].tag == Ir0_ArgumentRegister)
+    {
+        src = interpreter->registers + instruction.args[0].u32;
+    }
+    else
+    {
+        printf("Interpreter Error: Could not use 'ldr' instruction with the first argument not register.\n");
+        return;
+    }
+
+    uint32 address = 0;
+    if (instruction.args[1].tag == Ir0_ArgumentAddress)
+    {
+        address = instruction.args[1].addr.a;
+
+        int32 r2 = instruction.args[1].addr.r2;
+        if (r2 >= 0)
+        {
+            address += interpreter->registers[r2].r_u32;
+        }
+
+        int32 c = instruction.args[1].addr.c;
+        int32 r1 = instruction.args[1].addr.r1;
+        if (r1 >= 0)
+        {
+            address += c * interpreter->registers[r1].r_u32;
+        }
+    }
+    else
+    {
+        printf("Interpreter Error: Could not use 'ldr' instruction with the second argument not effective address calculation.\n");
+        return;
+    }
+
+    printf("address = %u\n", address);
+    if (address < 0 || address >= interpreter->memory_size)
+    {
+        printf("Interpreter error! Trying to write memory at address 0x%x, "
+               "out of allowed memory region [0x0-0x%llx]\n",
+               address, interpreter->memory_size);
+        return;
+    }
+    *(uint32 *)(interpreter->memory + address) = src->r_u32;
+}
+
 #define DEFINE_INTERPRETER_ARITHMETIC_OPERATION(OpSymbol, OpName) \
     void ir0_interpreter_##OpName(ir0_interpreter *interpreter, ir0_instruction instruction) { \
         ir0_register *dest = NULL; \
@@ -133,7 +228,7 @@ void ir0_interpreter_run(ir0_interpreter *interpreter)
                     printf("Ldr\n");
                     break;
                 case Ir0_Str:
-                    // ir0_interpreter_str(interpreter, instruction);
+                    ir0_interpreter_str(interpreter, instruction);
                     printf("Str\n");
                     break;
                 case Ir0_Add:

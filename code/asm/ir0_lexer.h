@@ -9,6 +9,9 @@ enum
     Token_KeywordInvalid = Token_Keyword,
 
     Token_KeywordMov,
+    Token_KeywordLdr,
+    Token_KeywordStr,
+
     Token_KeywordAdd,
     Token_KeywordSub,
     Token_KeywordMul,
