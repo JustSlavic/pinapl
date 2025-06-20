@@ -155,12 +155,6 @@ bool32 ir0_parse_address_calculation(lexer *l, ir0_address_calculation *addr)
         return false;
     }
 
-    printf("Effective address parsing: [%d, %d, %d, %d];\n",
-        addr->c,
-        addr->r1,
-        addr->r2,
-        addr->a);
-
     return true;
 }
 
@@ -215,8 +209,6 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
         token t = get_token(&lexer);
         if ((t.tag == Token_Invalid) || (t.tag == Token_Eof))
             break;
-
-        printf("   token " STRING_VIEW_FMT "\n", STRING_VIEW_PRINT(t.span));
 
         if (t.tag == Token_Identifier)
         {
@@ -289,9 +281,17 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
                     {
                         ir0_address_calculation addr_calc = {};
                         bool32 success = ir0_parse_address_calculation(&lexer, &addr_calc);
-                        printf("    Effective address parsing success = %s\n", success ? "true" : "false");
-                        args[i].tag = Ir0_ArgumentAddress;
-                        args[i].addr = addr_calc;
+                        if (success)
+                        {
+                            args[i].tag = Ir0_ArgumentAddress;
+                            args[i].addr = addr_calc;
+                        }
+                        else
+                        {
+                            printf("Parser error: could not parse address calculation.\n");
+                            error = 1;
+                            break;
+                        }
                     }
 
                     token t2 = get_token(&lexer);
@@ -313,13 +313,10 @@ ir0_stream ir0_parse_text(char const *source, int32 source_size)
 
             {
                 ir0_instruction instruction = { .tag = instruction_tag };
-                printf("    { tag=%d; args=[", instruction_tag);
                 for (uint32 i = 0; i < count; i++)
                 {
                     instruction.args[i] = args[i];
-                    printf("{tag=%d, value=%d}", args[i].tag, args[i].u32);
                 }
-                printf("]\n");
                 instruction.arg_count = count;
                 stream.instructions[stream.count++] = instruction;
             }

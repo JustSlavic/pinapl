@@ -120,7 +120,6 @@ void ir0_interpreter_str(ir0_interpreter *interpreter, ir0_instruction instructi
         return;
     }
 
-    printf("address = %u\n", address);
     if (address < 0 || address >= interpreter->memory_size)
     {
         printf("Interpreter error! Trying to write memory at address 0x%x, "
@@ -213,8 +212,9 @@ DEFINE_INTERPRETER_JUMP_OPERATION_1(Ir0_Less, jlt)
 DEFINE_INTERPRETER_JUMP_OPERATION_1(Ir0_Equal, jeq)
 DEFINE_INTERPRETER_JUMP_OPERATION_1(Ir0_More, jgt)
 
-void ir0_interpreter_run(ir0_interpreter *interpreter)
+int32 ir0_interpreter_run(ir0_interpreter *interpreter)
 {
+    int32 ec = 0;
     if (interpreter->stream)
     {
         while (interpreter->reg_ip.r_u32 < interpreter->stream->count)
@@ -223,72 +223,36 @@ void ir0_interpreter_run(ir0_interpreter *interpreter)
             int jumped = 0;
             switch (instruction.tag)
             {
-                case Ir0_Mov:
-                    ir0_interpreter_mov(interpreter, instruction);
-                    printf("Mov\n");
-                    break;
-                case Ir0_Ldr:
-                    // ir0_interpreter_ldr(interpreter, instruction);
-                    printf("Ldr\n");
-                    break;
-                case Ir0_Str:
-                    ir0_interpreter_str(interpreter, instruction);
-                    printf("Str\n");
-                    break;
-                case Ir0_Add:
-                    ir0_interpreter_add(interpreter, instruction);
-                    printf("Add\n");
-                    break;
-                case Ir0_Sub:
-                    ir0_interpreter_sub(interpreter, instruction);
-                    printf("Sub\n");
-                    break;
-                case Ir0_Mul:
-                    ir0_interpreter_mul(interpreter, instruction);
-                    printf("Mul\n");
-                    break;
-                case Ir0_Div:
-                    ir0_interpreter_div(interpreter, instruction);
-                    printf("Div\n");
-                    break;
-                case Ir0_Ret:
-                    printf("Ret\n");
-                    break;
-                case Ir0_Cmp:
-                    ir0_interpreter_cmp(interpreter, instruction);
-                    printf("Cmp\n");
-                    break;
-                case Ir0_Jmp:
-                    printf("Jmp\n");
-                    jumped = ir0_interpreter_jmp(interpreter, instruction);
-                    break;
-                case Ir0_Jeq:
-                    jumped = ir0_interpreter_jeq(interpreter, instruction);
-                    printf("Jeq\n");
-                    break;
-                case Ir0_Jlt:
-                    jumped = ir0_interpreter_jlt(interpreter, instruction);
-                    printf("Jlt\n");
-                    break;
-                case Ir0_Jgt:
-                    jumped = ir0_interpreter_jgt(interpreter, instruction);
-                    printf("Jgt\n");
-                    break;
+                case Ir0_Mov: ir0_interpreter_mov(interpreter, instruction); break;
+                case Ir0_Ldr: ir0_interpreter_ldr(interpreter, instruction); break;
+                case Ir0_Str: ir0_interpreter_str(interpreter, instruction); break;
+                case Ir0_Add: ir0_interpreter_add(interpreter, instruction); break;
+                case Ir0_Sub: ir0_interpreter_sub(interpreter, instruction); break;
+                case Ir0_Mul: ir0_interpreter_mul(interpreter, instruction); break;
+                case Ir0_Div: ir0_interpreter_div(interpreter, instruction); break;
+                case Ir0_Ret: break;
+                case Ir0_Cmp: ir0_interpreter_cmp(interpreter, instruction); break;
+                case Ir0_Jmp: jumped = ir0_interpreter_jmp(interpreter, instruction); break;
+                case Ir0_Jeq: jumped = ir0_interpreter_jeq(interpreter, instruction); break;
+                case Ir0_Jlt: jumped = ir0_interpreter_jlt(interpreter, instruction); break;
+                case Ir0_Jgt: jumped = ir0_interpreter_jgt(interpreter, instruction); break;
                 default:
                     printf("Error: Unknown Instruction!\n");
-                    return;
+                    return 1;
             }
             interpreter->reg_ip.r_u32 += 1 * (!jumped);
         }
     }
+
+    return ec;
 }
 
 void ir0_interpreter_print_state(ir0_interpreter *interpreter)
 {
-    printf("Registers:          Memory:\n");
+    printf("Registers:            Memory:\n");
     for (int i = 0; i < 8; i++)
     {
-        printf("R%d = %8u      ", i, interpreter->registers[i].r_u32);
+        printf("R%d = %10u      ", i, interpreter->registers[i].r_u32);
         for (int j = 0; j < 8; j++)
         {
             printf(" %02x", interpreter->memory[i*8 + j]);

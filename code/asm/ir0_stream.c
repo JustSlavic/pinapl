@@ -35,7 +35,6 @@ int32 ir0_push_label_at(ir0_stream *stream, string_view label, int32 at)
         stream->label_buffer_size += label.size;
         stream->label_count += 1;
     }
-    printf("Label buffer\n->|%.*s|<-\n", (int) stream->label_buffer_size, stream->label_buffer);
     return result;
 }
 

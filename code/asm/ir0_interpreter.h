@@ -29,7 +29,7 @@ typedef struct ir0_interpreter
 } ir0_interpreter;
 
 
-void ir0_interpreter_run(ir0_interpreter *);
+int32 ir0_interpreter_run(ir0_interpreter *);
 void ir0_interpreter_print_state(ir0_interpreter *);
 
 

@@ -1,0 +1,12 @@
+pidor:
+    mov     r0, 8
+
+    str     84, [r0]
+    str     89, [r0 + 1]
+
+    str     80, [r0 + 3]
+    str     73, [r0 + 4]
+    str     68, [r0 + 5]
+    str     79, [r0 + 6]
+    str     82, [r0 + 7]
+    jmp     .end
