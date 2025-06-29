@@ -1,58 +1,8 @@
 #ifndef IR0_STREAM_H
 #define IR0_STREAM_H
 
-#include "common.h"
-#include "string_view.h"
-
-/*
-    The instruction is 4 bytes:
-    +--------+--------+--------+--------+--------+
-    | OpCode | Reg  1 | Reg  2 | C|Imm1 | A|Imm2 |
-    +--------+--------+--------+--------+--------+
-    | 8 bits | 4 bits | 4 bits | 8 bits | 8 bits |
-    +--------+--------+--------+--------+--------+
-*/
-
-
-#define BYTECODE_OPCODE_MASK 0xff000000
-#define BYTECODE_REG1_MASK   0x00f00000
-#define BYTECODE_REG2_MASK   0x000f0000
-#define BYTECODE_IMM1_MASK   0x0000ff00
-#define BYTECODE_IMM2_MASK   0x000000ff
-
-typedef uint32 bytecode;
-
-typedef enum bytecode_opcode
-{
-    Bytecode_Ret   = 0b00001,
-    Bytecode_MovRR = 0b00010,
-    Bytecode_MovRI = 0b00011,
-    Bytecode_LdrRA = 0b00100,
-    Bytecode_LdrIA = 0b00101,
-    Bytecode_StrRA = 0b00110,
-    Bytecode_StrIA = 0b00111,
-
-    Bytecode_AddRR = 0b01000,
-    Bytecode_AddRI = 0b01001,
-    Bytecode_SubRR = 0b01010,
-    Bytecode_SubRI = 0b01011,
-    Bytecode_MulRR = 0b01100,
-    Bytecode_MulRI = 0b01101,
-    Bytecode_DivRR = 0b01110,
-    Bytecode_DivRI = 0b01111,
-
-    Bytecode_CmpRR = 0b10000,
-    Bytecode_CmpRI = 0b10001,
-    Bytecode_CmpIR = 0b10010,
-
-    Bytecode_Jmp   = 0b10011,
-    Bytecode_Jeq   = 0b10100,
-    Bytecode_Jne   = 0b10101,
-    Bytecode_Jlt   = 0b10110,
-    Bytecode_Jle   = 0b10111,
-    Bytecode_Jgt   = 0b11000,
-    Bytecode_Jge   = 0b11001,
-} bytecode_opcode;
+#include "../common.h"
+#include "../string_view.h"
 
 
 typedef enum ir0_tag

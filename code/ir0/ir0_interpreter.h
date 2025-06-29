@@ -1,7 +1,7 @@
 #ifndef IR0_INTERPRETER_H
 #define IR0_INTERPRETER_H
 
-#include "common.h"
+#include "../common.h"
 
 
 typedef enum ir0_cmp_result

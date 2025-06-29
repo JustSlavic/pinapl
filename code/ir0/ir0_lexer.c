@@ -1,5 +1,5 @@
 #include "ir0_lexer.h"
-#include "ascii.h"
+#include "../ascii.h"
 
 
 bool32 ir0_is_valid_identifier_head(char c)

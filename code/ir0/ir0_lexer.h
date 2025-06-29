@@ -1,7 +1,7 @@
 #ifndef IR0_LEXER_H
 #define IR0_LEXER_H
 
-#include "lexer.h"
+#include "../lexer.h"
 
 enum
 {

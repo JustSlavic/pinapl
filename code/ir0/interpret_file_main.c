@@ -3,7 +3,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "common.h"
+#include "../common.h"
 #include "ir0_stream.h"
 #include "ir0_parser.h"
 #include "ir0_interpreter.h"
@@ -55,9 +55,9 @@ int main(int argc, char **argv)
 }
 
 
-#include "ascii.c"
-#include "string_view.c"
-#include "lexer.c"
+#include "../ascii.c"
+#include "../string_view.c"
+#include "../lexer.c"
 #include "ir0_lexer.c"
 #include "ir0_parser.c"
 #include "ir0_stream.c"

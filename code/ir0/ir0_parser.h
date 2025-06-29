@@ -1,7 +1,7 @@
 #ifndef IR0_PARSER_H
 #define IR0_PARSER_H
 
-#include "common.h"
+#include "../common.h"
 #include "ir0_stream.h"
 #include "ir0_lexer.h"
 

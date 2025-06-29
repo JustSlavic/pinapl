@@ -75,9 +75,10 @@ function pvs_analyze() {
     less pvs_report.json
 }
 
-function asm() {
-    # gcc code/asm/asm_main.c -Wall -Wextra -Werror -o bin/a
-    gcc code/asm/interpret_file_main.c -Wall -Wextra -Werror -g3 -o bin/b
+function ir0() {
+    # gcc code/ir0/asm_main.c -Wall -Wextra -Werror -o bin/a
+    gcc code/ir0/interpret_file_main.c -Wall -Wextra -Werror -g3 -o bin/b
+    gcc code/interpret.c -Wall -Wextra -Werror -g3 -o bin/interp
 }
 
 function contains_in() {
@@ -89,7 +90,7 @@ function contains_in() {
     return 1
 }
 
-if contains_in $command "build run test pvs_analyze asm"; then
+if contains_in $command "build run test pvs_analyze ir0"; then
     "$command"
 else
     echo "Could not recognize command '$command'"
