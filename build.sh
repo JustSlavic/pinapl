@@ -1,98 +1,32 @@
 #!/bin/bash
 
-set -e
-
-PROJECT=pinapl
-COMPILER=g++
-STANDARD=c++17
-COMPILE_COMMANDS_FILE=compile_commands.json
-
-mkdir -p bin
-
-if [ $# -eq 0 ]; then
-    command="build"
-else
-    if [ "$1" = "debug" ]; then
-        command="build"
-        subcommand="debug"
-    else
-        command="$1"
-        subcommand="$2"
-    fi
-fi
+# set -ex
 
 os_name=$(uname -s)
+compiler="gcc"
+assembler="as"
+linker="ld"
+cc_flags="-std=c89 -g"
+cc_warnings="-Wall -Werror"
 
-function build() {
-    if [ "$command" = "pvs-analyze" ]; then
-        COMPILE_DB_JSON="-MJ $COMPILE_COMMANDS_FILE"
-    fi
-    if [ "$subcommand" = "debug" ]; then
-        DEBUG="-DDEBUG -g3 -O0"
-        WARNINGS="-Wall"
-    else
-        WARNINGS="-Wall -Werror -O2"
-    fi
+mkdir -p build
+mkdir -p bin
 
-    case $os_name in
-        Darwin | Linux)
-            build_command="$COMPILER code/main.cpp -o bin/$PROJECT -I code/based -std=$STANDARD $WARNINGS $DEBUG $COMPILE_DB_JSON"
-            exec $($build_command)
-            echo "[$build_command]... Success"
-            ;;
-        *)
-            echo "Unrecognazied os name ($os_name)"
-            ;;
-    esac
+function compile_ttb_asm_x86_64_linux() {
+    assembly_source="code/ttb/ttb.S"
+    assembly_object="build/ttb_asm.o"
+    executable_name="bin/asm.elf"
+
+    $assembler -msyntax=intel -mmnemonic=intel -mnaked-reg -g -o $assembly_object $assembly_source
+    ld -nostdlib -o $executable_name $assembly_object -n
+    echo "Done [$executable_name]"
 }
 
-function run() {
-    bin/$PROJECT
-}
+# compile_ttb_asm_x86_64_linux
 
-function test() {
-    case $os_name in
-        Darwin | Linux)
-            build_command="$COMPILER code/test/test_main.cpp -o bin/$PROJECT-test -I code/based -std=$STANDARD -Wall -Werror -DDEBUG -g3 -O0"
-            exec $($build_command)
-            echo "[$build_command]... Success"
-            ;;
-        *)
-            echo "Unrecognazied os name ($os_name)"
-            ;;
-    esac
-}
+$compiler -o bin/ttbc code/ttb/ttb.c
 
-function pvs_analyze() {
-    build
-
-    db_contents=$(cat $COMPILE_COMMANDS_FILE)
-    db_contents_except_last_comma=${db_contents%?}
-    echo "[$db_contents_except_last_comma]" > $COMPILE_COMMANDS_FILE
-
-    pvs-studio-analyzer analyze -o pvs_output.log -j2
-    plog-converter -a GA:1,2 -t json -o pvs_report.json pvs_output.log
-    less pvs_report.json
-}
-
-function ir0() {
-    # gcc code/ir0/asm_main.c -Wall -Wextra -Werror -o bin/a
-    gcc code/ir0/interpret_file_main.c -Wall -Wextra -Werror -g3 -o bin/b
-    gcc code/interpret.c -Wall -Wextra -Werror -g3 -o bin/interp
-}
-
-function contains_in() {
-    for it in $2; do
-        if [ "$1" = "$it" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-if contains_in $command "build run test pvs_analyze ir0"; then
-    "$command"
-else
-    echo "Could not recognize command '$command'"
-fi
-
+$assembler -msyntax=intel -mmnemonic=intel -mnaked-reg -g -o build/ttb.o code/ttb/ttb.S
+$linker -z noexecstack -o bin/ttb build/ttb.o
+./bin/ttb ./code/ttb/input.txt
+echo "return value: $?"

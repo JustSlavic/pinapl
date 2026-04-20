@@ -1,0 +1,69 @@
+# Elf header
+7f45 4c46           # 0000 | Magic
+          02        # 0004 | Class   (1 = 32-bit, 2 = 64-bit)
+            01      # 0005 | Data    (1 = LE encoding, 2 = BE encoding)
+               01   # 0006 | Version
+                 00 # 0007 | Padding
+0000 0000 0000 0000 # 0008 | Padding
+0200                # 0010 | Object file type (0 = no file type, 1 = relocatable, 2 = executable, 3 = shared object, 4 = core dump)
+     3e00           # 0012 | Required architecture
+          0100 0000 # 0014 | Object file version
+7800 4000 0000 0000 # 0018 | Virtual address of the entry point
+4000 0000 0000 0000 # 0020 | Program header table's file offset in bytes
+a000 0000 0000 0000 # 0028 | Section header table's file offset in bytes
+0000 0000           # 0030 | Processor-specific flags
+          4000      # 0034 | ELF header's size in bytes
+               3800 # 0036 | Program header table entry size in bytes (all entries are the same size)
+0100                # 0038 | Program header table number of entries
+     4000           # 003a | Section header table entry size in bytes (all entries are the same size)
+          0300      # 003c | Section header table number of entries
+               0200 # 003e | Section name string table entry index in the section header table
+# Program header
+0100 0000           # 0040 | Type of segment
+          0500 0000 # 0044 | Segment attributes
+7800 0000 0000 0000 # 0048 | Offset in file
+7800 4000 0000 0000 # 0050 | Virtual address in memory
+7800 4000 0000 0000 # 0058 | Reserved
+1000 0000 0000 0000 # 0060 | Size of segment in file
+1000 0000 0000 0000 # 0068 | Size of segment in memory
+0100 0000 0000 0000 # 0070 | Alignment of segment
+# Data of program header, and section header 2
+48c7 c03c 0000 0048 # 0078 |
+c7c7 4500 0000 0f05 # 0080 |
+# Data of section header 3
+002e 7368 7374 7274 # 0088 | "\0.shstrt"
+6162 002e 7465 7874 # 0090 | "ab\0.text"
+0000 0000 0000 0000 # 0098 |
+# Section header 1
+0000 0000           # 00a0 | Section name
+          0000 0000 # 00a4 | Section type
+0000 0000 0000 0000 # 00a8 | Section attributes
+0000 0000 0000 0000 # 00b0 | Virtual address in memory
+0000 0000 0000 0000 # 00b8 | Offset in file
+0000 0000 0000 0000 # 00c0 | Size of section
+0000 0000           # 00c8 | Link to other section
+          0000 0000 # 00cc | Miscellaneous information
+0000 0000 0000 0000 # 00d0 | Address alignment boundary
+0000 0000 0000 0000 # 00d8 | Size of entries, if section has table
+# Section header 2
+0b00 0000           # 00e0 | Section name
+          0100 0000 # 00e4 | Section type
+0600 0000 0000 0000 # 00e8 | Section attributes
+7800 4000 0000 0000 # 00f0 | Virtual address in memory
+7800 0000 0000 0000 # 00f8 | Offset in file
+1000 0000 0000 0000 # 0100 | Size of section
+0000 0000           # 0108 | Link to other section
+          0000 0000 # 010c | Miscellaneous information
+0100 0000 0000 0000 # 0110 | Address alignment boundary
+0000 0000 0000 0000 # 0118 | Size of entries, if section has table
+# Section header 3
+0100 0000           # 0120 | Section name
+          0300 0000 # 0124 | Section type
+0000 0000 0000 0000 # 0128 | Section attributes
+0000 0000 0000 0000 # 0130 | Virtual address in memory
+8800 0000 0000 0000 # 0138 | Offset in file
+1100 0000 0000 0000 # 0140 | Size of section
+0000 0000           # 0148 | Link to other section
+          0000 0000 # 014c | Miscellaneous information
+0100 0000 0000 0000 # 0150 | Address alignment boundary
+0000 0000 0000 0000 # 0158 | Size of entries, if section has table
