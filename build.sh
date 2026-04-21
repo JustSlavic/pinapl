@@ -26,7 +26,9 @@ function compile_ttb_asm_x86_64_linux() {
 
 $compiler -o bin/ttbc code/ttb/ttb.c
 
-$assembler -msyntax=intel -mmnemonic=intel -mnaked-reg -g -o build/ttb.o code/ttb/ttb.S
+$assembler -msyntax=intel -mmnemonic=intel -mnaked-reg -o build/ttb.o code/ttb/ttb.S
 $linker -z noexecstack -o bin/ttb build/ttb.o
-./bin/ttb ./code/ttb/input.txt
+./bin/ttb ./code/ttb/input.txt ./bin/output.bin
+echo "return value: $?"
+./bin/output.bin
 echo "return value: $?"
