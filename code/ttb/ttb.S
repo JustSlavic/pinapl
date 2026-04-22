@@ -30,145 +30,113 @@ struct_stat_buffer:
 
 .text
 
-sys_newfstatat: # rdi = filename, rsi  (char *filename at rdi, struct stat *stat at rsi)
-    mov     rax, 0x106  # rax = SYSCALL_NEWFSTATAT(0x106)
-    mov     rsi, rdi    # rsi = filename
-    mov     rdi, -100   # rdi = AT_FDCWD
-    lea     rdx, [rip + struct_stat_buffer] # rdx = &struct_stat_buffer
-    xor     r10, r10    # r10 = flags(0)
-    syscall
-    ret
-
-# Helper functions
-
-get_file_size: # (char *filename at rdi)
-    # rdi is already filename
-    lea     rsi, [rip + struct_stat_buffer] # rsi := &struct_stat_buffer
-    call    sys_newfstatat # rax := sys_newfstatat(argv[1], &struct_stat_buffer)
-    mov     rdi, rax
-    xor     rax, rax
-    cmp     rdi, 0
-    jne     L_get_file_size_return
-    mov     rax, [rip + struct_stat_buffer + 0x30] # rdi := *(((void *)struct_stat_buffer) + 48)
-L_get_file_size_return:
-    ret
-
 # -------------------
 
 main: # (rdi = argc, rsi = argv)
-    push    rbp
-    mov     rbp, rsp
-    sub     rsp, 64
-
-    # [rbp -  8] = uint64 argc
-    # [rbp - 16] = char **argv
-    # [rbp - 24] = uint64 buffer_size
-    # [rbp - 32] = void *buffer
-    # [rbp - 40]
-    # [rbp - 48]
-    # [rbp - 56]
-    # [rbp - 64]
-    mov     [rbp - 8], rdi    # argc
-    mov     [rbp - 16], rsi   # argv
+    # r11 = r
+    # r12 = buffer
+    # r13 = size
+    # r14 = w
+    # r15 = argv
+    mov     r15, rsi   # argv
 
     cmp     rdi, 3
     jl      L_main_failure_wrong_number_of_arguments
 
 # ---- read file size
-    mov     rdi, [rsi + 8]    # rdi = argv[1]
-    call    get_file_size     # rax = get_file_size(rdi)
-    mov     [rbp - 24], rax   # file_size = rax
+    mov     rdi, [r15 + 8]    # rdi = argv[1]
 
-    cmp     rax, 0
+    mov     rax, 0x106        # rax = SYSCALL_NEWFSTATAT(0x106)
+    mov     rdi, -100         # rdi = AT_FDCWD
+    mov     rsi, [r15 + 8]    # rsi = argv[1]
+    lea     rdx, [rip + struct_stat_buffer] # rdx = &struct_stat_buffer
+    xor     r10, r10                        # r10 = flags(0)
+    syscall
+    mov     r13, [rip + struct_stat_buffer + 0x30] # size := *(((void *)struct_stat_buffer) + 48)
+
+    cmp     r13, 0
     je      L_main_return_failure
 
 # ---- allocate buffer
     mov     rax, 0x9          # SYS_MMAP(0x9)
     xor     rdi, rdi          # addr
-    mov     rsi, [rbp - 24]   # size
+    mov     rsi, r13          # size
     mov     rdx, 3            # prot = PROT_READ (1) | PROT_WRITE (2)
     mov     r10, 0x22         # flags = MAP_PRIVATE (0x02) | MAP_ANONYMOUS (0x20)
     mov     r8, -1            # fd = -1 (required for anonymous)
     xor     r9, r9            # offset = 0
     syscall
-    mov     [rbp - 32], rax   # buffer = rax
+    mov     r12, rax          # buffer = rax
 
 # ---- open file
-    mov     rdi, [rbp - 16]   # argv
-    mov     rdi, [rdi + 8]    # rdi = argv[1]
+    mov     rdi, [r15 + 8]    # rdi = argv[1]
     xor     rsi, rsi          # flags = O_RDONLY(0)
     xor     rdx, rdx          # mode = 0 don't need for readonly
     mov     rax, 0x2          # SYSCALL_OPEN(0x2)
     syscall
+
 # ---- read file
     mov     rdi, rax          # rdi = fd
-    mov     rsi, [rbp - 32]   # rsi = buffer
-    mov     rdx, [rbp - 24]   # rdx = size
+    mov     rsi, r12          # rsi = buffer
+    mov     rdx, r13          # rdx = size
     xor     rax, rax          # SYSCALL_READ(0x0)
     syscall
-    mov     [rbp - 24], rax   # buffer_size = rax
+    mov     r13, rax          # buffer_size = rax
 
-    # Main algorithm:
-    # rax = a
-    # rbx = b
-    # rcx = comment
-    # rdi = r
-    # rsi = w
-    # r12 = buffer
-    # r13 = size
+# ---- main algorithm
+    xor     rcx, rcx # is_comment
+    xor     rax, rax # a
+    xor     rbx, rbx # b
+    xor     r11, r11 # r
+    xor     r14, r14 # w
 
-    mov     rbx, 0 # r
-    mov     rcx, 0 # w
-    mov     rdx, 0 # is_comment
-    mov     r8,  0 # a
-    mov     r9,  0 # b
-    mov     r12, [rbp - 32] # buffer
-    mov     r13, [rbp - 24] # buffer_size
-
+# ---- main loop
 L_continue:
-    cmp     rbx, r13                    # if (r >= buffer_size)
+# ---- read a
+    cmp     r11, r13                    # if (r >= buffer_size)
     jge     L_break                     #     break
-    mov     r8b, byte ptr [r12 + rbx]   # a = buffer[r];
-    add     rbx, 1                      # r = r + 1
+    mov     al, byte ptr [r12 + r11]    # a = buffer[r];
+    inc     r11                         # r = r + 1
 
-    cmp     rdx, 0                      # if (is_comment == 0)
-    je      L_is_not_comment            #     goto L_is_not_comment
-    cmp     r8b, '\n'                   # if (a != '\n')
-    jne     L_is_not_new_line           #     goto L_is_not_new_line:
-    mov     rdx, 0                      # is_comment = false
-L_is_not_new_line:
-    jmp     L_continue                  # continue
-L_is_not_comment:
-    cmp     r8b, '#'                    # if (a != '#')
-    jne     L_is_not_hash_sign          #     goto L_is_not_hash_sign
-    mov     rdx, 1                      # is_comment = true
-    jmp     L_continue                  # continue
-L_is_not_hash_sign:
+# ---- comment logic
+    mov     bl, cl              # was_comment = is_comment
+    cmp     al, '\n'
+    setne   dl                  # dl = (a != '\n')
+    and     dl, cl              # dl = (was_comment && a != '\n')
+    cmp     al, '#'
+    sete    cl                  # cl = (a == '#')
+    or      cl, dl              # cl = (a == '#') || (was_comment && a != '\n')
+    test    bl, bl              # if (was_comment)
+    jnz     L_continue          #     continue
 
-    mov     r8b, byte ptr [hex_table + r8] # a = hex_table[a]
-    cmp     r8, 0xFF                       # if (a == 0xFF)
+# ---- get hex value of a
+    mov     al, byte ptr [hex_table + rax] # a = hex_table[a]
+    cmp     al, 0xFF                       # if (a == 0xFF)
     je      L_continue                     #     continue
 
-    cmp     rbx, r13                       # if (r >= buffer_size)
+# ---- read b
+    cmp     r11, r13                       # if (r >= buffer_size)
     jge     L_main_return_failure          #     return FAILURE
-    mov     r9b, byte ptr [r12 + rbx]      # b = buffer[r];
-    add     rbx, 1                         # r = r + 1
+    mov     bl, byte ptr [r12 + r11]       # b = buffer[r];
+    inc     r11                            # r = r + 1
 
-    mov     r9b, byte ptr [hex_table + r9] # b = hex_table[b]
-    cmp     r9, 0xFF                       # if (b == 0xFF)
+# ---- get hex value of b
+    mov     bl, byte ptr [hex_table + rbx] # b = hex_table[b]
+    cmp     bl, 0xFF                       # if (b == 0xFF)
     je      L_main_return_failure          #     return FAILURE
 
-    shl     r8, 4
-    or      r8, r9
+# ---- compute a = (a << 4) | b
+    shl     rax, 4
+    or      rax, rbx
 
-    mov     byte ptr [r12 + rcx], r8b
-    add     rcx, 1
+# ---- write a into buffer
+    mov     byte ptr [r12 + r14], al
+    inc     r14
     jmp     L_continue
 L_break:
 
 # ---- open file
-    mov     rdi, [rbp - 16]   # argv
-    mov     rdi, [rdi + 16]   # rdi = argv[2]
+    mov     rdi, [r15 + 16]   # rdi = argv[2]
     mov     rsi, 577          # O_WRONLY(1) | O_CREAT(64) | O_TRUNC(512)
     mov     rdx, 0744         # 0744 (rwxr--r--)
     mov     rax, 0x2          # SYSCALL_OPEN(0x2)
@@ -176,7 +144,7 @@ L_break:
 # ---- write file
     mov     rdi, rax         # rdi = fd
     mov     rsi, r12         # rsi = buffer
-    mov     rdx, rcx         # rdx = size
+    mov     rdx, r14         # rdx = size
     mov     rax, 1           # SYSCALL_WRITE(0x1)
     syscall
 # ----
@@ -186,8 +154,6 @@ L_break:
 
 L_main_return_success:
     mov     rax, 0
-    mov     rsp, rbp
-    pop     rbp
     ret
 
 L_main_failure_wrong_number_of_arguments:
@@ -199,8 +165,6 @@ L_main_failure_wrong_number_of_arguments:
 
 L_main_return_failure:
     mov     rax, 1
-    mov     rsp, rbp
-    pop     rbp
     ret
 
 _start:
