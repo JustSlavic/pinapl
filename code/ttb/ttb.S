@@ -2,9 +2,6 @@
 
 .data
 
-error_invalid_argc:
-    .asciz "Usage: ./ttb [input_filename] [output_filename]\n"
-
 hex_table:
     .rept 48
         .byte 0xFF
@@ -32,6 +29,14 @@ struct_stat_buffer:
 
 # -------------------
 
+_start:
+    mov     rdi, [rsp]
+    lea     rsi, [rsp + 8]
+    call    main
+    mov     rdi, rax
+    mov     rax, 0x3c   # SYSCALL_EXIT(0x3c)
+    syscall
+
 main: # (rdi = argc, rsi = argv)
     # r11 = r
     # r12 = buffer
@@ -41,7 +46,7 @@ main: # (rdi = argc, rsi = argv)
     mov     r15, rsi   # argv
 
     cmp     rdi, 3
-    jl      L_main_failure_wrong_number_of_arguments
+    jl      L_main_return_failure
 
 # ---- read file size
     mov     rdi, [r15 + 8]    # rdi = argv[1]
@@ -156,21 +161,6 @@ L_main_return_success:
     mov     rax, 0
     ret
 
-L_main_failure_wrong_number_of_arguments:
-    mov     rax, 0x1 # SYS_WRITE(0x1)
-    mov     rdi, 1 # stdout
-    lea     rsi, [rip + error_invalid_argc]
-    mov     rdx, 48
-    syscall
-
 L_main_return_failure:
     mov     rax, 1
     ret
-
-_start:
-    mov     rdi, [rsp]
-    lea     rsi, [rsp + 8]
-    call    main
-    mov     rdi, rax
-    mov     rax, 0x3c   # SYSCALL_EXIT(0x3c)
-    syscall
