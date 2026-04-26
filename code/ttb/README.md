@@ -5,19 +5,19 @@ This tool allows you to write text, and convert it into a binary.
 You write binary in the following form:
 
 1. Two sequantial symbols from `[A-Fa-f0-9]`
-2. Any number of other symbols between those pairs
+2. Any number of other symbols between those pairs are ignored
 3. Comments start with `#` and go until the end of the line
 
 Example:
 
 ```
 dead beef  # This is the comment
-cafe bebe
+ca fe be be
 ```
 
 ## Compilation
 
-I provide source code of ttb in four forms: C program, x86_64 assembly, ELF 64-bit binary,
+I provide source code of ttb in four forms: C program, x86_64 assembly, ELF 64-bit binary, and the text form of the binary file.
 
 1. You could compile C program with the following command:
 
@@ -72,45 +72,99 @@ $ echo $?
 
 ## Encoding
 
-I said, that you could read and understand `ttb.txt` file, but before that you should learn about ELF file structure, and x86_64 encoding.
+I said, that you could read and understand `ttb.txt` file, but if you don't know the ELF file structure, and x86_64 encoding, you can consult the following information:
 
 ### ELF 64-bit
 
-### Encoding
 
-#### REX prefix
+
+### Encoding
 
 #### ModRM
 
+The ModRM byte is the part of x86 encoding, which can be traced back to the 8086 processor.
+
+This is one byte that consists of three fields:
+
+  - mod = 2-bit field determines the mode of operation:
+    - `00` = memory (no displacement)
+    - `01` = memory + disp8
+    - `10` = memory + disp32
+    - `11` = register
+  - reg can be either a register, or an extension of instruction opcode
+  - r/m can be either a register, or can be equal to `100` that means SIB byte is present
+
+#### SIB byte
+
+The SIB byte is used to encode the address computation (for example `[rbp - 8]`).
+
+The SIB byte consists of three fields:
+
+  - scale = `2^scale` multiplier
+  - index = register that will be added to base (100 = no index)
+  - base = register from which address is computed
+
+#### REX prefix
+
+This prefix always goes first, before the opcode, and determines the instruction/register extensions.
+
+The REX prefix looks like that: `0100WRXB`.
+
+It always starts with 4h (0100b), with four bits following:
+
+  - W = sets operand size to 64-bit values
+  - R = extends `ModRM.reg`
+  - X = extends `SIB.index`
+  - B = extends `ModRM.r/m` or `SIB.base`, if SIB byte present
+
 #### Registers
 
-| X.Reg | Register |
-| ----  |:-------- |
-| 0.000 | al       |
-| 0.001 | cl       |
-| 0.010 | dl       |
-| 0.011 | bl       |
-| 0.100 | sp       |
-| 0.101 | bp       |
-| 0.110 | si       |
-| 0.111 | di       |
-| 1.000 | r8       |
-| 1.001 | r9       |
-| 1.010 | r10      |
-| 1.011 | r11      |
-| 1.100 | r12      |
-| 1.101 | r13      |
-| 1.110 | r14      |
-| 1.111 | r15      |
+| X.Reg | Reg .W=0 | Reg .W=1  |
+| ----- |:-------- |:--------- |
+| 0.000 | al       | rax       |
+| 0.001 | cl       | rcx       |
+| 0.010 | dl       | rdx       |
+| 0.011 | bl       | rbx       |
+| 0.100 | sp / SIB | rsp / SIB |
+| 0.101 | bp / rip | rbp / rip |
+| 0.110 | si       | rsi       |
+| 0.111 | di       | rdi       |
+| 1.000 | r8b      | r8        |
+| 1.001 | r9b      | r9        |
+| 1.010 | r10b     | r10       |
+| 1.011 | r11b     | r11       |
+| 1.100 | r12b     | r12       |
+| 1.101 | r13b     | r13       |
+| 1.110 | r14b     | r14       |
+| 1.111 | r15b     | r15       |
 
 #### Instructions
 
-- `/r` indicates that `reg` field is used as a register
-- `/digit` a digit between 0 and 7 indicates that `reg` field used as an opcode extension
+In order to make learning an instruction encoding manageable, I will use a very limited number of instructions.
 
-| Instruction     | Opcode        |
-| --------------- |:------------- |
-| MOV r/m64,imm32 | REX.W + c7 /0 |
-| MOV r/m64,r64   | REX.W 89      |
-| CALL            |               |
-| RET             | c3            |
+Full documentation for x86_64 encoding you can find on the Intel site: [Intel Architecture Manual volume 2a](https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-2a-manual.pdf), [Intel Architecture Manual volume 2b](https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-2b-manual.pdf), [Intel Architecture Manual volume 2c](https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-2c-manual.pdf)
+
+- `/r` indicates that `ModRM.reg` field is used as a register
+- `/digit` a digit between 0 and 7 indicates that `ModRM.reg` field used as an opcode extension
+
+| Instruction     | Opcode            | Example              | Description  |
+| --------------- |:-------------     |:-------------------- |:------------ |
+| MOV r/m64,imm32 | REX.W + c7 /0     | `mov rax, 0`         |              |
+| MOV r/m64,r64   | REX.W + 89        | `mov rax, rbx`       ||
+| MOV r64,r/m64   | REX.W + 8b        | `mov rdi, [rsp]`     ||
+| MOV r/m8,r8     | REX.W + 88        |  ||
+| LEA r64,m       | REX.W + 8d        | `lea rsi, [rsp + 8]` ||
+| CALL            | e8                | `call main` ||
+| SYSCALL         | 0f 05             |||
+| RET             | c3                |||
+| AND             |                   |||
+| OR r/m64,r64    | REX.W + 09 /r     |||
+| XOR r/m64,r64   | REX.W + 31        |||
+| SHR             |                   |||
+| SHL r/m64,imm8  | REX.W + c1 /4 _ib_  |||
+| CMP             | REX.W + 83 /7 _ib_  | `cmp rdi, 3` ||
+| CMP r/m64,r64   | REX.W + 39 /r     |||
+| JL rel32        | 0f 8c _cd_          | `jl L_return` ||
+| JE/JZ           | 0f 84             |||
+| JGE | 7d _cb_ | `jge L_break` |  |
+|  |  |  |  |
