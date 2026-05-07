@@ -30,7 +30,6 @@ struct_stat_buffer:
 # -------------------
 
 _start:
-    mov     r15b, 12
     mov     rdi, [rsp]
     lea     rsi, [rsp + 8]
     call    main
