@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# set -ex
+set -ex
 
+script_path=$(dirname -- "$( readlink -f -- "$0"; )")
 os_name=$(uname -s)
 compiler="gcc"
 assembler="as"
@@ -13,23 +14,34 @@ mkdir -p build
 mkdir -p bin
 
 function compile_ttb_asm_x86_64_linux() {
-    assembly_source="code/ttb/ttb.S"
-    assembly_object="build/ttb_asm.o"
-    executable_name="bin/asm.elf"
+    source="$script_path/code/ttb/ttb.S"
+    object="$script_path/build/ttba.o"
+    result="$script_path/bin/ttba"
 
-    $assembler -msyntax=intel -mmnemonic=intel -mnaked-reg -g -o $assembly_object $assembly_source
-    ld -nostdlib -o $executable_name $assembly_object -n
-    echo "Done [$executable_name]"
+    $assembler -msyntax=intel -mmnemonic=intel -mnaked-reg -o $object $source
+    ld -nostdlib -o $result $object
+    echo "Done [$result]"
+
+    echo "Checking..."
+    $result $script_path/code/ttb/ttb.txt $script_path/bin/ttb1
+    $script_path/bin/ttb1 $script_path/code/ttb/ttb.txt $script_path/bin/ttb2
+    cmp $script_path/bin/ttb1 $script_path/bin/ttb2
+    echo "Compare result: $?"
+}
+
+function compile_ttb_C_x86_64_linux() {
+    source="$script_path/code/ttb/ttb.c"
+    result="$script_path/bin/ttbc"
+
+    $compiler $cc_flags $cc_warnings -o $result $source
+    echo "Done [$result]"
+
+    echo "Checking..."
+    $result $script_path/code/ttb/ttb.txt $script_path/bin/ttb1
+    $script_path/bin/ttb1 $script_path/code/ttb/ttb.txt $script_path/bin/ttb2
+    cmp $script_path/bin/ttb1 $script_path/bin/ttb2
+    echo "Compare result: $?"
 }
 
 # compile_ttb_asm_x86_64_linux
-
-$compiler -o bin/ttbc code/ttb/ttb.c
-
-$assembler -msyntax=intel -mmnemonic=intel -mnaked-reg -o build/ttb.o code/ttb/ttb.S
-$linker -z noexecstack -o bin/ttb build/ttb.o
-strip bin/ttb
-./bin/ttb ./code/ttb/ttb.txt ./bin/output.bin
-echo "return value: $?"
-./bin/output.bin ./code/ttb/ttb.txt ./bin/output2.bin
-echo "return value: $?"
+compile_ttb_C_x86_64_linux

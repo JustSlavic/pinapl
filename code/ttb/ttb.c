@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -25,11 +26,47 @@ typedef int16                sound_sample_t;
 #define true                 1
 #define false                0
 
-#include <sys/mman.h> // mmap
-#include <dlfcn.h> // dlopen
-#include <sys/stat.h> // stat
-#include <fcntl.h> // open, close
-#include <unistd.h> // read
+#include <sys/mman.h>
+#include <dlfcn.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+uint8 hex_table[256] =
+{
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+};
 
 usize platform_get_file_size(char const *filename)
 {
@@ -56,7 +93,7 @@ uint32 platform_read_file_into_memory(char const *filename, void *memory, usize 
 
 uint32 platform_write_memory_buffer_into_file(char const *filename, void *memory, usize size)
 {
-    int fd = open(filename, O_NOFOLLOW | O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = open(filename, O_NOFOLLOW | O_WRONLY | O_CREAT | O_TRUNC, 0744);
     if (fd != -1)
     {
         uint32 bytes_written = write(fd, memory, size);
@@ -66,66 +103,50 @@ uint32 platform_write_memory_buffer_into_file(char const *filename, void *memory
     return 0;
 }
 
-int main()
+int main(int argc, char **argv)
 {
-    usize input_capacity = platform_get_file_size("input2.txt");
-    if (input_capacity == 0)
-        goto exit_failure;
+    if (argc < 3)
+    {
+        printf("Usage: ./ttbc [input_path] [output_path]\n");
+        return 1;
+    }
 
-    char *input_buffer = malloc(input_capacity);
-    uint32 input_size = platform_read_file_into_memory("input.txt", input_buffer, input_capacity);
+    char *input_path = argv[1];
+    char *output_path = argv[2];
+
+    usize input_capacity = platform_get_file_size(input_path);
+    if (input_capacity == 0)
+        return 1;
+
+    uint8 *input_buffer = malloc(input_capacity);
+    uint32 input_size = platform_read_file_into_memory(input_path, input_buffer, input_capacity);
 
     int r = 0;
     int w = 0;
-    int comment = false;
+    int is_comment = false;
     while (r < input_size)
     {
-        char a = input_buffer[r++];
+        uint8 a = input_buffer[r++];
 
-        if (a == '\n' && comment)
-        {
-            comment = false;
-            continue;
-        }
-        if (comment)
-            continue;
-        if (a == '#')
-        {
-            comment = true;
-            continue;
-        }
-
-        bool a_is_digit = ('0' <= a) && (a <= '9');
-        bool a_is_alpha = ('a' <= a) && (a <= 'z');
-        bool a_is_ALPHA = ('A' <= a) && (a <= 'Z');
-        if (!a_is_digit && !a_is_alpha && !a_is_ALPHA)
+        int was_comment = is_comment;
+        is_comment = (a == '#') || (was_comment && a != '\n');
+        if (was_comment)
             continue;
 
-        char b = input_buffer[r++];
-        bool b_is_digit = ('0' <= b) && (b <= '9');
-        bool b_is_alpha = ('a' <= b) && (b <= 'z');
-        bool b_is_ALPHA = ('A' <= b) && (b <= 'Z');
-        if (!b_is_digit && !b_is_alpha && !b_is_ALPHA)
+        a = hex_table[a];
+        if (a == 0xff)
             continue;
 
-        int c = 0;
-        if (a_is_digit) c = (a - '0');
-        if (a_is_alpha) c = (a - 'a' + 10);
-        if (a_is_ALPHA) c = (a - 'A' + 10);
+        uint8 b = input_buffer[r++];
+        b = hex_table[b];
+        if (b == 0xff)
+            continue;
 
-        c = (c << 4);
-        if (b_is_digit) c = c | (b - '0');
-        if (b_is_alpha) c = c | (b - 'a' + 10);
-        if (b_is_ALPHA) c = c | (b - 'A' + 10);
-
-        input_buffer[w++] = (char) c;
+        input_buffer[w++] = (char) ((((uint32) a) << 4) | b);
     }
 
-    uint32 bytes_written = platform_write_memory_buffer_into_file("output.bin", input_buffer, w);
+    uint32 bytes_written = platform_write_memory_buffer_into_file(output_path, input_buffer, w);
     printf("Done. %u bytes written.\n", bytes_written);
 
-exit_success:
     return 0;
-exit_failure:
-    return 1;
 }

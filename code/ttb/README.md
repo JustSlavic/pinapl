@@ -451,34 +451,41 @@ Full documentation for x86_64 encoding you can find on the Intel site:
 
 - /r indicates that `ModRM.reg` field is used as a register
 - /digit a digit between 0 and 7 indicates that `ModRM.reg` field used as an opcode extension
-- _ib_
-- _id_
-- _cb_
-- _cd_
+- _cb_ 1-byte value following the opcode
+- _cd_ 4-byte value following the opcode
+- _ib_ 1-byte immediate operand to the instruction
+- _id_ 4-byte immediate operand to the instruction
 
 | Instruction     | Opcode              | Example              | Description  |
 | --------------- |:------------------- |:-------------------- |:------------ |
 | MOV r/m64,imm32 | REX.W + c7 /0 _id_  | `mov rax, 0`         | Move imm32 sign extended to 64-bits to r/m64. |
 | MOV r/m64,r64   | REX.W + 89 /r       | `mov rax, rbx`       | Move r64 to r/m64. |
 | MOV r64,r/m64   | REX.W + 8b /r       | `mov rdi, [rsp]`     | Move r/m64 to r64. |
+| MOV r8,r/m8     | REX + 8a /r         | `mov al, [hex_table + rax]` | Move r/m8 to r8. |
+| MOV r/m8,r8     | REX + 88 /r         | `mov [r15], al`      | Move r8 to r/m8. |
+| MOV r/m8,r8     | 88 /r               | `mov bl, cl`         | Mov r8 to r/m8. |
+| MOV r8,r/m8     | 8a /r               | `mov al, [rax + 0x400300]` | Move r/m8 to r8. |
 | LEA r64,m       | REX.W + 8d /r       | `lea rsi, [rsp + 8]` | Store effective address for m in register r64. |
 | CMP r/m64,imm8  | REX.W + 83 /7 _ib_  | `cmp rdi, 3`         | Compare imm8 with r/m64. |
-| JL rel32        | 0f 8c _cd_          | `jl L_return`        | Jump near if less (SF ≠ OF). Not supported in 64-bit mode. |
-
-| MOV r8,r/m8 | 8a /r | `mov al, [hex_table + rax]` | Move r/m8 to r8. |
-
+| CMP r/m64,r64   | REX.W + 39 /r       | `cmp r11, r13`       | Compare r64 with r/m64. |
+| CMP r/m8,imm8   | 80 /7 _ib_          | `cmp al, 0xff`       | Compare imm8 with r/m8. |
+| CMP AL,imm8     | 3c _ib_             | `cmp al, 0xff`       | Compare imm8 with AL.|
+| TEST r/m8,r8    | 84 /r               | `test bl, bl`        | AND r8 with r/m8; set SF,ZF,PF according to result. |
+| INC r/m64       | REX.W + ff /0       | `inc rax` | Increment r/m quadword by 1. |
+| AND r/m8,r8     | 20 /r               | `and dl, cl`         | r/m8 AND r8. |
+| OR r/m8,r8      | 08 /r               | `or cl, dl`          | r/m8 OR r8. |
+| OR r/m64,r64    | REX.W + 09 /r       | `or rax, rbx`        | r/m64 OR r64. |
+| XOR r/m64,r64   | REX.W + 31 /r       | `xor rax, rax`       | r/m64 XOR r64 |
+| SHR r/m64,imm8  | REX.W + c1 /5 _ib_  | `shr rax, 4` | Unsigned divide r/m64 by 2, imm8 times. |
+| SHL r/m64,imm8  | REX.W + c1 /4 _ib_  | `shl rax, 4` | Multiply r/m64 by 2, imm8 times. |
+| JE rel8         | 74 _cb_             | `je L_return`        | Jump short if equal (ZF=1) |
+| JGE rel8 / JNL rel8 | 7d _cb_         | `jge L_break`        | Jump short if greater or equal / not less (SF=OF). |
+| JNE rel8 / JNZ rel8 | 75 _cb_         | `jne L_break`        | Jump short if not equal / not zero (ZF=0). |
+| JMP rel8        | eb _cb_             | `jmp L_return`       | Jump short RIP = RIP + 8-bit displacement sign extended to 64-bits. |
+| JL rel32        | 0f 8c _cd_          | `jl L_return`        | Jump near if less (SF≠OF). Not supported in 64-bit mode. |
+| JE/JZ rel32     | 0f 84 _cd_          | `je L_break`         | Jump near if equal (ZF=1). |
 | CALL            | e8 _cd_             | `call main`          | Call near, relative, displacement relative to next instruction. 32-bit displacement sign extended to 64-bit in 64-bit mode. |
 | SYSCALL         | 0f 05               | `syscall`            | Fast call to privilege level 0 system procedures. |
-
-| MOV r/m8,r8     | REX.W + 88          |  ||
-| RET             | c3                  |||
-| AND             |                     |||
-| OR r/m64,r64    | REX.W + 09 /r       |||
-| XOR r/m64,r64   | REX.W + 31          |||
-| SHR             |                     |||
-| SHL r/m64,imm8  | REX.W + c1 /4 _ib_  |||
-| CMP r/m64,r64   | REX.W + 39 /r       |||
-| JE/JZ           | 0f 84               |||
-| JGE             | 7d _cb_             | `jge L_break` |  |
-|  |  |  |  |
-
+| RET             | c3                  | `ret` | Near return to calling procedure. |
+| SETE r/m8       | 0F 94               | `sete cl`            | Set byte if equal (ZF=1). |
+| SETNE r/m8      | 0F 95               | `setne dl`           | Set byte if not equal (ZF=0). |

@@ -49,275 +49,789 @@
 0000 0000 0000 0000 # 00f8
 
 # Section 1 (.text)
+
 # _start:
-48 8b 3c 24             # 0100 | mov rdi, [rsp]
-                        #      | 01001000 10001011 00111100 00100100
-                        #      | REX.WRXB
-                        #      |          REX.W + 8b /r = MOV r64,r/m64
-                        #      |                   mod = 00  (memory no disp)
-                        #      |                   reg = 111 (REX.W=1 --> rdi)
-                        #      |                   r/m = 100 (SIB byte present)
-                        #      |                            scale = 00
-                        #      |                            index = 100 (= no index)
-                        #      |                            base  = 100 (rsp)
+48 8b 3c 24 # 0100 | mov rdi, [rsp]
 
-            48 8d 74 24 # 0104 | lea rsi, [rsp + 8]
-08                      # 0108 |
-                        #      | 01001000 10001101 01110100 00100100 00001000
-                        #      | REX.WRXB
-                        #      |          REX.W + 8d /r = LEA r64,m
-                        #      |                   mod = 01  (memory + disp8)
-                        #      |                   reg = 110 (REX.W=1 --> rsi)
-                        #      |                   r/m = 100 (SIB byte present)
-                        #      |                            scale = 00
-                        #      |                            index = 100 (= no index)
-                        #      |                            base  = 100 (REX.W=1 --> rsp)
-                        #      |                                     disp8 = 0x8
+# 01001000 10001011 00111100 00100100
+# REX.WRXB
+#          REX.W + 8b /r = MOV r64,r/m64
+#                   mod = 00  (memory no disp)
+#                   reg = 111 (REX.W=1 --> rdi)
+#                   r/m = 100 (SIB byte present)
+#                            scale = 00
+#                            index = 100 (= no index)
+#                            base  = 100 (rsp)
 
-   e8 0c 00 00 00       # 0109 | call 0x0000000c (main) --  The value of RIP is already 0x10e, but we want to call "main" at 0x11a, so we add (0x11a - 0x10e) = 0xc
-                        #      | 11101000 00001100 00000000 00000000 00000000
-                        #      | e8 = CALL rel32
-                        #      |          rel32 = 0xc
+48 8d 74 24 08 # 0104 | lea rsi, [rsp + 8]
 
-                  48 89 # 010e | mov rdi, rax
-c7                      # 0110 |
-                        #      | 01001000 10001001 11000111
-                        #      | REX.WRXB
-                        #      |          REX.W + 89 /r = MOV r/m64,r64
-                        #      |                   mod = 11  (register)
-                        #      |                   reg = 000 (REX.W=1 --> rax)
-                        #      |                   r/m = 111 (REX.W=1 --> rdi)
+# 01001000 10001101 01110100 00100100 00001000
+# REX.WRXB
+#          REX.W + 8d /r = LEA r64,m
+#                   mod = 01  (memory + disp8)
+#                   reg = 110 (REX.W=1 --> rsi)
+#                   r/m = 100 (SIB byte present)
+#                            scale = 00
+#                            index = 100 (= no index)
+#                            base  = 100 (REX.W=1 --> rsp)
+#                                     disp8 = 0x8
 
-   48 c7 c0 3c 00 00 00 # 0111 | mov rax, 0x3c
-                        #      | 01001000 11000111 11000000 00111100 00000000 00000000 00000000
-                        #      | REX.WRXB
-                        #      |          REX.W + c7 /0 id = MOV r/m64,imm32
-                        #      |                   mod = 11  (register)
-                        #      |                   reg = 000 (opcode)
-                        #      |                   r/m = 000 (REX.W=1 --> rax)
-                        #      |                            imm32 = 0x3c
+# The value of RIP is already 0x10e, but we want to call "main" at 0x11a, so we add (0x11a - 0x10e) = 0xc
+e8 0c 00 00 00 # 0109 | call 0x0000000c (main)
 
-0f 05                   # 0118 | syscall
-                        #      | 00001111 00000101
-                        #      | SYSCALL 2-byte opcode
+# 11101000 00001100 00000000 00000000 00000000
+# e8 = CALL rel32
+#          rel32 = 0xc
+
+48 89 c7 # 010e | mov rdi, rax
+
+# 01001000 10001001 11000111
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 000 (REX.W=1 --> rax)
+#                   r/m = 111 (REX.W=1 --> rdi)
+
+48 c7 c0 3c 00 00 00 # 0111 | mov rax, 0x3c
+
+# 01001000 11000111 11000000 00111100 00000000 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm32 = 0x3c
+
+0f 05 # 0118 | syscall
+
+# 00001111 00000101
+# 0f 05 = SYSCALL
 
 # main:
-      49 89 f7          # 011a | mov r15, rsi
-                        #      | 01001001 10001001 11110111
-                        #      | REX.WRXB
-                        #      |          REX.W + 89 /r = MOV r/m64,r64
-                        #      |                   mod = 11  (register)
-                        #      |                   reg = 110 (REX.W=1 --> rsi)
-                        #      |                   r/m = 111 (REX.WB=11 --> r15)
+49 89 f7 # 011a | mov r15, rsi
 
-               48 83 ff # 011d | cmp rdi, 3
-03                      # 0120 |
-                        #      | 01001000 10000011 11111111 00000011
-                        #      | REX.WRXB
-                        #      |          REX.W + 83 /7 ib = CMP r/m64, imm8
-                        #      |                   mod = 11  (register)
-                        #      |                   reg = 111 (opcode)
-                        #      |                   r/m = 111 (REX.W=1 --> rdi)
-                        #      |                            imm8 = 0x3
+# 01001001 10001001 11110111
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 110 (REX.W=1 --> rsi)
+#                   r/m = 111 (REX.WB=11 --> r15)
 
-   0f 8c 1c 01 00 00    # 0121 | jl 0x0000011c (L_main_return_failure) -- We jump at 0x243, so offset is (0x243 - 0x127) = 0x11c
-                        #      | 00001111 10001100 00011100 00000001 00000000 00000000
-                        #      | 0f8c cd = JL rel32
-                        #      |                   rel32 = 0x11c
+48 83 ff 03 # 011d | cmp rdi, 3
 
-                     49 # 0127 | mov rdi, [r15 + 8]
-8b 7f 08                # 0128 |
-                        #      | 01001001 10001011 01111111 00001000
-                        #      | REX.WRXB
-                        #      |          REX.W + 8b /r = MOV r64,r/m64
-                        #      |                   mod = 01  (memory + disp8)
-                        #      |                   reg = 111 (REX.W=1 --> rdi)
-                        #      |                   r/m = 111 (REX.WB=11 --> r15)
-                        #      |                            disp8 = 0x8
+# 01001000 10000011 11111111 00000011
+# REX.WRXB
+#          REX.W + 83 /7 ib = CMP r/m64, imm8
+#                   mod = 11  (register)
+#                   reg = 111 (opcode)
+#                   r/m = 111 (REX.W=1 --> rdi)
+#                            imm8 = 0x3
 
-         48 c7 c0 06 01 # 012b | mov rax, 0x106
-00 00                   # 0130 |
-                        #      | 01001000 11000111 11000000 00000110 00000001 00000000 00000000
-                        #      | REX.WRXB
-                        #      |          REX.W + c7 /0 id = MOV r/m64,imm32
-                        #      |                   mod = 11  (register)
-                        #      |                   reg = 000 (opcode)
-                        #      |                   r/m = 000 (REX.W=1 --> rax)
-                        #      |                            imm32 = 0x106
+# We jump at 0x243, so offset is (0x243 - 0x127) = 0x11c
 
-      48 c7 c7 9c ff ff # 0132 | mov rdi, -100
-ff                      # 0138 |
-                        #      | 01001000 11000111 11000111 10011100 11111111 11111111 11111111
-                        #      | REX.WRXB
-                        #      |          REX.W + c7 /0 id = MOV r/m64,imm32
-                        #      |                   mod = 11  (register)
-                        #      |                   reg = 000 (opcode)
-                        #      |                   r/m = 111 (REX.W=1 --> rdi)
-                        #      |                            imm32 = -100 (0xffffff9c)
+0f 8c 1c 01 00 00 # 0121 | jl 0x0000011c (L_main_return_failure)
 
-   49 8b 77 08          # 0139 | mov rsi, [r15 + 8]
-                        #      |
+# 00001111 10001100 00011100 00000001 00000000 00000000
+# 0f8c cd = JL rel32
+#                   rel32 = 0x11c
+
+49 8b 7f 08 # 0127 | mov rdi, [r15 + 8]
+
+# 01001001 10001011 01111111 00001000
+# REX.WRXB
+#          REX.W + 8b /r = MOV r64,r/m64
+#                   mod = 01  (memory + disp8)
+#                   reg = 111 (REX.W=1 --> rdi)
+#                   r/m = 111 (REX.WB=11 --> r15)
+#                            disp8 = 0x8
+
+48 c7 c0 06 01 00 00 # 012b | mov rax, 0x106
+
+# 01001000 11000111 11000000 00000110 00000001 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm32 = 0x106
+
+48 c7 c7 9c ff ff ff # 0132 | mov rdi, -100
+
+# 01001000 11000111 11000111 10011100 11111111 11111111 11111111
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 111 (REX.W=1 --> rdi)
+#                            imm32 = -100 (0xffffff9c)
+
+49 8b 77 08 # 0139 | mov rsi, [r15 + 8]
+
+# 01001001 10001011 01110111 00001000
+# REX.WRXB
+#          REX.W + 8b /r = MOV r64,r/m64
+#                   mod = 01  (memory + disp8)
+#                   reg = 110 (REX.W=1 --> rsi)
+#                   r/m = 111 (REX.WB=11 --> r15)
+#                            disp8 = 0x8
+
+48 8d 15 bc 02 00 00 # 013d | lea rdx, [rip + 0x2bc]
 
 # .bss region starts at 0x400, so in order to compute
 # address of struct_stat_buffer, we will compute (0x400 - 0x144) = 0x2bc
 
-               48 8d 15 # 013d | lea rdx, [rip + 0x2bc]
-bc 02 00 00             # 0140 |
-                        #      | 01001000 10001101 00010101 10111100 00000010 00000000 00000000
-                        #      | REX.WRXB
-                        #      |          REX.W + 8d /r = LEA r64,m
-                        #      |                   mod = 00  (memory no disp)
-                        #      |                   reg = 010 (REX.W=1 --> rdx)
-                        #      |                   r/m = 101 (REX.W=1 --> rip)
-                        #      |                            offset = 0x2bc
+# 01001000 10001101 00010101 10111100 00000010 00000000 00000000
+# REX.WRXB
+#          REX.W + 8d /r = LEA r64,m
+#                   mod = 00  (memory no disp)
+#                   reg = 010 (REX.W=1 --> rdx)
+#                   r/m = 101 (REX.W=1 --> rip)
+#                            offset = 0x2bc
 
-            4d 31 d2    # 0144 | xor r10, r10
-                     0f # 0147 | syscall
-05                      # 0148 |
+4d 31 d2 # 0144 | xor r10, r10
+
+# 01001101 00110001 11010010
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 010 (REX.WR=11 --> r10)
+#                   r/m = 010 (REX.WR=11 --> r10)
+
+0f 05 # 0147 | syscall
+
+# 00001111 00000101
+# 0f 05 = SYSCALL
+
+4c 8b 2d e0 02 00 00 # 0149 | mov r13, [rip + 0x2e0]
 
 # .bss region starts at 0x400, so in order to read
 #     size := *(((void *)struct_stat_buffer) + 0x30)
 # we will compute (0x400 - 0x150 + 0x30) = 0x2e0
 
-   4c 8b 2d e0 02 00 00 # 0149 | mov r13, [rip + 0x2e0]
-                        #      | 01001100 10001011 00101101 11100000 00000010 00000000 00000000
-                        #      | REX.WRXB
-                        #      |          REX.W + 8b /r = MOV r64,r/m64
-                        #      |                   mod = 00  (memory no disp)
-                        #      |                   reg = 101 (REX.WR=11 --> r13)
-                        #      |                   r/m = 101 (REX.W=1 --> rip)
-                        #      |                            offset = 0x2e0
+# 01001100 10001011 00101101 11100000 00000010 00000000 00000000
+# REX.WRXB
+#          REX.W + 8b /r = MOV r64,r/m64
+#                   mod = 00  (memory no disp)
+#                   reg = 101 (REX.WR=11 --> r13)
+#                   r/m = 101 (REX.W=1 --> rip)
+#                            offset = 0x2e0
 
-49 83 fd 00             # 0150 | cmp r13, 0
-            0f 84 e9 00 # 0154 | je 0xe9
-00 00                   # 0158 |
-      48 c7 c0 09 00 00 # 015a | mov rax, 9
-00                      # 0160 |
-   48 31 ff             # 0161 | xor rdi, rdi
-            4c 89 ee    # 0164 | mov rsi, r13
-                     48 # 0167 | mov rdx, 3
-c7 c2 03 00 00 00       # 0168 |
-                  49 c7 # 016e | mov r10, 0x22
-c2 22 00 00 00          # 0170 |
-               49 c7 c0 # 0175 | mov r8, -1
-ff ff ff ff             # 0178 |
-            4d 31 c9    # 017c | xor r9, r9
-                     0f # 017f | syscall
-05                      # 0180 |
-   49 89 c4             # 0181 | mov r12, rax
+49 83 fd 00 # 0150 | cmp r13, 0
+
+# 01001001 10000011 11111101 00000000
+# REX.WRXB
+#          REX.W + 83 /7 ib = CMP r/m64,imm8
+#                   mod = 11  (register)
+#                   reg = 111 (opcode)
+#                   r/m = 101 (REX.W=1 --> r13)
+#                            imm8 = 0
+
+0f 84 e9 00 00 00 # 0154 | je 0xe9
+
+# 00001111 10000100 11101001 00000000 00000000 00000000
+# 0f 84 cd = JE rel32
+#                   rel32 = 0xe9
+
+48 c7 c0 09 00 00 00 # 015a | mov rax, 9
+
+# 01001000 11000111 11000000 00001001 00000000 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm32 = 0x9
+
+48 31 ff # 0161 | xor rdi, rdi
+
+# 01001000 00110001 11111111
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 111 (REX.W=1 --> rdi)
+#                   r/m = 111 (REX.W=1 --> rdi)
+
+4c 89 ee # 0164 | mov rsi, r13
+
+# 01001100 10001001 11101110
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 101 (REX.WR=11 --> r13)
+#                   r/m = 110 (REX.W=1 --> rsi)
+
+48 c7 c2 03 00 00 00 # 0167 | mov rdx, 3
+
+# 01001000 11000111 11000010 00000011 00000000 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 010 (REX.W=1 --> rdx)
+#                            imm32 = 0x3
+
+49 c7 c2 22 00 00 00 # 016e | mov r10, 0x22
+
+# 01001001 11000111 11000010 00100010 00000000 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 010 (REX.WB=11 --> r10)
+#                            imm32 = 0x22
+
+49 c7 c0 ff ff ff ff # 0175 | mov r8, -1
+
+# 01001001 11000111 11000000 11111111 11111111 11111111 11111111
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 000 (REX.WB=11 --> r8)
+#                            imm32 = -1
+
+4d 31 c9 # 017c | xor r9, r9
+
+# 01001101 00110001 11001001
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 001 (REX.WR=11 --> r9)
+#                   r/m = 001 (REX.WB=11 --> r9)
+
+0f 05 # 017f | syscall
+
+# 00001111 00000101
+# 0f 05 = SYSCALL
+
+49 89 c4 # 0181 | mov r12, rax
+
+# 01001001 10001001 11000100
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 000 (REX.W=1 --> rax)
+#                   r/m = 100 (REX.WB=11 --> r12)
 
 # fd = open(argv[1], O_RDONLY, 0);
 
-            49 8b 7f 08 # 0184 | mov rdi, [r15 + 8]
-48 31 f6                # 0188 | xor rsi, rsi
-         48 31 d2       # 018b | xor rdx, rdx
-                  48 c7 # 018e | mov rax, 2
-c0 02 00 00 00          # 0190 |
-               0f 05    # 0195 | syscall
+49 8b 7f 08 # 0184 | mov rdi, [r15 + 8]
+
+# 01001001 10001011 01111111 00001000
+# REX.WRXB
+#          REX.W + 8b /r = MOV r64,r/m64
+#                   mod = 01  (memory + disp8)
+#                   reg = 111 (REX.W=1 --> rdi)
+#                   r/m = 111 (REX.WB=11 --> r15)
+#                            disp8 = 8
+
+48 31 f6 # 0188 | xor rsi, rsi
+
+# 01001000 00110001 11110110
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 110 (REX.W=1 --> rsi)
+#                   r/m = 110 (REX.W=1 --> rsi)
+
+48 31 d2 # 018b | xor rdx, rdx
+
+# 01001000 00110001 11010010
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 010 (REX.W=1 --> rdx)
+#                   r/m = 010 (REX.W=1 --> rdx)
+
+48 c7 c0 02 00 00 00 # 018e | mov rax, 2
+
+# 01001000 11000111 11000000 00000010 00000000 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm32 = 2
+
+0f 05 # 0195 | syscall
+
+# 00001111 00000101
+# 0f 05 = SYSCALL
 
 # rax = read(fd, buffer, size);
 
-                     48 # 0197 | mov rdi, rax
-89 c7                   # 0198 |
-      4c 89 e6          # 019a | mov rsi, r12
-               4c 89 ea # 019d | mov rdx, r13
-48 31 c0                # 01a0 | xor rax, rax
-         0f 05          # 01a3 | syscall
+48 89 c7 # 0197 | mov rdi, rax
+
+# 01001000 10001001 11000111
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 000 (REX.W=1 --> rax)
+#                   r/m = 111 (REX.W=1 --> rdi)
+
+4c 89 e6 # 019a | mov rsi, r12
+
+# 01001100 10001001 11100110
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 100 (REX.WR=11 --> r12)
+#                   r/m = 110 (REX.W=1 --> rsi)
+
+4c 89 ea # 019d | mov rdx, r13
+
+# 01001100 10001001 11101010
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 101 (REX.WR=11 --> r13)
+#                   r/m = 010 (REX.W=1 --> rdx)
+
+48 31 c0 # 01a0 | xor rax, rax
+
+# 01001000 00110001 11000000
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 000 (REX.W=1 --> rax)
+#                   r/m = 000 (REX.W=1 --> rax)
+
+0f 05 # 01a3 | syscall
+
+# 00001111 00000101
+# 0f 05 = SYSCALL
 
 # r13(input) = rax
 
-               49 89 c5 # 01a5 | mov r13, rax
+49 89 c5 # 01a5 | mov r13, rax
+
+# 01001001 10001001 11000101
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 000 (REX.W=1 --> rax)
+#                   r/m = 101 (REX.WB=11 --> r13)
 
 # Clear variables before main loop:
 
-48 31 c9                # 01a8 | xor rcx, rcx
-         48 31 c0       # 01ab | xor rax, rax
-                  48 31 # 01ae | xor rbx, rbx
-db                      # 01b0 |
-   4d 31 db             # 01b1 | xor r11, r11
-            4d 31 f6    # 01b4 | xor r14, r14
+48 31 c9 # 01a8 | xor rcx, rcx
+
+# 01001000 00110001 11001001
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 001 (REX.W=1 --> rcx)
+#                   r/m = 001 (REX.W=1 --> rcx)
+
+48 31 c0 # 01ab | xor rax, rax
+
+# 01001000 00110001 11000000
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 000 (REX.W=1 --> rax)
+#                   r/m = 000 (REX.W=1 --> rax)
+
+48 31 db # 01ae | xor rbx, rbx
+
+# 01001000 00110001 11011011
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 011 (REX.W=1 --> rbx)
+#                   r/m = 011 (REX.W=1 --> rbx)
+
+4d 31 db # 01b1 | xor r11, r11
+
+# 01001101 00110001 11011011
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 011 (REX.WR=11 --> r11)
+#                   r/m = 011 (REX.WB=11 --> r11)
+
+4d 31 f6 # 01b4 | xor r14, r14
+
+# 01001101 00110001 11110110
+# REX.WRXB
+#          REX.W + 31 /r = XOR r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 110 (REX.WR=11 --> r14)
+#                   r/m = 110 (REX.WB=11 --> r14)
 
 # L_continue:
-                     4d # 01b7 | cmp r11, r13
-39 eb                   # 01b8 |
-      7d 4c             # 01ba | jge 0x4c
-            43 8a 04 1c # 01bc | mov al, [r12 + r11]
-49 ff c3                # 01c0 | inc r11
-         88 cb          # 01c3 | mov bl, cl
-               3c 0a    # 01c5 | cmp al, '\n'
-                     0f # 01c7 | setne dl
-95 c2                   # 01c8 |
-      20 ca             # 01ca | and dl, cl
-            3c 23       # 01cc | cmp al, '#'
-                  0f 94 # 01ce | sete cl
-c1                      # 01d0 |
-   08 d1                # 01d1 | or cl, dl
-         84 db          # 01d3 | test bl, bl
+
+4d 39 eb # 01b7 | cmp r11, r13
+
+# 01001101 00111001 11101011
+# REX.WRXB
+#          REX.W + 39 /r = CMP r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 101 (REX.WR=11 --> r13)
+#                   r/m = 011 (REX.WB=11 --> r11)
+
+7d 4c # 01ba | jge 0x4c
+
+# 01111101 1001100
+# 7d cb = JGE rel8
+#          rel8 = 0x4c
+
+43 8a 04 1c # 01bc | mov al, [r12 + r11]
+
+# 01000011 10001010 00000100 00011100
+# REX.WRXB
+#          REX + 8a /r = MOV r8,r/m8
+#                   mod = 00  (memory no disp)
+#                   reg = 000 (al)
+#                   r/m = 100 (SIB byte present)
+#                            scale = 00
+#                            index = 011 (REX.X=1 --> r11)
+#                            base  = 100 (REX.B=1 --> r12)
+
+49 ff c3 # 01c0 | inc r11
+
+# 01001001 11111111 11000011
+# REX.WRXB
+#          REX.W + ff /0 = INC r/m64
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 011 (REX.WB=11 --> r11)
+
+88 cb # 01c3 | mov bl, cl
+
+# 10001000 11001011
+# 88 /r = MOV r/m8,r8
+#          mod = 11  (register)
+#          reg = 001 (cl)
+#          r/m = 011 (bl)
+
+3c 0a # 01c5 | cmp al, '\n'
+
+# 00111100 00001010
+# 3c _ib_ = CMP AL,imm8
+#          imm8 = 0x1c5
+
+0f 95 c2 # 01c7 | setne dl
+
+# 00001111 10010101 11000010
+# 0F 95 = SETNE r/m8
+#                   mod = 11  (register)
+#                   reg = 000 (unused?)
+#                   r/m = 010 (dl)
+
+20 ca # 01ca | and dl, cl
+
+# 00100000 11001010
+# 20 /r = AND r/m8,r8
+#          mod = 11  (register)
+#          reg = 001 (cl)
+#          r/m = 010 (dl)
+
+3c 23 # 01cc | cmp al, '#'
+
+# 00111100 00100011
+# 3c _ib_ = CMP AL,imm8
+#          imm8 = 0x23
+
+0f 94 c1 # 01ce | sete cl
+
+# 00001111 10010100 11000001
+# 0f 94 = SETE r/m8
+#                   mod = 11  (register)
+#                   reg = 000 (unused?)
+#                   r/m = 001 (cl)
+
+08 d1 # 01d1 | or cl, dl
+
+# 00001000 11010001
+# 08 /r = OR r/m8,r8
+#          mod = 11  (register)
+#          reg = 010 (dl)
+#          r/m = 001 (cl)
+
+84 db # 01d3 | test bl, bl
+
+# 10000100 11011011
+# 84 /r = TEST r/m8,r8
 
 # We need to subtract (0x1d7 - 0x1b7) = 0x20
 # -0x20 in binary is ~(0x20 - 1)
 # ~(00100000 - 1) = (11100000) = 0xe0
 
-               75 e0    # 01d5 | jnz 0xe0
+75 e0 # 01d5 | jnz 0xe0
 
-# The hex_table is at the address 0x300, so we need to compute
+# 01110101 11100000
+# 75 cb = JNE rel8
+#          rel8 = 0xe0
 
-                     8a # 01d7 | mov al, [rax + 0x400300]
-80 00 03 40 00          # 01d8 |
-                        #      | 10001010 10000000 00000000 00000011 01000000 00000000
-                        #      | 8a /r = MOV r8,r/m8
-                        #      |          mod = 10 (memory + disp32)
-                        #      |          reg = 000 (al)
-                        #      |          r/m = 000 (al)
-                        #      |                   disp32 = 0x400300
+8a 80 00 03 40 00 # 01d7 | mov al, [rax + 0x400300]
 
-               3c ff    # 01dd | cmp al, 0xff
-                     74 # 01df | je 0xd6
-d6                      # 01e0 |
-   4d 39 eb             # 01e1 | cmp r11, r13
-            7d 5d       # 01e4 | jge 0x5d
-                  43 8a # 01e6 | mov rb, [r12 + r11]
-1c 1c                   # 01e8 |
-      49 ff c3          # 01ea | inc r11
-               8a 9b 00 # 01ed | mov bl, [rbx + 0x400300]
-03 40 00                # 01f0 |
-         80 fb ff       # 01f3 | cmp ...
-                  74 4b # 01f6 | je 0x4b
-48 c1 e0 04             # 01f8 | shl rax, 4
-            48 09 d8    # 01fc | or rax, rbx
-                     43 # 01ff | mov [r12 + r14], al
-88 04 34                # 0200 |
-         49 ff c6       # 0203 | inc r14
-                  eb af # 0206 | jmp <0xaf
-49 8b 7f 10             # 0208 | mov rdi, [r15 + 16]
-            48 c7 c6 41 # 020c | mov rsi, 577
-02 00 00                # 0210 |
-         48 c7 c2 e4 01 # 0213 | mov rdx, 0x744
-00 00                   # 0218 |
-      48 c7 c0 02 00 00 # 021a | mov rax, 2
-00                      # 0220 |
-   0f 05                # 0221 | syscall
-         48 89 c7       # 0223 | mov rdi, rax
-                  4c 89 # 0226 | mov rsi, r12
-e6                      # 0228 |
-   4c 89 f2             # 0229 | mov rdx, r14
-            48 c7 c0 01 # 022c | mov rax, 1
-00 00 00                # 0230 |
-         0f 05          # 0233 | syscall
-               48 83 f8 # 0235 | cmp rax, 0
-00                      # 0238 |
-   74 08                # 0239 | je 0x8
-         48 c7 c0 00 00 # 023b | mov rax, 0
-00 00                   # 0240 |
-      c3                # 0242 | ret
+# The hex_table is at the address 0x300, @todo: why do we use absolute addressing 0x400300?
+
+# 10001010 10000000 00000000 00000011 01000000 00000000
+# 8a /r = MOV r8,r/m8
+#          mod = 10 (memory + disp32)
+#          reg = 000 (al)
+#          r/m = 000 (al)
+#                   disp32 = 0x400300
+
+3c ff # 01dd | cmp al, 0xff
+
+# 00111100 11111111
+# 3C ib = CMP AL,imm8
+#          imm8 = 0xff
+
+74 d6 # 01df | je 0xd6 (L_continue)
+
+# (0x1e1 - 0x1b7) = 0x2a
+# -0x2a = ~(0x2a - 1) = ~(0x29) = ~(00101001) = 11010110 = 0xd6
+
+# 01110100 11010110
+# 74 cb = JE rel8
+#          rel8 = 0xd6
+
+4d 39 eb # 01e1 | cmp r11, r13
+
+# 01001101 00111001 11101011
+# REX.WRXB
+#          REX.W + 39 /r = CMP r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 101 (REX.WR=11 --> r13)
+#                   r/m = 011 (REX.WB=11 --> r11)
+
+7d 5d # 01e4 | jge 0x5d
+
+# 01111101 01011101
+# 7d cb = JGE rel8
+#          rel8 = 0x5d
+
+43 8a 1c 1c # 01e6 | mov rb, [r12 + r11]
+
+# 01000011 10001010 00011100 00011100
+# REX.WRXB
+#          REX + 8a /r = MOV r8,r/m8
+#                   mod = 00  (memory no disp)
+#                   reg = 011 (bl)
+#                   r/m = 100 (SIB byte present)
+#                            scale = 00
+#                            index = 011 (REX.X=1 --> r11)
+#                            base  = 100 (REX.B=1 --> r12)
+
+49 ff c3 # 01ea | inc r11
+
+# 01001001 11111111 11000011
+# REX.WRXB
+#          REX.W + ff /0 = INC r/m64
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 011 (REX.WB=11 --> r11)
+
+8a 9b 00 03 40 00 # 01ed | mov bl, [rbx + 0x400300]
+
+# 10001010 10011011 00000000 00000011 01000000 00000000
+# 8a /r = MOV r8,r/m8
+#          mod = 10  (memory + disp32)
+#          reg = 011 (bl)
+#          r/m = 011 (bl)
+#                   disp32 = 0x400300
+
+80 fb ff # 01f3 | cmp bl, 0xff
+
+# 10000000 11111011 11111111
+# 80 /7 ib = CMP r/m8,imm8
+#          mod = 11  (register)
+#          reg = 111 (opcode)
+#          r/m = 011 (bl)
+#                   imm8 = 0xff
+
+74 4b # 01f6 | je 0x4b
+
+# 01110100 01001011
+# 74 cb = JE rel8
+#          rel8 = 0x4b
+
+48 c1 e0 04 # 01f8 | shl rax, 4
+
+# 01001000 11000001 11100000 00000100
+# REX.WRXB
+#          REX.W + c1 /4 ib = SHL r/m64,imm8
+#                   mod = 11  (register)
+#                   reg = 100 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm8 = 0x4
+
+48 09 d8 # 01fc | or rax, rbx
+
+# 01001000 00001001 11011000
+# REX.WRXB
+#          REX.W + 09 /r
+#                   mod = 11  (register)
+#                   reg = 011 (REX.W=1 --> rbx)
+#                   r/m = 000 (REX.W=1 --> rax)
+
+43 88 04 34 # 01ff | mov [r12 + r14], al
+
+# 01000011 10001000 00000100 00110100
+# REX.WRXB
+#          88 /r = MOV r/m8,r8
+#                   mod = 00  (memory no disp)
+#                   reg = 000 (REX.W=0 --> al)
+#                   r/m = 100 (SIB byte present)
+#                            scale = 00
+#                            index = 110 (REX.X=1 --> r14)
+#                            base  = 100 (REX.B=1 --> r12)
+
+49 ff c6 # 0203 | inc r14
+
+# 01001001 11111111 11000110
+# REX.WRXB
+#          REX.W + ff /0 = INC r/m64
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 110 (REX.WB=11 --> r14)
+
+eb af # 0206 | jmp 0xaf
+
+# 10001011 10100111
+# eb cb = JMP rel8
+#          rel8 = 0xaf
+
+49 8b 7f 10 # 0208 | mov rdi, [r15 + 16]
+
+# 01001001 10001011 01111111 00010000
+# REX.WRXB
+#          REX.W + 8b /r = MOV r64,r/m64
+#                   mod = 01  (memory + disp8)
+#                   reg = 111 (REX.W=1 --> rdi)
+#                   r/m = 111 (REX.WB=11 --> r15)
+#                            disp8 = 16
+
+48 c7 c6 41 02 00 00 # 020c | mov rsi, 577
+
+# 01001000 11000111 11000110 01000001 00000010 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 110 (REX.W=1 --> rsi)
+#                            imm32 = 577
+
+48 c7 c2 e4 01 00 00 # 0213 | mov rdx, 0x744
+
+# 01001000 11000111 11000010 11100100 00000001 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#
+
+48 c7 c0 02 00 00 00 # 021a | mov rax, 2
+
+# 01001000 11000111 11000000 00000010 00000000 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm32 = 2
+
+0f 05 # 0221 | syscall
+
+# 00001111 00000101
+# 0f 05 = SYSCALL
+
+48 89 c7 # 0223 | mov rdi, rax
+
+# 01001000 10001001 11000111
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 000 (REX.W=1 --> rax)
+#                   r/m = 111 (REX.W=1 --> rdi)
+
+4c 89 e6 # 0226 | mov rsi, r12
+
+# 01001100 10001001 11100110
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 100 (REX.WR=11 --> r12)
+#                   r/m = 110 (REX.W=1 --> rsi)
+
+4c 89 f2 # 0229 | mov rdx, r14
+
+# 01001100 10001001 11110010
+# REX.WRXB
+#          REX.W + 89 /r = MOV r/m64,r64
+#                   mod = 11  (register)
+#                   reg = 110 (REX.WR=11 --> r14)
+#                   r/m = 010 (REX.W=1 --> rdx)
+
+48 c7 c0 01 00 00 00 # 022c | mov rax, 1
+
+# 01001000 11000111 11000000 00010000 00000000 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm32 = 1
+
+0f 05 # 0233 | syscall
+
+# 00001111 00000101
+# 0f 05 = SYSCALL
+
+48 83 f8 00 # 0235 | cmp rax, 0
+
+# 01001000 10000011 11111000 00000000
+# REX.WRXB
+#          REX.W + 83 /7 ib = CMP r/m64,imm8
+#                   mod = 11  (register)
+#                   reg = 111 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm8 = 0
+
+74 08 # 0239 | je 0x8
+
+# 01110100 00001000
+# 74 cb = JE rel8
+#          rel8 = 0x8
+
+48 c7 c0 00 00 00 00 # 023b | mov rax, 0
+
+# 01001000 11000111 11000000 00000000 00000000 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm32 = 0
+
+c3 # 0242 | ret
+
+# 11000011
+# c3 = 1-byte opcode
 
 # L_main_return_failure:
-         48 c7 c0 01 00 # 0243 | mov rax, 1
-00 00                   # 0248 |
-      c3                # 024a | ret
-         00 00 00 00 00 # 024b |
+
+48 c7 c0 01 00 00 00 # 0243 | mov rax, 1
+
+# 01001000 11000111 11000000 00010000 00000000 00000000 00000000
+# REX.WRXB
+#          REX.W + c7 /0 id = MOV r/m64,imm32
+#                   mod = 11  (register)
+#                   reg = 000 (opcode)
+#                   r/m = 000 (REX.W=1 --> rax)
+#                            imm32 = 1
+
+c3 # 024a | ret
+
+# 11000011
+# c3 = 1-byte opcode
 
 # Padding
+       00 0000 0000 # 024b
 0000 0000 0000 0000 # 0250
 0000 0000 0000 0000 # 0258
 0000 0000 0000 0000 # 0260
@@ -375,70 +889,4 @@ ffff ffff ffff ffff # 03e8
 ffff ffff ffff ffff # 03f0
 ffff ffff ffff ffff # 03f8
 # Addresses [0400, 0600) are allocated by the program header for the .bss region
-# required to put stat struct.
-
-# Section 4 (.shstrtab)
-# 002e 7368 7374 7274 # 2100 | \0.shstrt
-# 6162 002e 7465 7874 # 2108 | ab\0.text
-# 002e 6461 7461 002e # 2110 | \0.data\0.
-# 6273 7300 0000 0000 # 2118 | bss\0\0\0\0\0
-
-# Section header 0
-# 0000 0000           # 2120 | sh_name = ""
-#           0000 0000 # 2124 | sh_type = SHT_NULL
-# 0000 0000 0000 0000 # 2128 | sh_flags = 0
-# 0000 0000 0000 0000 # 2130 | sh_addr = 0x0
-# 0000 0000 0000 0000 # 2138 | sh_offset = 0
-# 0000 0000 0000 0000 # 2140 | sh_size = 0
-# 0000 0000           # 2148 | sh_link = 0
-#           0000 0000 # 214c | sh_info = 0
-# 0000 0000 0000 0000 # 2150 | sh_addralign = 0
-# 0000 0000 0000 0000 # 2158 | sh_entsize = 0
-
-# Section header 1
-# 0b00 0000           # 2160 | sh_name = ".text"
-#           0100 0000 # 2164 | sh_type = SHT_PROGBITS
-# 0600 0000 0000 0000 # 2168 | sh_flags = SHF_ALLOC | SHF_EXECINSTR
-# 0010 4000 0000 0000 # 2170 | sh_addr = 0x401000
-# 0010 0000 0000 0000 # 2178 | sh_offset = 0x1000
-# 4e01 0000 0000 0000 # 2180 | sh_size = 0x14e
-# 0000 0000           # 2188 | sh_link = 0
-#           0000 0000 # 218c | sh_info = 0
-# 0100 0000 0000 0000 # 2190 | sh_addralign = 1
-# 0000 0000 0000 0000 # 2198 | sh_entsize = 0
-
-# Section header 2
-# 1100 0000           # 21a0 | sh_name = ".data"
-#           0100 0000 # 21a4 | sh_type = SHT_PROGBITS
-# 0300 0000 0000 0000 # 21a8 | sh_flags = SHF_WRITE | SHF_ALLOC
-# 0020 4000 0000 0000 # 21b0 | sh_addr = 0x402000
-# 0020 0000 0000 0000 # 21b8 | sh_offset = 0x2000
-# 0001 0000 0000 0000 # 21c0 | sh_size = 0x100
-# 0000 0000           # 21c8 | sh_link = 0
-#           0000 0000 # 21cc | sh_info = 0
-# 0100 0000 0000 0000 # 21d0 | sh_addralign = 1
-# 0000 0000 0000 0000 # 21d8 | sh_entsize = 0
-
-# Section header 3
-# 1700 0000           # 21e0 | sh_name = ".bss"
-#           0800 0000 # 21e4 | Section type (SHT_NOBITS = uninitialized bits)
-# 0300 0000 0000 0000 # 21e8 | Section attributes
-# 0021 4000 0000 0000 # 21f0 | Virtual address in memory
-# 0021 0000 0000 0000 # 21f8 | Offset in file
-# 9000 0000 0000 0000 # 2200 | Size of section
-# 0000 0000           # 2208 | sh_link = 0
-#           0000 0000 # 220c | sh_info = 0
-# 0800 0000 0000 0000 # 2210 | sh_addralign = 8
-# 0000 0000 0000 0000 # 2218 | sh_entsize = 0
-
-# Section header 4 (Section names section, as defined in ELF header at 003e )
-# 0100 0000           # 2220 | sh_name = ".shstrtab"
-#           0300 0000 # 2224 | Section type (SHT_STRTAB = a string table)
-# 0000 0000 0000 0000 # 2228 | Section attributes
-# 0000 0000 0000 0000 # 2230 | Virtual address in memory
-# 0021 0000 0000 0000 # 2238 | Offset in file
-# 1c00 0000 0000 0000 # 2240 | Size of section
-# 0000 0000           # 2248 | sh_link = 0
-#           0000 0000 # 224c | sh_info = 0
-# 0100 0000 0000 0000 # 2250 | sh_addralign = 8
-# 0000 0000 0000 0000 # 2258 | sh_entsize = 0
+# required to put `struct stat`.
