@@ -114,11 +114,13 @@ int32 interpreter_step(interpreter *interp)
 
 void interpreter_print_state(interpreter *interp)
 {
+    int i, j;
+
     printf("Registers:            Address      | Memory                  | Ascii\n");
-    for (int i = 0; i < 16; i++)
+    for (i = 0; i < 16; i++)
     {
         if (i < 10) printf(" ");
-        printf("r%d = %10u      ", i, interp->r[i]);
+        printf("r%d = %10lu      ", i, interp->r[i]);
         printf("0x%010x |", i * 8);
         for (int j = 0; j < 8; j++)
         {
