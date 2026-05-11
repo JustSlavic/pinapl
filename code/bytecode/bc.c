@@ -8,8 +8,11 @@
 
 bytecode instruction_stream[] =
 {
-    { .opcode = BYTECODE_MOV_RI, .r0 = BYTECODE_R0, .imm = 0xff },
+    { .opcode = BYTECODE_MOV_RI, .r0 = BYTECODE_R0, .imm = 0x01 },
     { .opcode = BYTECODE_MOV_RI, .r0 = BYTECODE_R1, .imm = 0xc0fe },
+
+    { .opcode = BYTECODE_MOV_RI, .r0 = BYTECODE_R2, .imm = 0xff },
+    { .opcode = BYTECODE_STR8_RI, .r0 = BYTECODE_R2, .imm = 0x70 },
 };
 
 
@@ -31,6 +34,15 @@ int main()
         byte_offset += advance;
     }
 
+    bytecode i = { .opcode = BYTECODE_MOV_RI, .r0 = BYTECODE_R8, .imm = 0x22 };
+    bytecode_encode_x86_64(interpreter.memory + byte_offset, interpreter.memory_size, i);
+
+    int32_t ec = 0;
+    do
+    {
+        ec = bytecode_interpreter_step(&interpreter);
+    }
+    while (ec == 0);
     bytecode_interpreter_print_state(&interpreter);
 
     return 0;
