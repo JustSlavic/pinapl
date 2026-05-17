@@ -18,7 +18,7 @@ bytecode instruction_stream[] =
 
 int main()
 {
-    bytecode_interpreter interpreter = {};
+    interpreter interpreter = {};
     interpreter.memory = malloc(0x1000);
     interpreter.memory_size = 0x1000;
 
@@ -40,10 +40,10 @@ int main()
     int32_t ec = 0;
     do
     {
-        ec = bytecode_interpreter_step(&interpreter);
+        ec = interpreter_step(&interpreter);
     }
     while (ec == 0);
-    bytecode_interpreter_print_state(&interpreter);
+    interpreter_print_state(&interpreter);
 
     return 0;
 }

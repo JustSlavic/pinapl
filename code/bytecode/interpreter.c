@@ -2,7 +2,14 @@
 #include <stdio.h>
 
 
-int32_t bytecode_interpreter_step(bytecode_interpreter *interp)
+int32_t interpreter_error(char const *msg)
+{
+    printf("%s", msg);
+    return 1;
+}
+
+
+int32_t interpreter_step(interpreter *interp)
 {
     bytecode bc;
     uint64_t advance = bytecode_decode(interp->memory + interp->registers[BYTECODE_RIP], interp->memory_size - interp->registers[BYTECODE_RIP], &bc);
@@ -261,7 +268,12 @@ int32_t bytecode_interpreter_step(bytecode_interpreter *interp)
         case BYTECODE_SHL_RRI:
         {
             printf("shl r%d, r%d, 0x%x\n", bc.r0, bc.r1, bc.imm);
-            interp->registers[bc.r0] = interp->registers[bc.r1] << bc.imm;
+            if (bc.imm >= 64)
+            {
+                return interpreter_error("Error: shl immediate operand >= 64, outside the possible range of values [0, 64)\n");
+            }
+            interp->registers[bc.r0] = (interp->registers[bc.r1]) << (bc.imm);
+            printf("%u << %u; 0x%x\n", ((uint32_t) interp->registers[bc.r1]), bc.imm % 32, 255 << 9);
         }
         break;
 
@@ -275,6 +287,10 @@ int32_t bytecode_interpreter_step(bytecode_interpreter *interp)
         case BYTECODE_CMP_RRI:
         case BYTECODE_CMP_RRR:
         case BYTECODE_JMP_I:
+        {
+            printf("jmp 0x%d\n", bc.imm);
+            interp->registers[BYTECODE_RIP] += bc.imm;
+        }
         case BYTECODE_JE_I:
         case BYTECODE_JNE_I:
         case BYTECODE_JL_I:
@@ -286,6 +302,7 @@ int32_t bytecode_interpreter_step(bytecode_interpreter *interp)
         case BYTECODE_CALL_I:
         case BYTECODE_RET:
         case BYTECODE_SYSCALL:
+        break;
 
         case BYTECODE_INVALID:
         default:
@@ -295,7 +312,7 @@ int32_t bytecode_interpreter_step(bytecode_interpreter *interp)
     return 0;
 }
 
-void bytecode_interpreter_print_state(bytecode_interpreter *interp)
+void interpreter_print_state(interpreter *interp)
 {
     int i, j;
 

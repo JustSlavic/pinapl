@@ -1,12 +1,12 @@
-#ifndef PINAPL_BYTECODE_INTERPRETER_H_
-#define PINAPL_BYTECODE_INTERPRETER_H_
+#ifndef PINAPL_INTERPRETER_H_
+#define PINAPL_INTERPRETER_H_
 
 #include <stdint.h>
 #include "bytecode.h"
 
 enum
 {
-    BYTECODE_INTERPRETER_FLAG_EQUAL = 0x1,
+    INTERPRETER_FLAG_EQUAL = 0x1,
 };
 
 typedef struct
@@ -15,11 +15,11 @@ typedef struct
     uint64_t memory_size;
     uint64_t registers[16];
     uint64_t flags;
-} bytecode_interpreter;
+} interpreter;
 
 
-int32_t bytecode_interpreter_step(bytecode_interpreter *interp);
-void bytecode_interpreter_print_state(bytecode_interpreter *interp);
+int32_t interpreter_step(interpreter *interp);
+void interpreter_print_state(interpreter *interp);
 
 
-#endif /* PINAPL_BYTECODE_INTERPRETER_H_ */
+#endif /* PINAPL_INTERPRETER_H_ */

@@ -1,0 +1,104 @@
+#ifndef PINAPL_IR0_H_
+#define PINAPL_IR0_H_
+
+#include <stdint.h>
+
+enum
+{
+    IR0_OPCODE_INVALID = 0,
+
+    IR0_OPCODE_LABEL,
+
+    IR0_OPCODE_MOV_RI,
+    IR0_OPCODE_MOV_RR,
+
+    IR0_OPCODE_LDR8_RI,
+    IR0_OPCODE_LDR16_RI,
+    IR0_OPCODE_LDR32_RI,
+    IR0_OPCODE_LDR64_RI,
+
+    IR0_OPCODE_LDR8_RA,
+    IR0_OPCODE_LDR16_RA,
+    IR0_OPCODE_LDR32_RA,
+    IR0_OPCODE_LDR64_RA,
+
+    IR0_OPCODE_LDR8_RL,
+    IR0_OPCODE_LDR16_RL,
+    IR0_OPCODE_LDR32_RL,
+    IR0_OPCODE_LDR64_RL,
+
+    IR0_OPCODE_STR8_RI,
+    IR0_OPCODE_STR16_RI,
+    IR0_OPCODE_STR32_RI,
+    IR0_OPCODE_STR64_RI,
+
+    IR0_OPCODE_STR8_RA,
+    IR0_OPCODE_STR16_RA,
+    IR0_OPCODE_STR32_RA,
+    IR0_OPCODE_STR64_RA,
+
+    IR0_OPCODE_STR8_RL,
+    IR0_OPCODE_STR16_RL,
+    IR0_OPCODE_STR32_RL,
+    IR0_OPCODE_STR64_RL,
+
+    IR0_OPCODE_ADD_RRI,
+    IR0_OPCODE_ADD_RRR,
+    IR0_OPCODE_SUB_RRI,
+    IR0_OPCODE_SUB_RRR,
+    IR0_OPCODE_MUL_RRI,
+    IR0_OPCODE_MUL_RRR,
+    IR0_OPCODE_AND_RRI,
+    IR0_OPCODE_AND_RRR,
+    IR0_OPCODE_OR_RRI,
+    IR0_OPCODE_OR_RRR,
+    IR0_OPCODE_XOR_RRI,
+    IR0_OPCODE_XOR_RRR,
+    IR0_OPCODE_NOT_RR,
+    IR0_OPCODE_SHR_RRI,
+    IR0_OPCODE_SHR_RRR,
+    IR0_OPCODE_SHL_RRI,
+    IR0_OPCODE_SHL_RRR,
+
+    IR0_OPCODE_CMP_RRI,
+    IR0_OPCODE_CMP_RRR,
+    IR0_OPCODE_JMP_I,
+    IR0_OPCODE_JE_I,
+    IR0_OPCODE_JNE_I,
+    IR0_OPCODE_JL_I,
+    IR0_OPCODE_JLE_I,
+    IR0_OPCODE_JG_I,
+    IR0_OPCODE_JGE_I,
+    IR0_OPCODE_JMP_L,
+    IR0_OPCODE_JE_L,
+    IR0_OPCODE_JNE_L,
+    IR0_OPCODE_JL_L,
+    IR0_OPCODE_JLE_L,
+    IR0_OPCODE_JG_L,
+    IR0_OPCODE_JGE_L,
+    IR0_OPCODE_SETE_R,
+    IR0_OPCODE_SETNE_R,
+    IR0_OPCODE_CALL_L,
+    IR0_OPCODE_RET,
+    IR0_OPCODE_SYSCALL,
+};
+
+typedef struct
+{
+    uint8_t opcode;
+    uint8_t r0, r1, r2;
+    uint8_t cc, c, cr, a;
+    int32_t imm;
+    char const * label;
+    uint32_t address;
+} ir0;
+
+typedef struct
+{
+    char const *name;
+    uint32_t address;
+} ir0_label;
+
+extern uint32_t ir0_to_bytecode_opcode[68];
+
+#endif /* PINAPL_IR0_H_ */
