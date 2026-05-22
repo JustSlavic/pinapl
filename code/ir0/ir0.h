@@ -60,8 +60,8 @@ enum
     IR0_OPCODE_SHL_RRI,
     IR0_OPCODE_SHL_RRR,
 
-    IR0_OPCODE_CMP_RRI,
-    IR0_OPCODE_CMP_RRR,
+    IR0_OPCODE_CMP_RI,
+    IR0_OPCODE_CMP_RR,
     IR0_OPCODE_JMP_I,
     IR0_OPCODE_JE_I,
     IR0_OPCODE_JNE_I,
@@ -89,7 +89,7 @@ typedef struct
     uint8_t r0, r1, r2;
     uint8_t cc, c, cr, a;
     int32_t imm;
-    char const * label;
+    char const *label;
     uint32_t address;
 } ir0;
 

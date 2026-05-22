@@ -284,25 +284,118 @@ int32_t interpreter_step(interpreter *interp)
         }
         break;
 
-        case BYTECODE_CMP_RRI:
-        case BYTECODE_CMP_RRR:
+        case BYTECODE_CMP_RI:
+        {
+            printf("cmp r%d, 0x%x\n", bc.r0, bc.imm);
+            interp->flags = 0;
+            if (interp->registers[bc.r0] == bc.imm)
+                interp->flags = (interp->flags | INTERPRETER_FLAG_EQUAL);
+            if (interp->registers[bc.r0] < bc.imm)
+                interp->flags = (interp->flags | INTERPRETER_FLAG_LESS);
+            if (interp->registers[bc.r0] > bc.imm)
+                interp->flags = (interp->flags | INTERPRETER_FLAG_MORE);
+        }
+        break;
+
+        case BYTECODE_CMP_RR:
+        {
+            printf("cmp r%d, r%d\n", bc.r0, bc.r1);
+            interp->flags = 0;
+            if (interp->registers[bc.r0] == interp->registers[bc.r1])
+                interp->flags = (interp->flags | INTERPRETER_FLAG_EQUAL);
+            if (interp->registers[bc.r0] < interp->registers[bc.r1])
+                interp->flags = (interp->flags | INTERPRETER_FLAG_LESS);
+            if (interp->registers[bc.r0] > interp->registers[bc.r1])
+                interp->flags = (interp->flags | INTERPRETER_FLAG_MORE);
+        }
+        break;
+
         case BYTECODE_JMP_I:
         {
             printf("jmp 0x%d\n", bc.imm);
             interp->registers[BYTECODE_RIP] += bc.imm;
         }
+        break;
+
         case BYTECODE_JE_I:
+        {
+            printf("je 0x%d\n", bc.imm);
+            if ((interp->flags & INTERPRETER_FLAG_EQUAL) > 0)
+            {
+                interp->registers[BYTECODE_RIP] += bc.imm;
+            }
+        }
+        break;
+
         case BYTECODE_JNE_I:
+        {
+            printf("jne 0x%d\n", bc.imm);
+            if ((interp->flags & INTERPRETER_FLAG_EQUAL) == 0)
+            {
+                interp->registers[BYTECODE_RIP] += bc.imm;
+            }
+        }
+        break;
+
         case BYTECODE_JL_I:
+        {
+            printf("jl 0x%d\n", bc.imm);
+            if ((interp->flags & INTERPRETER_FLAG_LESS) > 0)
+            {
+                interp->registers[BYTECODE_RIP] += bc.imm;
+            }
+        }
+        break;
+
         case BYTECODE_JLE_I:
+        {
+            printf("jle 0x%d\n", bc.imm);
+            if (((interp->flags & INTERPRETER_FLAG_LESS) > 0) ||
+                ((interp->flags & INTERPRETER_FLAG_EQUAL) > 0))
+            {
+                interp->registers[BYTECODE_RIP] += bc.imm;
+            }
+        }
+        break;
+
         case BYTECODE_JG_I:
+        {
+            printf("jg 0x%d\n", bc.imm);
+            if ((interp->flags & INTERPRETER_FLAG_MORE) > 0)
+            {
+                interp->registers[BYTECODE_RIP] += bc.imm;
+            }
+        }
+        break;
+
         case BYTECODE_JGE_I:
+        {
+            printf("jge 0x%d\n", bc.imm);
+            if (((interp->flags & INTERPRETER_FLAG_MORE) > 0) ||
+                ((interp->flags & INTERPRETER_FLAG_EQUAL) > 0))
+            {
+                interp->registers[BYTECODE_RIP] += bc.imm;
+            }
+        }
+        break;
+
         case BYTECODE_SETE_R:
+        {
+            printf("sete r%d\n", bc.r0);
+            interp->registers[bc.r0] = (interp->flags & INTERPRETER_FLAG_EQUAL) > 0;
+        }
+        break;
+
         case BYTECODE_SETNE_R:
+        {
+            printf("setne r%d\n", bc.r0);
+            interp->registers[bc.r0] = (interp->flags & INTERPRETER_FLAG_EQUAL) == 0;
+        }
+        break;
+
         case BYTECODE_CALL_I:
         case BYTECODE_RET:
         case BYTECODE_SYSCALL:
-        break;
 
         case BYTECODE_INVALID:
         default:
@@ -315,12 +408,37 @@ int32_t interpreter_step(interpreter *interp)
 void interpreter_print_state(interpreter *interp)
 {
     int i, j;
+    int printed_flags_a = 0;
+    int printed_flags_b = 0;
 
     printf("Registers:            Address      | Memory                  | Ascii\n");
-    for (i = 0; i < 16; i++)
+    for (i = 0; i < 20; i++)
     {
-        if (i < 10) printf(" ");
-        printf("r%d = %10lx      ", i, interp->registers[i]);
+        if (i < 16)
+        {
+            if (i < 10) printf(" ");
+            printf("r%d = %10lx      ", i, interp->registers[i]);
+        }
+        else
+        {
+            if (i == 17)
+            {
+                printed_flags_a = 1;
+                printf("Flags: = < >          ");
+            }
+            else if (i == 18)
+            {
+                printed_flags_b = 1;
+                printf("       %d %d %d          ",
+                       (interp->flags & INTERPRETER_FLAG_EQUAL) > 0,
+                       (interp->flags & INTERPRETER_FLAG_LESS) > 0,
+                       (interp->flags & INTERPRETER_FLAG_MORE) > 0);
+            }
+            else
+            {
+                printf("                      ");
+            }
+        }
         printf("0x%010x |", i * 8);
         for (j = 0; j < 8; j++)
         {
@@ -333,5 +451,16 @@ void interpreter_print_state(interpreter *interp)
             printf("%c", c < 'A' ? '.' : c);
         }
         printf("\n");
+    }
+    if (!printed_flags_a)
+    {
+        printf("Flags: = < >\n");
+    }
+    if (!printed_flags_b)
+    {
+        printf("       %d %d %d\n",
+               (interp->flags & INTERPRETER_FLAG_EQUAL) > 0,
+               (interp->flags & INTERPRETER_FLAG_LESS) > 0,
+               (interp->flags & INTERPRETER_FLAG_MORE) > 0);
     }
 }

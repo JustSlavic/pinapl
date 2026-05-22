@@ -7,6 +7,8 @@
 enum
 {
     INTERPRETER_FLAG_EQUAL = 0x1,
+    INTERPRETER_FLAG_MORE  = 0x2,
+    INTERPRETER_FLAG_LESS  = 0x4,
 };
 
 typedef struct

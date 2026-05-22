@@ -57,8 +57,8 @@ uint32_t ir0_to_bytecode_opcode[68] =
     BYTECODE_SHL_RRI,
     BYTECODE_SHL_RRR,
 
-    BYTECODE_CMP_RRI,
-    BYTECODE_CMP_RRR,
+    BYTECODE_CMP_RI,
+    BYTECODE_CMP_RR,
     BYTECODE_JMP_I,
     BYTECODE_JE_I,
     BYTECODE_JNE_I,

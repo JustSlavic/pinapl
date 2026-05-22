@@ -1,28 +1,9 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/stat.h>
 
-typedef   signed char        int8;
-typedef   signed short       int16;
-typedef   signed int         int32;
-typedef   signed long long   int64;
-typedef unsigned char        uint8;
-typedef unsigned short       uint16;
-typedef unsigned int         uint32;
-typedef unsigned long long   uint64;
-typedef float                float32;
-typedef double               float64;
-
-typedef uint32               uint;
-typedef  int64               isize;
-typedef uint64               usize;
-typedef uint8                byte;
-typedef uint8                bool;
-typedef uint32               bool32;
-typedef  int64               intptr;
-typedef uint64               uintptr;
-typedef int16                sound_sample_t;
 #define true                 1
 #define false                0
 
@@ -32,7 +13,7 @@ typedef int16                sound_sample_t;
 #include <fcntl.h>
 #include <unistd.h>
 
-uint8 hex_table[256] =
+uint8_t hex_table[256] =
 {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -68,9 +49,9 @@ uint8 hex_table[256] =
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 };
 
-usize platform_get_file_size(char const *filename)
+uint64_t platform_get_file_size(char const *filename)
 {
-    usize result = 0;
+    uint64_t result = 0;
     struct stat st = {};
     if (stat(filename, &st) == 0)
     {
@@ -79,24 +60,24 @@ usize platform_get_file_size(char const *filename)
     return result;
 }
 
-uint32 platform_read_file_into_memory(char const *filename, void *memory, usize size)
+uint32_t platform_read_file_into_memory(char const *filename, void *memory, uint64_t size)
 {
     int fd = open(filename, O_NOFOLLOW | O_RDONLY);
     if (fd != -1)
     {
-        uint32 bytes_read = read(fd, memory, size);
+        uint32_t bytes_read = read(fd, memory, size);
         close(fd);
         return bytes_read;
     }
     return 0;
 }
 
-uint32 platform_write_memory_buffer_into_file(char const *filename, void *memory, usize size)
+uint32_t platform_write_memory_buffer_into_file(char const *filename, void *memory, uint64_t size)
 {
     int fd = open(filename, O_NOFOLLOW | O_WRONLY | O_CREAT | O_TRUNC, 0744);
     if (fd != -1)
     {
-        uint32 bytes_written = write(fd, memory, size);
+        uint32_t bytes_written = write(fd, memory, size);
         close(fd);
         return bytes_written;
     }
@@ -114,19 +95,19 @@ int main(int argc, char **argv)
     char *input_path = argv[1];
     char *output_path = argv[2];
 
-    usize input_capacity = platform_get_file_size(input_path);
+    uint64_t input_capacity = platform_get_file_size(input_path);
     if (input_capacity == 0)
         return 1;
 
-    uint8 *input_buffer = malloc(input_capacity);
-    uint32 input_size = platform_read_file_into_memory(input_path, input_buffer, input_capacity);
+    uint8_t *input_buffer = malloc(input_capacity);
+    uint32_t input_size = platform_read_file_into_memory(input_path, input_buffer, input_capacity);
 
     int r = 0;
     int w = 0;
     int is_comment = false;
     while (r < input_size)
     {
-        uint8 a = input_buffer[r++];
+        uint8_t a = input_buffer[r++];
 
         int was_comment = is_comment;
         is_comment = (a == '#') || (was_comment && a != '\n');
@@ -137,15 +118,15 @@ int main(int argc, char **argv)
         if (a == 0xff)
             continue;
 
-        uint8 b = input_buffer[r++];
+        uint8_t b = input_buffer[r++];
         b = hex_table[b];
         if (b == 0xff)
             continue;
 
-        input_buffer[w++] = (char) ((((uint32) a) << 4) | b);
+        input_buffer[w++] = (char) ((((uint32_t) a) << 4) | b);
     }
 
-    uint32 bytes_written = platform_write_memory_buffer_into_file(output_path, input_buffer, w);
+    uint32_t bytes_written = platform_write_memory_buffer_into_file(output_path, input_buffer, w);
     printf("Done. %u bytes written.\n", bytes_written);
 
     return 0;

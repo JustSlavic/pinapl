@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ex
+set -ex # sex (>_<")
 
 script_path=$(dirname -- "$( readlink -f -- "$0"; )")
 os_name=$(uname -s)
@@ -12,6 +12,8 @@ cc_warnings="-Wall -Werror"
 
 mkdir -p build
 mkdir -p bin
+rm -rf $script_path/build/*
+rm -rf $script_path/bin/*
 
 function compile_ttb_asm_x86_64_linux() {
     source="$script_path/code/ttb/ttb.S"
@@ -29,7 +31,7 @@ function compile_ttb_asm_x86_64_linux() {
     echo "Compare result: $?"
 }
 
-function compile_ttb_C_x86_64_linux() {
+function compile_ttb_c_x86_64_linux() {
     source="$script_path/code/ttb/ttb.c"
     result="$script_path/bin/ttbc"
 
@@ -43,5 +45,17 @@ function compile_ttb_C_x86_64_linux() {
     echo "Compare result: $?"
 }
 
-# compile_ttb_asm_x86_64_linux
-compile_ttb_C_x86_64_linux
+function compile_ir0_c_x86_64_linux() {
+    source="$script_path/code/ir0/ir0_main.c"
+    result="$script_path/bin/ir0"
+
+    $compiler $cc_flags $cc_warnings -o $result $source
+    echo "Done [$result]"
+
+    echo "Running..."
+    $result
+}
+
+compile_ttb_asm_x86_64_linux
+compile_ttb_c_x86_64_linux
+compile_ir0_c_x86_64_linux

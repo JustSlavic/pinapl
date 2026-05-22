@@ -30,6 +30,7 @@ uint64_t bytecode_encode(void *data, uint64_t size, bytecode bc)
         /* Register Register */
         case BYTECODE_MOV_RR:
         case BYTECODE_NOT_RR:
+        case BYTECODE_CMP_RR:
         {
             encoded = encoded | ((bc.r0 & BytecodeEncoding_RegisterMask) << BytecodeEncoding_Register0_Offset);
             encoded = encoded | ((bc.r1 & BytecodeEncoding_RegisterMask) << BytecodeEncoding_Register1_Offset);
@@ -65,6 +66,7 @@ uint64_t bytecode_encode(void *data, uint64_t size, bytecode bc)
         case BYTECODE_STR16_RI:
         case BYTECODE_STR32_RI:
         case BYTECODE_STR64_RI:
+        case BYTECODE_CMP_RI:
         {
             encoded = encoded | ((bc.r0 & BytecodeEncoding_RegisterMask) << BytecodeEncoding_Register0_Offset);
             encoded = encoded | ((bc.imm & 0xffff) << 16);
@@ -79,7 +81,6 @@ uint64_t bytecode_encode(void *data, uint64_t size, bytecode bc)
         case BYTECODE_XOR_RRI:
         case BYTECODE_SHR_RRI:
         case BYTECODE_SHL_RRI:
-        case BYTECODE_CMP_RRI:
         {
             encoded = encoded | ((bc.r0 & BytecodeEncoding_RegisterMask) << BytecodeEncoding_Register0_Offset);
             encoded = encoded | ((bc.r1 & BytecodeEncoding_RegisterMask) << 8);
@@ -95,7 +96,6 @@ uint64_t bytecode_encode(void *data, uint64_t size, bytecode bc)
         case BYTECODE_XOR_RRR:
         case BYTECODE_SHR_RRR:
         case BYTECODE_SHL_RRR:
-        case BYTECODE_CMP_RRR:
         {
             encoded = encoded | ((bc.r0 & BytecodeEncoding_RegisterMask) << BytecodeEncoding_Register0_Offset);
             encoded = encoded | ((bc.r1 & BytecodeEncoding_RegisterMask) << BytecodeEncoding_Register1_Offset);
@@ -149,6 +149,7 @@ uint64_t bytecode_decode(void *data, uint64_t size, bytecode *bc)
         /* Register Register */
         case BYTECODE_MOV_RR:
         case BYTECODE_NOT_RR:
+        case BYTECODE_CMP_RR:
         {
             bc->r0 = (encoded >> BytecodeEncoding_Register0_Offset) & BytecodeEncoding_RegisterMask;
             bc->r1 = (encoded >> BytecodeEncoding_Register1_Offset) & BytecodeEncoding_RegisterMask;
@@ -184,6 +185,7 @@ uint64_t bytecode_decode(void *data, uint64_t size, bytecode *bc)
         case BYTECODE_STR16_RI:
         case BYTECODE_STR32_RI:
         case BYTECODE_STR64_RI:
+        case BYTECODE_CMP_RI:
         {
             bc->r0 = (encoded >> BytecodeEncoding_Register0_Offset) & BytecodeEncoding_RegisterMask;
             bc->imm = (encoded >> 16) & 0xffff;
@@ -202,7 +204,6 @@ uint64_t bytecode_decode(void *data, uint64_t size, bytecode *bc)
         case BYTECODE_XOR_RRI:
         case BYTECODE_SHR_RRI:
         case BYTECODE_SHL_RRI:
-        case BYTECODE_CMP_RRI:
         {
             bc->r0 = (encoded >> BytecodeEncoding_Register0_Offset) & BytecodeEncoding_RegisterMask;
             bc->r1 = (encoded >> BytecodeEncoding_Register1_Offset) & BytecodeEncoding_RegisterMask;
@@ -222,7 +223,6 @@ uint64_t bytecode_decode(void *data, uint64_t size, bytecode *bc)
         case BYTECODE_XOR_RRR:
         case BYTECODE_SHR_RRR:
         case BYTECODE_SHL_RRR:
-        case BYTECODE_CMP_RRR:
         {
             bc->r0 = (encoded >> BytecodeEncoding_Register0_Offset) & BytecodeEncoding_RegisterMask;
             bc->r1 = (encoded >> BytecodeEncoding_Register1_Offset) & BytecodeEncoding_RegisterMask;
@@ -469,12 +469,12 @@ uint64_t bytecode_encode_x86_64(void *data, uint64_t size, bytecode bc)
         }
         break;
 
-        case BYTECODE_CMP_RRI:
+        case BYTECODE_CMP_RI:
         {
         }
         break;
 
-        case BYTECODE_CMP_RRR:
+        case BYTECODE_CMP_RR:
         {
         }
         break;

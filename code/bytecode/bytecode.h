@@ -93,10 +93,10 @@
         +-------------------+--------+-----+-----+-----+-----------------+
         | SHL r64,r64,r64   |  0x23  | r64 | r64 | r64 |                 |
         +-------------------+--------+-----+-----+-----+-----------------+
-        | CMP r64,r64,imm16 |  0x24  | r64 | r64 |        imm16          |
-        +-------------------+--------+-----+-----+-----+-----------------+
-        | CMP r64,r64,r64   |  0x25  | r64 | r64 | r64 |                 |
-        +-------------------+--------+-----+-----+-----+-----------------+
+        | CMP r64,imm16     |  0x24  | r64 |     |        imm16          |
+        +-------------------+--------+-----+-----+-----------------------+
+        | CMP r64,r64       |  0x25  | r64 | r64 |                       |
+        +-------------------+--------+-----+-----+-----------------------+
         | JMP rel24         |  0x26  |               rel24               |
         +-------------------+--------+-----------------------------------+
         | JE rel24          |  0x27  |               rel24               |
@@ -131,10 +131,10 @@
     If you need to skip a, set it to 0.
 
     The calling convention will be the following:
-        - arguments are r0-r5
+        - arguments are r0-r4
         - return value is on r0
-        - registers r0-r5 are volatile
-        - registers r6-r12 are non-volatile
+        - registers r0-r4 are volatile
+        - registers r5-r12 are non-volatile
 */
 
 #include <stdint.h>
@@ -185,8 +185,8 @@ enum
     BYTECODE_SHL_RRI  = 0x22,
     BYTECODE_SHL_RRR  = 0x23,
 
-    BYTECODE_CMP_RRI  = 0x24,
-    BYTECODE_CMP_RRR  = 0x25,
+    BYTECODE_CMP_RI   = 0x24,
+    BYTECODE_CMP_RR   = 0x25,
     BYTECODE_JMP_I    = 0x26,
     BYTECODE_JE_I     = 0x27,
     BYTECODE_JNE_I    = 0x28,
