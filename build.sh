@@ -1,13 +1,13 @@
 #!/bin/bash
 
-set -ex # sex (>_<")
+set -ex # sex (00,)
 
 script_path=$(dirname -- "$( readlink -f -- "$0"; )")
 os_name=$(uname -s)
 compiler="gcc"
 assembler="as"
 linker="ld"
-cc_flags="-std=c89"
+cc_flags="-std=c89 -Icode/"
 cc_warnings="-Wall -Werror"
 
 mkdir -p build

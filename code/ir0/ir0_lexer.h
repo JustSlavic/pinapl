@@ -1,37 +1,44 @@
-#ifndef IR0_LEXER_H
-#define IR0_LEXER_H
+#ifndef IR0_LEXER_H_
+#define IR0_LEXER_H_
 
-#include "../lexer.h"
+#include <base.h>
+#include <stdint.h>
+
 
 enum
 {
-    Token_Keyword = 0x10000, // 65536
-    Token_KeywordInvalid = Token_Keyword,
+    TOKEN_KEYWORD = 0x10000,
 
-    Token_KeywordMov,
-    Token_KeywordLdr,
-    Token_KeywordStr,
+    TOKEN_KEYWORD_MOV,
+    TOKEN_KEYWORD_LDR,
+    TOKEN_KEYWORD_STR,
 
-    Token_KeywordAdd,
-    Token_KeywordSub,
-    Token_KeywordMul,
-    Token_KeywordDiv,
-    Token_KeywordRet,
+    TOKEN_KEYWORD_ADD,
+    TOKEN_KEYWORD_SUB,
+    TOKEN_KEYWORD_MUL,
+    TOKEN_KEYWORD_AND,
+    TOKEN_KEYWORD_OR,
+    TOKEN_KEYWORD_XOR,
+    TOKEN_KEYWORD_NOT,
+    TOKEN_KEYWORD_SHR,
+    TOKEN_KEYWORD_SHL,
 
-    Token_KeywordCmp,
+    TOKEN_KEYWORD_CMP,
+    TOKEN_KEYWORD_JMP,
+    TOKEN_KEYWORD_JE,
+    TOKEN_KEYWORD_JNE,
+    TOKEN_KEYWORD_JL,
+    TOKEN_KEYWORD_JLE,
+    TOKEN_KEYWORD_JG,
+    TOKEN_KEYWORD_JGE,
 
-    Token_KeywordJmp,
-    Token_KeywordJeq,
-    Token_KeywordJne,
-    Token_KeywordJlt,
-    Token_KeywordJle,
-    Token_KeywordJgt,
-    Token_KeywordJge,
+    TOKEN_KEYWORD_SETE,
+    TOKEN_KEYWORD_SETNE,
+
+    TOKEN_KEYWORD_CALL,
+    TOKEN_KEYWORD_RET,
+    TOKEN_KEYWORD_SYSCALL,
 };
 
 
-bool32 ir0_is_valid_identifier_head(char c);
-bool32 ir0_is_valid_identifier_body(char c);
-
-
-#endif // IR0_LEXER_H
+#endif /* IR0_LEXER_H_ */

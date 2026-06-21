@@ -1,17 +1,19 @@
-#ifndef ASCII_H
-#define ASCII_H
+#ifndef PINAPL_ASCII_H_
+#define PINAPL_ASCII_H_
 
-#include "common.h"
+#include "base.h"
 
-bool32 is_newline(char c);
-bool32 is_crlf(char c);
-bool32 is_ascii_space(char c);
-bool32 is_ascii_whitespace(char c);
-bool32 is_ascii_lowercase_alpha(char c);
-bool32 is_ascii_capital_alpha(char c);
-bool32 is_ascii_alpha(char c);
-bool32 is_ascii_digit(char c);
-bool32 is_ascii_hex(char c);
-bool32 is_ascii_double_quote(char c);
 
-#endif // ASCII_H
+bool ascii_is_newline(char c);
+bool ascii_is_crlf(char c);
+bool ascii_is_space(char c);
+bool ascii_is_whitespace(char c);
+bool ascii_is_lowercase_alpha(char c);
+bool ascii_is_capital_alpha(char c);
+bool ascii_is_alpha(char c);
+bool ascii_is_digit(char c);
+bool ascii_is_hex(char c);
+bool ascii_is_double_quote(char c);
+
+
+#endif /* PINAPL_ASCII_H_ */

@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "ir0.h"
+#include "ir0_lexer.h"
+#include "../lexer.h"
 #include "../bytecode/interpreter.h"
 
 #define ARRAY_COUNT(A) (sizeof(A) / sizeof(A[0]))
@@ -11,22 +13,36 @@ ir0 instruction_stream[] =
 {
     { .opcode = IR0_OPCODE_LABEL, .label = "main" },
 
-    { .opcode = IR0_OPCODE_MOV_RI, .r0 = 0, .imm = 0xfe },
-    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x60, },
-    { .opcode = IR0_OPCODE_MOV_RI, .r0 = 0, .imm = 0xc0 },
-    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x61, },
-    { .opcode = IR0_OPCODE_LDR16_RI, .r0 = 4, .imm = 0x60 },
-
-    { .opcode = IR0_OPCODE_MOV_RI, .r0 = 0, .imm = 0x70 },
-    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x80 },
-    { .opcode = IR0_OPCODE_MOV_RI, .r0 = 0, .imm = 0x65 },
-    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x81 },
-    { .opcode = IR0_OPCODE_MOV_RI, .r0 = 0, .imm = 0x74 },
-    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x82 },
-    { .opcode = IR0_OPCODE_MOV_RI, .r0 = 0, .imm = 0x75 },
-    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x83 },
-    { .opcode = IR0_OPCODE_MOV_RI, .r0 = 0, .imm = 0x68 },
-    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x84 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x48 },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x100 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x65 },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x101 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x6c },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x102 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x6c },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x103 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x6f },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x104 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x2c },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x105 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x20 },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x106 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x57 },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x107 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x6f },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x108 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x72 },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x109 },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x6c },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x10a },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x64 },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x10b },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x21 },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x10c },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0xa },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x10d },
+    { .opcode = IR0_OPCODE_MOV_RI,  .r0 = 0, .imm = 0x0 },
+    { .opcode = IR0_OPCODE_STR8_RI, .r0 = 0, .imm = 0x10e },
 
     { .opcode = IR0_OPCODE_MOV_RI, .r0 = 0, .imm = 0 },
     { .opcode = IR0_OPCODE_MOV_RI, .r0 = 1, .imm = 1 },
@@ -41,11 +57,67 @@ ir0 instruction_stream[] =
     { .opcode = IR0_OPCODE_SETE_R, .r0 = 8 },
 };
 
+static char const *input_filename = "code/ir0/fib.ir0";
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/mman.h>
+
 int main()
 {
+    int ec;
+
+    /* Tokenization */
+
+    struct stat st;
+    ec = stat(input_filename, &st);
+    if (ec < 0)
+    {
+        printf("Error: (errno=%d) %s\n", errno, strerror(errno));
+        return 1;
+    }
+
+    int input_file = open(input_filename, O_RDONLY, 0);
+    if (input_file < 0)
+    {
+        printf("Error: (errno=%d) %s\n", errno, strerror(errno));
+        return 1;
+    }
+
+    uint32 input_size = st.st_size;
+    void *input_data = mmap(0, input_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (input_data == 0)
+    {
+        printf("Error: Could not allocate memory\n");
+        return 1;
+    }
+
+    ssize_t bytes_read = read(input_file, input_data, input_size);
+    if (bytes_read < input_size)
+    {
+        printf("Error: File have not been read correctly (%ld bytes read of %d)\n", bytes_read, input_size);
+        return 1;
+    }
+
+    lexer lexer = {};
+    lexer.data = input_data;
+    lexer.size = input_size;
+
+    int i = 0;
+    while (true)
+    {
+        token t = lexer_eat_token(&lexer);
+        if (t.tag == TOKEN_INVALID || t.tag == TOKEN_EOF) break;
+        printf("Token %d: "STRING_VIEW_FMT"\n", i++, STRING_VIEW_ARG(t.span));
+    }
+
+    uint32_t interpreter_memory_size = 0x1000; /* 4k page */
+
     interpreter interpreter = {};
-    interpreter.memory = malloc(0x1000);
-    interpreter.memory_size = 0x1000;
+    interpreter.memory = malloc(interpreter_memory_size);
+    interpreter.memory_size = interpreter_memory_size;
 
     uint64_t instruction_address = 0;
     uint64_t instruction_index = 0;
@@ -100,7 +172,7 @@ int main()
         }
     }
 
-    int32_t ec = 0;
+    ec = 0;
     do
     {
         ec = interpreter_step(&interpreter);
@@ -114,3 +186,6 @@ int main()
 #include "ir0.c"
 #include "../bytecode/interpreter.c"
 #include "../bytecode/bytecode.c"
+#include "../lexer.c"
+#include "../ascii.c"
+#include "../string_view.c"

@@ -1,10 +1,11 @@
 #include "lexer.h"
 #include "ascii.h"
 
-bool32 is_valid_identifier_head(char c) { return (c == '_') || is_ascii_alpha(c); }
-bool32 is_valid_identifier_body(char c) { return (c == '_') || is_ascii_alpha(c) || is_ascii_digit(c); }
 
-char get_char(lexer *l)
+static bool is_valid_identifier_head(char c) { return (c == '_') || ascii_is_alpha(c); }
+static bool is_valid_identifier_body(char c) { return (c == '_') || ascii_is_alpha(c) || ascii_is_digit(c); }
+
+char lexer_get_char(lexer *l)
 {
     char c = 0;
     if (l->cursor < l->size)
@@ -12,9 +13,9 @@ char get_char(lexer *l)
     return c;
 }
 
-char eat_char(lexer *l)
+char lexer_eat_char(lexer *l)
 {
-    char c = get_char(l);
+    char c = lexer_get_char(l);
     if (c != 0)
     {
         l->cursor += 1;
@@ -30,33 +31,33 @@ char eat_char(lexer *l)
     return c;
 }
 
-int32 consume_while(lexer *l, predicate_t *p)
+int32 lexer_consume_while(lexer *l, lexer_predicate_t *p)
 {
     int count = 0;
-    char c = get_char(l);
+    char c = lexer_get_char(l);
     while ((c > 0) && p(c))
     {
-        eat_char(l);
+        lexer_eat_char(l);
         count += 1;
-        c = get_char(l);
+        c = lexer_get_char(l);
     }
     return count;
 }
 
-int32 consume_until(lexer *l, predicate_t *p)
+int32 lexer_consume_until(lexer *l, lexer_predicate_t *p)
 {
     int count = 0;
-    char c = get_char(l);
+    char c = lexer_get_char(l);
     while ((c > 0) && !p(c))
     {
-        eat_char(l);
+        lexer_eat_char(l);
         count += 1;
-        c = get_char(l);
+        c = lexer_get_char(l);
     }
     return count;
 }
 
-int eat_string(lexer *l, char const *s, uint32 n)
+int lexer_eat_string(lexer *l, char const *s, uint32 n)
 {
     uint32 count = 0;
     char const *s1 = (char const *) (l->data + l->cursor);
@@ -75,56 +76,60 @@ int eat_string(lexer *l, char const *s, uint32 n)
     return 0;
 }
 
-int32 find_keyword(lexer *l, string_view span)
+int32 lexer_find_keyword(lexer *l, string_view span)
 {
-    for (uint32 keyword_index = 0; keyword_index < l->keyword_count; keyword_index++)
+    uint32 keyword_index;
+    for (keyword_index = 0;
+         keyword_index < l->keyword_count;
+         keyword_index++)
     {
-        if (string_view_equal(l->keywords[keyword_index], span))
+        if (string_view_is_equal(l->keywords[keyword_index], span))
         {
             return l->keyword_tags[keyword_index];
         }
     }
-    return Token_Invalid;
+    return TOKEN_INVALID;
 }
 
-token get_token(lexer *l)
+token lexer_get_token(lexer *l)
 {
     if (l->current_token_ok)
         return l->current_token;
 
-    consume_while(l, is_ascii_whitespace);
+    lexer_consume_while(l, ascii_is_whitespace);
 
     token t = {
-        .tag = Token_Invalid,
+        .tag = TOKEN_INVALID,
         .line = l->line,
         .column = l->column,
     };
 
-    char c = get_char(l);
+    char c = lexer_get_char(l);
     if (c == 0)
     {
-        t.tag = Token_Eof;
+        t.tag = TOKEN_EOF;
     }
-    else if (l->is_valid_identifier_head(c))
+    else if (is_valid_identifier_head(c))
     {
-        t.tag = Token_Identifier;
+        t.tag = TOKEN_IDENTIFIER;
         t.span.data = (char const *) (l->data + l->cursor);
-        eat_char(l); // Consume identifier head now, becuse consume_while
-                     // might have predicate that does not include head character.
-        t.span.size = consume_while(l, l->is_valid_identifier_body) + 1;
+        lexer_eat_char(l); /* Consume identifier head now, becuse consume_while
+                              might have predicate that does not include head character. */
+        t.span.size = lexer_consume_while(l, is_valid_identifier_body) + 1;
 
-        int32 keyword_tag = find_keyword(l, t.span);
-        if (keyword_tag > Token_Invalid)
+        int32 keyword_tag = lexer_find_keyword(l, t.span);
+        if (keyword_tag > TOKEN_INVALID)
             t.tag = keyword_tag;
     }
-    else if (is_ascii_digit(c))
+    else if (ascii_is_digit(c))
     {
-        t.tag = Token_LiteralInteger;
+        t.tag = TOKEN_LITERAL_INTEGER;
         t.span.data = (char const *) (l->data + l->cursor);
-        t.span.size = consume_while(l, is_ascii_digit);
+        t.span.size = lexer_consume_while(l, ascii_is_digit);
 
         int64 integer_value = 0;
-        for (uint32 i = 0; i < t.span.size; i++)
+        uint32 i;
+        for (i = 0; i < t.span.size; i++)
         {
             integer_value *= 10;
             integer_value += (t.span.data[i] - '0');
@@ -137,7 +142,7 @@ token get_token(lexer *l)
         t.span.data = (char const *) (l->data + l->cursor);
         t.span.size = 1;
 
-        eat_char(l);
+        lexer_eat_char(l);
     }
 
     l->current_token = t;
@@ -145,9 +150,9 @@ token get_token(lexer *l)
     return t;
 }
 
-token eat_token(lexer *l)
+token lexer_eat_token(lexer *l)
 {
-    token result = get_token(l);
+    token result = lexer_get_token(l);
     l->current_token_ok = false;
     return result;
 }

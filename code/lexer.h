@@ -1,67 +1,68 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "common.h"
+#include "base.h"
 #include "string_view.h"
 
 enum
 {
-    Token_Invalid = -1,
-    Token_Eof = 0,
+    TOKEN_INVALID = -1,
+    TOKEN_EOF = 0,
 
-    Token_ParenOpen = '(',
-    Token_ParenClose = ')',
+    TOKEN_PARENOPEN = '(',
+    TOKEN_PARENCLOSE = ')',
 
-    Token_BracketOpen = '[',
-    Token_BracketClose = ']',
+    TOKEN_BRACKETOPEN = '[',
+    TOKEN_BRACKETCLOSE = ']',
 
-    Token_BraceOpen = '{',
-    Token_BraceClose = '}',
+    TOKEN_BRACEOPEN = '{',
+    TOKEN_BRACECLOSE = '}',
 
-    Token_Colon = ':',
-    Token_Semicolon = ';',
+    TOKEN_COLON = ':',
+    TOKEN_SEMICOLON = ';',
 
-    Token_Plus = '+',
-    Token_Minus = '-',
-    Token_Asterics = '*',
-    Token_Slash = '/',
-    Token_Comma = ',',
-    Token_Period = '.',
+    TOKEN_PLUS = '+',
+    TOKEN_MINUS = '-',
+    TOKEN_ASTERICS = '*',
+    TOKEN_SLASH = '/',
+    TOKEN_COMMA = ',',
+    TOKEN_PERIOD = '.',
 
-    Token_Equals = '=',
-    Token_More = '>',
-    Token_Less = '<',
+    TOKEN_EQUALS = '=',
+    TOKEN_MORE = '>',
+    TOKEN_LESS = '<',
 
-    Token_Identifier = 0x100, // 256
+    TOKEN_IDENTIFIER = 0x100, /* 256 */
 
-    Token_LiteralInteger,
-    Token_LiteralFloat,
-    Token_LiteralString,
+    TOKEN_LITERAL_INTEGER,
+    TOKEN_LITERAL_FLOAT,
+    TOKEN_LITERAL_STRING,
 
-    Token_Count,
+    TOKEN_COUNT,
 };
 
 typedef struct token
 {
     int32 tag;
-    int32 line, column;
+    int32 line;
+    int32 column;
 
     union
     {
-        int32 boolean_value;
-        int64 integer_value;
-        double  float_value;
+        int64   boolean_value;
+        int64   integer_value;
+        float64 float_value;
     };
 
-        string_view span;
+    string_view span;
 } token;
 
-typedef bool32 predicate_t(char);
+typedef bool lexer_predicate_t(char);
 
 typedef struct lexer
 {
-    uint8 *data;
-    uint32 size;
+    char const *data;
+    uint32      size;
 
     uint32 cursor;
     uint32 line;
@@ -73,21 +74,15 @@ typedef struct lexer
     string_view *keywords;
     int32       *keyword_tags;
     uint32       keyword_count;
-
-    predicate_t *is_valid_identifier_head;
-    predicate_t *is_valid_identifier_body;
 } lexer;
 
-char get_char(lexer *);
-char eat_char(lexer *);
-void eat_crlf(lexer *);
-int32 consume_while(lexer *, predicate_t *p);
-int32 consume_until(lexer *, predicate_t *p);
-int eat_string(lexer *, const char *, uint32);
-token get_token(lexer *);
-token eat_token(lexer *);
+char  lexer_get_char(lexer *);
+char  lexer_eat_char(lexer *);
+void  lexer_eat_crlf(lexer *);
+int32 lexer_consume_while(lexer *, lexer_predicate_t *p);
+int32 lexer_consume_until(lexer *, lexer_predicate_t *p);
+int   lexer_eat_string(lexer *, const char *, uint32);
+token lexer_get_token(lexer *);
+token lexer_eat_token(lexer *);
 
-bool32 is_valid_identifier_head(char c);
-bool32 is_valid_identifier_body(char c);
-
-#endif // LEXER_H
+#endif /* LEXER_H */

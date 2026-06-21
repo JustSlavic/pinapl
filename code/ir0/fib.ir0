@@ -1,4 +1,42 @@
-    mov r0, 8
-    mov r1, 1
-    mov r2, r1
-    ldr r0, [r0 - 8]
+main:
+    mov     r0, 72
+    str     r0, byte [0x80]
+    mov     r0, 101
+    str     r0, byte [0x81]
+    mov     r0, 108
+    str     r0, byte [0x82]
+    mov     r0, 108
+    str     r0, byte [0x83]
+    mov     r0, 111
+    str     r0, byte [0x84]
+    mov     r0, 44
+    str     r0, byte [0x85]
+    mov     r0, 32
+    str     r0, byte [0x86]
+    mov     r0, 87
+    str     r0, byte [0x87]
+    mov     r0, 111
+    str     r0, byte [0x88]
+    mov     r0, 114
+    str     r0, byte [0x89]
+    mov     r0, 108
+    str     r0, byte [0x90]
+    mov     r0, 100
+    str     r0, byte [0x91]
+    mov     r0, 33
+    str     r0, byte [0x92]
+    mov     r0, 10
+    str     r0, byte [0x93]
+    mov     r0, 0
+    str     r0, byte [0x94]
+
+    mov     r0, 0
+    mov     r1, 1
+loop:
+    add     r2, r0, r1
+    mov     r0, r1
+    mov     r1, r2
+    cmp     r0, 1000
+    jl      loop
+    cmp     r0, 0x3dc
+    sete    r8
