@@ -1,12 +1,14 @@
-#ifndef IR0_PARSER_H
-#define IR0_PARSER_H
+#ifndef PINAPL_IR0_PARSER_H_
+#define PINAPL_IR0_PARSER_H_
 
-#include "../common.h"
-#include "ir0_stream.h"
-#include "ir0_lexer.h"
-
-
-ir0_stream ir0_parse_text(char const *source, int32 source_size);
+#include <base.h>
+#include <string_view.h>
+#include <lexer.h>
 
 
-#endif // IR0_PARSER_H
+char const *ir0_token_tag_to_cstring(int tag);
+uint32 ir0_get_keywords(string_view **kst, int **kvt);
+bool32 ir0_parse_instruction(lexer *l);
+
+
+#endif /* PINAPL_IR0_PARSER_H_ */

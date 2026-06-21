@@ -22,4 +22,7 @@ typedef int32              bool32;
 #define false 0
 
 
+#define ARRAY_COUNT(ARR) (sizeof(ARR) / sizeof((ARR)[0]))
+
+
 #endif /* PINAPL_BASE_H_ */

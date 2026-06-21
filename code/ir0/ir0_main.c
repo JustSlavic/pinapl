@@ -4,11 +4,9 @@
 #include "ascii.h"
 #include "parse.h"
 #include "ir0.h"
-#include "ir0_lexer.h"
+#include "ir0_parser.h"
 #include "../lexer.h"
 #include "../bytecode/interpreter.h"
-
-#define ARRAY_COUNT(A) (sizeof(A) / sizeof(A[0]))
 
 ir0_label labels[64] = {};
 ir0 instruction_stream[] =
@@ -106,13 +104,16 @@ int main()
     lexer lexer = {};
     lexer.data = input_data;
     lexer.size = input_size;
+    lexer.keyword_count = ir0_get_keywords(&lexer.keywords, &lexer.keyword_tags);
 
     int i = 0;
     while (i < 600)
     {
-        token t = lexer_eat_token(&lexer);
+        ir0_parse_instruction(&lexer);
+        /*token t = lexer_eat_token(&lexer);
         if (t.tag == TOKEN_INVALID || t.tag == TOKEN_EOF) break;
-        printf("Token %d: %s("STRING_VIEW_FMT")\n", i++, token_tag_to_cstring(t.tag), STRING_VIEW_ARG(t.span));
+        printf("Token %d: %s("STRING_VIEW_FMT")\n", i++, ir0_token_tag_to_cstring(t.tag), STRING_VIEW_ARG(t.span));*/
+        i += 1;
     }
 
     /* Interpreter */
@@ -189,6 +190,7 @@ int main()
 
 #include "ir0.c"
 #include "parse.c"
+#include "ir0_parser.c"
 #include "../bytecode/interpreter.c"
 #include "../bytecode/bytecode.c"
 #include "../lexer.c"
