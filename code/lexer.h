@@ -9,14 +9,14 @@ enum
     TOKEN_INVALID = -1,
     TOKEN_EOF = 0,
 
-    TOKEN_PARENOPEN = '(',
-    TOKEN_PARENCLOSE = ')',
+    TOKEN_PAREN_OPEN = '(',
+    TOKEN_PAREN_CLOSE = ')',
 
-    TOKEN_BRACKETOPEN = '[',
-    TOKEN_BRACKETCLOSE = ']',
+    TOKEN_BRACKET_OPEN = '[',
+    TOKEN_BRACKET_CLOSE = ']',
 
-    TOKEN_BRACEOPEN = '{',
-    TOKEN_BRACECLOSE = '}',
+    TOKEN_BRACE_OPEN = '{',
+    TOKEN_BRACE_CLOSE = '}',
 
     TOKEN_COLON = ':',
     TOKEN_SEMICOLON = ';',
@@ -40,6 +40,8 @@ enum
 
     TOKEN_COUNT,
 };
+
+char const *token_tag_to_cstring(int);
 
 typedef struct token
 {

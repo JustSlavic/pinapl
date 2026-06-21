@@ -5,6 +5,38 @@
 static bool is_valid_identifier_head(char c) { return (c == '_') || ascii_is_alpha(c); }
 static bool is_valid_identifier_body(char c) { return (c == '_') || ascii_is_alpha(c) || ascii_is_digit(c); }
 
+char const *token_tag_to_cstring(int tag)
+{
+    switch (tag)
+    {
+        case TOKEN_INVALID: return "TOKEN_INVALID";
+        case TOKEN_EOF: return "TOKEN_EOF";
+        case TOKEN_PAREN_OPEN: return "TOKEN_PAREN_OPEN";
+        case TOKEN_PAREN_CLOSE: return "TOKEN_PAREN_CLOSE";
+        case TOKEN_BRACKET_OPEN: return "TOKEN_BRACKET_OPEN";
+        case TOKEN_BRACKET_CLOSE: return "TOKEN_BRACKET_CLOSE";
+        case TOKEN_BRACE_OPEN: return "TOKEN_BRACE_OPEN";
+        case TOKEN_BRACE_CLOSE: return "TOKEN_BRACE_CLOSE";
+        case TOKEN_COLON: return "TOKEN_COLON";
+        case TOKEN_SEMICOLON: return "TOKEN_SEMICOLON";
+        case TOKEN_PLUS: return "TOKEN_PLUS";
+        case TOKEN_MINUS: return "TOKEN_MINUS";
+        case TOKEN_ASTERICS: return "TOKEN_ASTERICS";
+        case TOKEN_SLASH: return "TOKEN_SLASH";
+        case TOKEN_COMMA: return "TOKEN_COMMA";
+        case TOKEN_PERIOD: return "TOKEN_PERIOD";
+        case TOKEN_EQUALS: return "TOKEN_EQUALS";
+        case TOKEN_MORE: return "TOKEN_MORE";
+        case TOKEN_LESS: return "TOKEN_LESS";
+        case TOKEN_IDENTIFIER: return "TOKEN_IDENTIFIER";
+        case TOKEN_LITERAL_INTEGER: return "TOKEN_LITERAL_INTEGER";
+        case TOKEN_LITERAL_FLOAT: return "TOKEN_LITERAL_FLOAT";
+        case TOKEN_LITERAL_STRING: return "TOKEN_LITERAL_STRING";
+        default: return "TOKEN_UNLISTED";
+    }
+    return "TOKEN_UNLISTED";
+}
+
 char lexer_get_char(lexer *l)
 {
     char c = 0;
@@ -57,7 +89,7 @@ int32 lexer_consume_until(lexer *l, lexer_predicate_t *p)
     return count;
 }
 
-int lexer_eat_string(lexer *l, char const *s, uint32 n)
+int32 lexer_eat_string(lexer *l, char const *s, uint32 n)
 {
     uint32 count = 0;
     char const *s1 = (char const *) (l->data + l->cursor);
@@ -124,17 +156,11 @@ token lexer_get_token(lexer *l)
     else if (ascii_is_digit(c))
     {
         t.tag = TOKEN_LITERAL_INTEGER;
-        t.span.data = (char const *) (l->data + l->cursor);
-        t.span.size = lexer_consume_while(l, ascii_is_digit);
-
-        int64 integer_value = 0;
-        uint32 i;
-        for (i = 0; i < t.span.size; i++)
-        {
-            integer_value *= 10;
-            integer_value += (t.span.data[i] - '0');
-        }
-        t.integer_value = integer_value;
+        char const *s = (char const *) (l->data + l->cursor);
+        uint32 parsed_characters = parse_integer(s, l->size - l->cursor, &t.integer_value);
+        t.span.data = s;
+        t.span.size = parsed_characters;
+        l->cursor += parsed_characters;
     }
     else
     {
