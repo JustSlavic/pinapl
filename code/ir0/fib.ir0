@@ -1,4 +1,5 @@
 main:
+    mov     r1, 0x80
     mov     r0, 72
     str     r0, byte [0x80]
     mov     r0, 101

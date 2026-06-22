@@ -39,7 +39,7 @@ enum
     TOKEN_LITERAL_FLOAT,
     TOKEN_LITERAL_STRING,
 
-    TOKEN_COUNT,
+    TOKEN_KEYWORD = 0x10000, /* 65536 */
 };
 
 char const *token_tag_to_cstring(int);

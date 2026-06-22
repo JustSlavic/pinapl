@@ -1,12 +1,11 @@
 #include "ir0_parser.h"
 #include <string_view.h>
+#include <imparser.h>
 
 
 enum
 {
-    TOKEN_KEYWORD = 0x10000,
-
-    TOKEN_KEYWORD_MOV,
+    TOKEN_KEYWORD_MOV = TOKEN_KEYWORD + 1,
     TOKEN_KEYWORD_LDR,
     TOKEN_KEYWORD_STR,
 
@@ -165,348 +164,157 @@ int32 ir0_identifier_is_register(string_view s)
 
 bool32 ir0_parse_instruction(lexer *l)
 {
+    imparser_init(l);
+
+    /* Safepoint. */
+    lexer saved = *l;
+
+    /* Try to parse label. */
     token ident = lexer_get_token(l);
     if (ident.tag == TOKEN_IDENTIFIER)
     {
         lexer_eat_token(l);
-        token semicolon_or_argument = lexer_get_token(l);
-        if (semicolon_or_argument.tag == ':')
+        token colon = lexer_get_token(l);
+        if (colon.tag == ':')
         {
+            lexer_eat_token(l);
             printf("LABEL: "STRING_VIEW_FMT"\n", STRING_VIEW_ARG(ident.span));
+            return true;
+        }
+        else
+        {
+            printf("Parser Error: Recognized identifier at %d:%d (probably label), but it's not followed by the colon (:)\n"
+                   "              Found something else at %d:%d instead.\n", ident.line, ident.column, colon.line, colon.column);
         }
     }
-    if (ident.tag | TOKEN_KEYWORD)
+
+    /* Rollback */
+    *l = saved;
+
+    /* Try to parse instruction */
+    token instruction_keyword;
+    token bracket_open, bracket_close;
+
+    instruction_keyword = lexer_get_token(l);
+    if (instruction_keyword.tag & TOKEN_KEYWORD)
     {
         lexer_eat_token(l);
-        token argument = lexer_get_token(l);
-        if (argument.tag == TOKEN_IDENTIFIER)
+        token argument1 = lexer_get_token(l);
+        if (argument1.tag == TOKEN_IDENTIFIER)
         {
-            int32 reg_number = ir0_identifier_is_register(argument.span);
-            if (reg_number > -1)
+            lexer_eat_token(l);
+            int32 argument1_reg_number = ir0_identifier_is_register(argument1.span);
+            if (argument1_reg_number > -1)
             {
-                lexer_eat_token(l);
-                printf("INSTRUCTION: "STRING_VIEW_FMT" "STRING_VIEW_FMT"\n", STRING_VIEW_ARG(ident.span), STRING_VIEW_ARG(argument.span));
-                /* WIP */
-                #if 0
                 token comma = lexer_get_token(l);
                 if (comma.tag == ',')
                 {
                     lexer_eat_token(l);
-                    token size_qualifier_or_argument = lexer_get_token(l);
-                    if ((size_qualifier_or_argument.tag == TOKEN_KEYWORD_BYTE) ||
-                        (size_qualifier_or_argument.tag == TOKEN_KEYWORD_WORD) ||
-                        (size_qualifier_or_argument.tag == TOKEN_KEYWORD_DWORD) ||
-                        (size_qualifier_or_argument.tag == TOKEN_KEYWORD_QWORD))
+                    token argument2 = lexer_get_token(l);
+                    if (argument2.tag == TOKEN_IDENTIFIER)
                     {
                         lexer_eat_token(l);
-                        token bracket_open = lexer_get_token(l);
-
+                        int32 argument2_reg_number = ir0_identifier_is_register(argument2.span);
+                        if (argument2_reg_number > -1)
+                        {
+                            comma = lexer_get_token(l);
+                            if (comma.tag == ',')
+                            {
+                                lexer_eat_token(l);
+                                token argument3 = lexer_get_token(l);
+                                if (argument3.tag == TOKEN_IDENTIFIER)
+                                {
+                                    lexer_eat_token(l);
+                                    int32 argument3_reg_number = ir0_identifier_is_register(argument3.span);
+                                    if (argument3_reg_number > -1)
+                                    {
+                                        printf("INSTRUCTION: "STRING_VIEW_FMT_UNQUOTED" "STRING_VIEW_FMT_UNQUOTED", "STRING_VIEW_FMT_UNQUOTED", "STRING_VIEW_FMT_UNQUOTED"\n",
+                                            STRING_VIEW_ARG(instruction_keyword.span),
+                                            STRING_VIEW_ARG(argument1.span),
+                                            STRING_VIEW_ARG(argument2.span),
+                                            STRING_VIEW_ARG(argument3.span));
+                                        return true;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                printf("INSTRUCTION: "STRING_VIEW_FMT_UNQUOTED" "STRING_VIEW_FMT_UNQUOTED", "STRING_VIEW_FMT_UNQUOTED"\n",
+                                    STRING_VIEW_ARG(instruction_keyword.span),
+                                    STRING_VIEW_ARG(argument1.span),
+                                    STRING_VIEW_ARG(argument2.span));
+                                return true;
+                            }
+                        }
+                    }
+                    else if (argument2.tag == TOKEN_LITERAL_INTEGER)
+                    {
+                        lexer_eat_token(l);
+                        printf("INSTRUCTION: "STRING_VIEW_FMT_UNQUOTED" "STRING_VIEW_FMT_UNQUOTED", 0x%llx\n",
+                            STRING_VIEW_ARG(instruction_keyword.span),
+                            STRING_VIEW_ARG(argument1.span),
+                            argument2.integer_value);
+                        return true;
+                    }
+                    else if ((argument2.tag == TOKEN_KEYWORD_BYTE) ||
+                             (argument2.tag == TOKEN_KEYWORD_WORD) ||
+                             (argument2.tag == TOKEN_KEYWORD_DWORD) ||
+                             (argument2.tag == TOKEN_KEYWORD_QWORD))
+                    {
+                        lexer_eat_token(l);
+                        if (imparser_bracket_open(&bracket_open))
+                        {
+                            token address = lexer_get_token(l);
+                            if (address.tag == TOKEN_LITERAL_INTEGER)
+                            {
+                                lexer_eat_token(l);
+                                if (imparser_bracket_close(&bracket_close))
+                                {
+                                    printf("INSTRUCTION: "STRING_VIEW_FMT_UNQUOTED" "STRING_VIEW_FMT_UNQUOTED", "STRING_VIEW_FMT_UNQUOTED" [0x%llx]\n",
+                                        STRING_VIEW_ARG(instruction_keyword.span),
+                                        STRING_VIEW_ARG(argument1.span),
+                                        STRING_VIEW_ARG(argument2.span), /* qualifier */
+                                        address.integer_value);
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        printf("Parser Error: Recognized comma at %d:%d, it should be followed by a [@todo: fill in what could go after],\n"
+                               "but recognized something else at %d:%d\n", comma.line, comma.column, argument2.line, argument2.column);
                     }
                 }
                 else
                 {
-                    /* 1 argument */
+                    printf("INSTRUCTION: "STRING_VIEW_FMT_UNQUOTED" "STRING_VIEW_FMT_UNQUOTED"\n",
+                        STRING_VIEW_ARG(instruction_keyword.span),
+                        STRING_VIEW_ARG(argument1.span));
+                    return true;
                 }
-                #endif
             }
             else
             {
                 /* 0 arguments */
+                printf("INSTRUCTION: "STRING_VIEW_FMT_UNQUOTED"\n",
+                    STRING_VIEW_ARG(instruction_keyword.span));
+                return true;
             }
         }
+        else
+        {
+            /* 0 arguments */
+            printf("INSTRUCTION: "STRING_VIEW_FMT_UNQUOTED"\n",
+                STRING_VIEW_ARG(instruction_keyword.span));
+            return true;
+        }
     }
+
+    /* Rollback */
+    *l = saved;
+
+    printf("Parser Error: Could not recognize ir0 instruction\n");
+
     return false;
 }
-
-
-/*
-
-bool32 ir0_parse_address_calculation(lexer *l, ir0_address_calculation *addr)
-{
-    token open_bracket = eat_token(l);
-    if (open_bracket.tag != '[')
-    {
-        printf("Effective address parsing error. There should be '['\n"
-               "Why did you even called this function? Use 'get_token' to test for '[' before calling this function\n");
-        return false;
-    }
-
-    int32 sign = 1;
-    addr->c = 1;
-    addr->r1 = -1;
-    addr->r2 = -1;
-    addr->a = 0;
-
-    token t1 = get_token(l);
-    if (t1.tag == Token_LiteralInteger)
-    {
-        eat_token(l);
-        token s1 = get_token(l);
-        if (s1.tag == '*')
-        {
-            eat_token(l);
-            addr->c = t1.integer_value;
-            token t2 = get_token(l);
-            if (t2.tag == Token_Identifier)
-            {
-                // Continue
-            }
-            else
-            {
-                // Error
-            }
-        }
-        else if (s1.tag == ']')
-        {
-            addr->a = t1.integer_value;
-        }
-        else
-        {
-            // Error
-        }
-    }
-
-    {
-        token t = get_token(l);
-        if (t.tag == Token_Identifier)
-        {
-            eat_token(l);
-            addr->r1 = ir0_identifier_is_register(t.span);
-            token s = get_token(l);
-            if (s.tag == '+' || s.tag == '-')
-            {
-                eat_token(l);
-                if (s.tag == '-') sign = -1;
-                // Continue
-            }
-            else if (s.tag == ']')
-            {
-                // Continue
-            }
-            else
-            {
-                // Error
-            }
-        }
-    }
-
-    {
-        token t = get_token(l);
-        if (t.tag == Token_Identifier)
-        {
-            eat_token(l);
-            addr->r2 = ir0_identifier_is_register(t.span);
-            token s = get_token(l);
-            if (s.tag == '+' || s.tag == '-')
-            {
-                eat_token(l);
-                if (s.tag == '-') sign = -1;
-                // Continue
-            }
-            else if (s.tag == ']')
-            {
-                // Continue
-            }
-            else
-            {
-                // Error
-            }
-        }
-    }
-
-    {
-        token t = get_token(l);
-        if (t.tag == Token_LiteralInteger)
-        {
-            eat_token(l);
-            addr->a = sign * t.integer_value;
-        }
-        else
-        {
-            // Error
-        }
-    }
-
-    token bracket_close = eat_token(l);
-    if (bracket_close.tag != ']')
-    {
-        printf("Effective address parsing error. There should be ']' or '+'\n");
-        return false;
-    }
-
-    return true;
-}
-
-
-ir0_stream ir0_parse_text(char const *source, int32 source_size)
-{
-    lexer lexer =
-    {
-        .data = (uint8 *) source,
-        .size = source_size,
-
-        .cursor = 0,
-        .line = 1,
-        .column = 1,
-
-        .keywords = malloc(sizeof(string_view) * ARRAY_COUNT(keywords)),
-        .keyword_tags = malloc(sizeof(int32) * ARRAY_COUNT(keywords)),
-        .keyword_count = ARRAY_COUNT(keywords),
-
-        .is_valid_identifier_head = ir0_is_valid_identifier_head,
-        .is_valid_identifier_body = ir0_is_valid_identifier_body,
-    };
-
-    for (uint32 keyword_index = 0; keyword_index < ARRAY_COUNT(keywords); keyword_index++)
-    {
-        lexer.keywords[keyword_index] = make_string_view_from_cstring(keywords[keyword_index].str);
-        lexer.keyword_tags[keyword_index] = keywords[keyword_index].tag;
-    }
-
-    int32 stream_instruction_count = 1024;
-    int32 stream_label_buffer_size = 1024;
-    int32 stream_label_count = 32;
-    ir0_stream stream =
-    {
-        .instructions = malloc(sizeof(ir0_instruction) * stream_instruction_count),
-        .count  = 0,
-        .capacity = stream_instruction_count,
-
-        .label_buffer = malloc(stream_label_buffer_size),
-        .label_buffer_size = 0,
-        .label_buffer_capacity = stream_label_buffer_size,
-
-        .labels = malloc(stream_label_count * sizeof(string_view)),
-        .label_at = malloc(stream_label_count * sizeof(uint32)),
-        .label_count = 0,
-        .label_capacity = stream_label_count,
-    };
-
-    int error = 0;
-    while (true)
-    {
-        token t = get_token(&lexer);
-        if ((t.tag == Token_Invalid) || (t.tag == Token_Eof))
-            break;
-
-        if (t.tag == Token_Identifier)
-        {
-            // Label
-            eat_token(&lexer); // eat label
-            token t1 = get_token(&lexer); // get colon
-            if (t1.tag == ':')
-            {
-                eat_token(&lexer); // eat colon
-                int32 label_index = ir0_find_label(&stream, t.span);
-                if (label_index >= 0)
-                    stream.label_at[label_index] = stream.count;
-                else
-                    label_index = ir0_push_label_at(&stream, t.span, stream.count);
-            }
-        }
-        else if ((t.tag & Token_Keyword) > 0)
-        {
-            // Instruction
-            eat_token(&lexer);
-            ir0_tag instruction_tag = Ir0_Unknown;
-            for (uint32 keyword_index = 0; keyword_index < ARRAY_COUNT(keywords); keyword_index++)
-            {
-                string_view kw = make_string_view_from_cstring(keywords[keyword_index].str);
-                if (string_view_equal(t.span, kw))
-                {
-                    instruction_tag = keywords[keyword_index].ir0;
-                    break;
-                }
-            }
-
-            int32 at_line = t.line;
-
-            ir0_arg args[3] = {};
-            uint32 count = 0;
-            for (int i = 0; i < 3; i++)
-            {
-                token t1 = get_token(&lexer);
-                if (t1.line != at_line) break;
-
-                if (t1.tag == Token_Identifier ||
-                    t1.tag == Token_LiteralInteger ||
-                    t1.tag == '[')
-                {
-                    count += 1;
-                    if (t1.tag == Token_Identifier)
-                    {
-                        eat_token(&lexer);
-                        int32 is_reg = ir0_identifier_is_register(t1.span);
-                        if (is_reg < 0)
-                        {
-                            args[i].tag = Ir0_ArgumentLabel;
-                            int32 label_index = ir0_find_label(&stream, t1.span);
-                            if (label_index < 0) label_index = ir0_push_label(&stream, t1.span);
-                            args[i].u32 = label_index;
-                        }
-                        else
-                        {
-                            args[i].tag = Ir0_ArgumentRegister;
-                            args[i].u32 = is_reg;
-                        }
-                    }
-                    else if (t1.tag == Token_LiteralInteger)
-                    {
-                        eat_token(&lexer);
-                        args[i].tag = Ir0_ArgumentImmediate;
-                        args[i].u32 = t1.integer_value;
-                    }
-                    else if (t1.tag == '[')
-                    {
-                        ir0_address_calculation addr_calc = {};
-                        bool32 success = ir0_parse_address_calculation(&lexer, &addr_calc);
-                        if (success)
-                        {
-                            args[i].tag = Ir0_ArgumentAddress;
-                            args[i].addr = addr_calc;
-                        }
-                        else
-                        {
-                            printf("Parser error: could not parse address calculation.\n");
-                            error = 1;
-                            break;
-                        }
-                    }
-
-                    token t2 = get_token(&lexer);
-                    if ((t2.line == at_line) && (t2.tag = ','))
-                    {
-                        eat_token(&lexer);
-                    }
-                }
-                else
-                {
-                    printf("Could not parse argument for the instruction!\n");
-                    printf("    token: " STRING_VIEW_FMT "\n", STRING_VIEW_PRINT(t1.span));
-                    error = 1;
-                    break;
-                }
-            }
-
-            if (error) break;
-
-            {
-                ir0_instruction instruction = { .tag = instruction_tag };
-                for (uint32 i = 0; i < count; i++)
-                {
-                    instruction.args[i] = args[i];
-                }
-                instruction.arg_count = count;
-                stream.instructions[stream.count++] = instruction;
-            }
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    if (error) stream.count = 0;
-    return stream;
-}
-*/

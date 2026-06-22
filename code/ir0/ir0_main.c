@@ -109,7 +109,8 @@ int main()
     int i = 0;
     while (i < 600)
     {
-        ir0_parse_instruction(&lexer);
+        bool32 ok = ir0_parse_instruction(&lexer);
+        if (!ok) break;
         /*token t = lexer_eat_token(&lexer);
         if (t.tag == TOKEN_INVALID || t.tag == TOKEN_EOF) break;
         printf("Token %d: %s("STRING_VIEW_FMT")\n", i++, ir0_token_tag_to_cstring(t.tag), STRING_VIEW_ARG(t.span));*/
@@ -196,3 +197,4 @@ int main()
 #include "../lexer.c"
 #include "../ascii.c"
 #include "../string_view.c"
+#include <imparser.c>

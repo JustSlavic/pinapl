@@ -7,7 +7,7 @@ os_name=$(uname -s)
 compiler="gcc"
 assembler="as"
 linker="ld"
-cc_flags="-std=c89 -Icode/"
+cc_flags="-std=c89 -g -Icode/"
 cc_warnings="-Wall -Werror"
 
 mkdir -p build
